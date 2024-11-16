@@ -5,36 +5,91 @@ import {useNavigate} from 'react-router-dom';
 import {
     Box,
     Button,
-    Container,
     TextField,
     CircularProgress,
 } from '@mui/material';
 import {styled} from '@mui/system';
 import Lottie from 'lottie-react';
 import loginAnimation from '../assets/loginAnimation.json';
+import loginAnimation2 from '../assets/loginAnimation2.json';
 import {useUser} from '../contexts/GlobalContext';
 import {auth} from '../components/FirebaseConfig.tsx';
 import SignupDialog from '../components/Signup';
 import {useAuth} from '../contexts/AuthContext';
 
-const LoginContainer = styled(Box)(() => ({
+const Container = styled(Box)(({theme}) => ({
     display: 'flex',
-    flexDirection: 'column',
+    flexWrap: 'nowrap',
     justifyContent: 'center',
     alignItems: 'center',
-    height: '100vh',
-    padding: '16px',
-    backgroundColor: '#f5f5f5',
+    width: '100%',
+    backgroundColor: 'beige',
+    [theme.breakpoints.down('sm')]: {
+        display: 'block'
+    }, [theme.breakpoints.down('md')]: {
+        display: 'block'
+    }
+}));
+
+
+const LottieContainers = styled(Box)(({theme}) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100vh', // Full height for desktop and larger screens
+    flexBasis: '30%', // Default space taken
+    [theme.breakpoints.down('sm')]: {
+        position: 'absolute',
+        display: 'block',
+        backgroundColor: 'beige',
+        zIndex: '-1',
+        maxHeight: '50vh',
+        '&:first-of-type': {
+            top: 0,
+            left: 0,
+        },
+        '&:last-of-type': {
+            top: '50%',
+        },
+    },
+    [theme.breakpoints.down('md')]: {
+        position: 'absolute',
+        backgroundColor: 'beige',
+        overflow: 'hidden',
+        zIndex: '-1',
+        maxHeight: '50vh',
+        '&:first-of-type': {
+            top: 0,
+            left: 0,
+        },
+        '&:last-of-type': {
+            top: '50%',
+        },
+    },
 }));
 
 const LoginBox = styled(Box)(({theme}) => ({
-    backgroundColor: '#ffffff',
-    borderRadius: '8px',
+    backgroundColor: 'white',
+    borderRadius: '10%',
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    padding: '32px',
-    maxWidth: '400px',
+    padding: '24px',
+    maxWidth: '300px',
+    maxHeight: 'fit-content',
     [theme.breakpoints.down('sm')]: {
         boxShadow: 'none',
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-40%, -50%)',
+        width: '250px'
+    },
+    [theme.breakpoints.down('md')]: {
+        boxShadow: 'none',
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-40%, -50%)',
+        width: '250px'
     },
 }));
 
@@ -80,11 +135,13 @@ const Login = () => {
         } // eslint-disable-next-line
     }, [currentUser]);
 
-    return (<LoginContainer>
-        <Container maxWidth="sm">
-            <Lottie animationData={loginAnimation} style={{height: 200}}/>
+    return (<>
+        <Container>
+            <LottieContainers>
+                <Lottie animationData={loginAnimation}/>
+            </LottieContainers>
             <LoginBox>
-                <form onSubmit={handleLogin} style={{}}>
+                <form onSubmit={handleLogin}>
                     <TextField
                         label="Email"
                         variant="outlined"
@@ -123,9 +180,13 @@ const Login = () => {
                     Don’t have an account? Sign Up
                 </Button>
             </LoginBox>
+            <LottieContainers>
+                <Lottie animationData={loginAnimation2}
+                />
+            </LottieContainers>
         </Container>
         <SignupDialog open={openSignup} onClose={handleCloseSignup}/>
-    </LoginContainer>)
+    </>)
 }
 
 
