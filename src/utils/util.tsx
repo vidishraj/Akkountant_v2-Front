@@ -14,26 +14,52 @@ const bankIcons: Record<string, string> = {
     BOI: BoiIcon,
 };
 
-
-export const formatDate = (dateString: string): string => {
-    // Validate the date format
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        throw new Error("Invalid date format. Expected format: YYYY-MM-DD");
-    }
-
-    // Parse the date components
-    const [year, month, day] = dateString.split("-");
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)); // Adjust month (0-indexed)
-
-    // Format the date to a readable format
-    const options: Intl.DateTimeFormatOptions = {
+export const convertToLocaleString = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleString(undefined, {
         year: "numeric",
         month: "long",
         day: "numeric",
-    };
-
-    return date.toLocaleDateString(undefined, options); // Use user's locale
+        weekday: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 };
+
+
+export const getFirstAndLastDateOfMonth = (monthYear: string) => {
+    // Parse the month and year from the string
+    const [monthName, year] = monthYear.split(', ');
+    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth(); // Get the month index from the name
+
+    // First day of the month (1st day)
+    const firstDate = new Date(Number(year), monthIndex, 1);
+    const firstDay = firstDate.toLocaleDateString('en-GB'); // 'dd/mm/yyyy' format
+
+    // Last day of the month (last day)
+    const lastDate = new Date(Number(year), monthIndex + 1, 0); // Last day of the month
+    const lastDay = lastDate.toLocaleDateString('en-GB'); // 'dd/mm/yyyy' format
+
+    return {
+        firstDay,
+        lastDay
+    };
+}
+
+export const getLast5Months = () => {
+    const months = [];
+    const currentDate = new Date();
+
+    for (let i = 0; i < 5; i++) {
+        const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        const monthName = monthDate.toLocaleString('default', {month: 'long'});
+        const year = monthDate.getFullYear();
+        months.push(`${monthName}, ${year}`);
+    }
+
+    return months;
+}
+
 
 export const getBankIcon = (bankKey: string): string | null => {
     return bankIcons[bankKey] || null;
