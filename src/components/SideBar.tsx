@@ -26,7 +26,7 @@ const SideBar = () => {
             onMouseEnter={() => setCollapsed(false)}
             onMouseLeave={() => setCollapsed(true)}
         >
-            <Sidebar collapsed={collapsed}>
+            <Sidebar collapsed={collapsed} collapsedWidth={'60px'}>
                 <Menu
                     menuItemStyles={{
                         button: {
