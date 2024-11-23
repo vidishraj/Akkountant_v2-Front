@@ -23,6 +23,7 @@ const Container = styled(Box)(({theme}) => ({
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
+    height: '84vh',
     backgroundColor: 'beige',
     [theme.breakpoints.down('sm')]: {
         display: 'block'
@@ -36,7 +37,7 @@ const LottieContainers = styled(Box)(({theme}) => ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100vh', // Full height for desktop and larger screens
+    height: '60vh',
     flexBasis: '30%', // Default space taken
     [theme.breakpoints.down('sm')]: {
         position: 'absolute',
@@ -57,7 +58,7 @@ const LottieContainers = styled(Box)(({theme}) => ({
         backgroundColor: 'beige',
         overflow: 'hidden',
         zIndex: '-1',
-        maxHeight: '50vh',
+        maxHeight: '70vh',
         '&:first-of-type': {
             top: 0,
             left: 0,

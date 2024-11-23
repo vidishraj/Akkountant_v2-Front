@@ -1,6 +1,6 @@
 import React, {createContext, useContext, useReducer} from "react";
-import {Transaction} from "../services/transactionService.ts";
 import {SortType} from "./FileFilterContext.tsx";
+import {Transaction} from "../utils/interfaces.ts";
 
 
 interface Transactions {

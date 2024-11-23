@@ -27,8 +27,12 @@ const SortedBy: React.FC<SortedByProps> = ({columns, column, columnSetter, order
         <div style={{display: 'flex', color: "#FAFAFA", maxWidth: 'fit-content'}}>
             <FormControl style={{color: "#FAFAFA"}}>
                 <InputLabel style={{color: "#FAFAFA"}}>Sort By</InputLabel>
-                <Select value={column} style={{color: "#FAFAFA"}}
-                        onChange={handleSortChange}>
+                <Select
+                    MenuProps={{
+                        sx: {"& .MuiMenu-list": {padding: 0, paddingTop: 0, paddingBottom: 0}}
+                    }}
+                    value={column} style={{color: "#FAFAFA"}}
+                    onChange={handleSortChange}>
                     {columns.map((column, index) => (
                         <MenuItem style={{color: "#FAFAFA", backgroundColor: "#121c24"}} key={index}
                                   value={column}>
@@ -39,7 +43,10 @@ const SortedBy: React.FC<SortedByProps> = ({columns, column, columnSetter, order
             </FormControl>
             <FormControl>
                 <InputLabel style={{color: "#FAFAFA"}}>Order</InputLabel>
-                <Select style={{color: "#FAFAFA"}} value={order} onChange={handleOrderChange}>
+                <Select
+                    MenuProps={{
+                        sx: {"& .MuiMenu-list": {padding: 0, paddingTop: 0, paddingBottom: 0}}
+                    }} style={{color: "#FAFAFA"}} value={order} onChange={handleOrderChange}>
                     <MenuItem style={{color: "#FAFAFA", backgroundColor: "#121c24"}} value="asc">Ascending</MenuItem>
                     <MenuItem style={{color: "#FAFAFA", backgroundColor: "#121c24"}}
                               value="desc">Descending</MenuItem>
