@@ -1,0 +1,26 @@
+.summaryContainer {
+  display: flex;
+  gap: 0.1rem;
+  background-color: #121c24;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: space-evenly;
+}
+
+.bank {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #FAFAFA;
+  font-weight: 600;
+}
+
+.bankFileCount {
+  font-size: 14px;
+  color: #607AFB; /* Green for emphasis */
+  font-weight: 700;
+}
+
