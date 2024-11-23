@@ -1,0 +1,57 @@
+.card {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  background-color: #121C24 !important;
+  padding: 16px 8px;
+  border-top: 0.1px solid #E5E8EB;
+}
+
+.bankIcon {
+  min-width: 10%;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    border-radius: 50%;
+    object-fit: cover;
+  }
+}
+
+.details {
+  color: #8A9EBF !important;
+  min-width: 70%;
+  text-align: left;
+
+  &__fileName {
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  &__info {
+    color: #FAFAFA;
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+}
+
+.actions {
+  min-width: 20%;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  &__icon {
+    color: #FAFAFA;
+    margin-left: 8px;
+
+    &:hover {
+      color: #e53935;
+    }
+  }
+}
