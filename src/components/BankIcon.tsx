@@ -1,4 +1,4 @@
-import React from "react";
+import React, {CSSProperties} from "react";
 import {getBankIcon} from "../utils/util.tsx";
 
 type BankIconProps = {
@@ -6,9 +6,10 @@ type BankIconProps = {
     altText?: string;
     width?: number; // Optional: to customize icon size
     height?: number; // Optional: to customize icon size
+    style?: CSSProperties;
 };
 
-const BankIcon: React.FC<BankIconProps> = ({bankKey, altText = "Bank Icon", width, height}) => {
+const BankIcon: React.FC<BankIconProps> = ({bankKey, altText = "Bank Icon", width, height, style}) => {
     const iconSrc = getBankIcon(bankKey);
 
     if (!iconSrc) {
@@ -16,7 +17,7 @@ const BankIcon: React.FC<BankIconProps> = ({bankKey, altText = "Bank Icon", widt
     }
 
     return <img src={iconSrc} alt={altText}
-                style={{width: width, height: height, borderRadius: '50%', backgroundColor: 'white'}}/>;
+                style={{width: width, height: height, borderRadius: '50%', backgroundColor: 'white', ...style}}/>;
 };
 
 export default BankIcon;

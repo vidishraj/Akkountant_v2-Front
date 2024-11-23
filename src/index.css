@@ -1,5 +1,7 @@
 :root {
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: "Lexend", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;
     line-height: 1.5;
     font-weight: 400;
 
@@ -13,6 +15,48 @@
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Full height setup */
+html, body, #root {
+    height: 100%; /* Ensure the entire height is utilized */
+    margin: 0;
+}
+
+body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Layout classes */
+.layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Full height for the layout container */
+    background: #121C24;
+    color: white;
+}
+
+.header {
+    flex: 0 0 10%; /* Fixed height for header */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.content {
+    flex: 1; /* Fills remaining space */
+    padding: 10px; /* Optional padding for the App content */
+    /*max-height: 75%;*/
+}
+
+.footer {
+    flex: 0 0 10%; /* Fixed height for footer */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Link styles */
 a {
     font-weight: 500;
     color: #646cff;
@@ -23,19 +67,15 @@ a:hover {
     color: #535bf2;
 }
 
-body {
-    margin: 0;
-}
-
 h1 {
     font-size: 3.2em;
     line-height: 1.1;
 }
 
+/* Button styles */
 button {
     border-radius: 8px;
     border: 1px solid transparent;
-    padding: 0.6em 1.2em;
     font-size: 1em;
     font-weight: 500;
     font-family: inherit;
@@ -53,6 +93,7 @@ button:focus-visible {
     outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Light mode styles */
 @media (prefers-color-scheme: light) {
     :root {
         color: #213547;
