@@ -25,7 +25,8 @@ const SortedBy: React.FC<SortedByProps> = ({columns, column, columnSetter, order
 
     return (
         <div style={{display: 'flex', color: "#FAFAFA", maxWidth: 'fit-content'}}>
-            <FormControl style={{color: "#FAFAFA"}}>
+            <FormControl
+                style={{color: "#FAFAFA", borderLeft: '0.1px solid #FAFAFA', borderRight: '0.1px solid #FAFAFA'}}>
                 <InputLabel style={{color: "#FAFAFA"}}>Sort By</InputLabel>
                 <Select
                     MenuProps={{
@@ -41,7 +42,9 @@ const SortedBy: React.FC<SortedByProps> = ({columns, column, columnSetter, order
                     ))}
                 </Select>
             </FormControl>
-            <FormControl>
+            <FormControl
+                style={{color: "#FAFAFA", borderLeft: '0.1px solid #FAFAFA', borderRight: '0.1px solid #FAFAFA'}}>
+                
                 <InputLabel style={{color: "#FAFAFA"}}>Order</InputLabel>
                 <Select
                     MenuProps={{
