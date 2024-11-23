@@ -4,6 +4,7 @@ import {Route, Routes} from 'react-router-dom';
 import {setupAxiosInterceptors} from "./services/AxiosConfig.tsx";
 import HomePage from "./pages/HomePage.tsx";
 import Transactions from "./pages/Transactions.tsx";
+import PrivateRoute from "./utils/PrivateRoute.tsx";
 
 function App() {
 
@@ -12,8 +13,8 @@ function App() {
         <Routes>
             <Route path="*" element={<Login/>}/>
             <Route path="/login" element={<Login/>}/>
-            <Route path="/home" element={<HomePage/>}/>
-            <Route path="/transactions" element={<Transactions/>}/>
+            <Route path="/home" element={<PrivateRoute><HomePage/></PrivateRoute>}/>
+            <Route path="/transactions" element={<PrivateRoute><Transactions/></PrivateRoute>}/>
         </Routes>
     )
 }

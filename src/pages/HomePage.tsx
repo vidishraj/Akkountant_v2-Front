@@ -1,10 +1,8 @@
 import {useEffect} from "react";
-import {useAuth} from "../contexts/AuthContext.tsx";
 import {useSearchParams} from "react-router-dom";
 import {makeDriveTokenRequest, makeTokenRequest} from "../services/GoogleApiUtils.tsx";
 
 const HomePage = () => {
-    const {currentUser} = useAuth()
     const [searchParams] = useSearchParams()
     useEffect(() => {
         const scope: string | null = searchParams.get('scope')
@@ -25,9 +23,6 @@ const HomePage = () => {
     return (
 
         <div style={{backgroundColor: 'palegoldenrod'}}>
-            {
-                currentUser ? <div>User logged in</div> : <div>Not logged in </div>
-            }
         </div>
     )
 }
