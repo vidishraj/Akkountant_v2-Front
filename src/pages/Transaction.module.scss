@@ -1,0 +1,46 @@
+.transactionContainer {
+  display: flex;
+  flex-wrap: nowrap;
+  padding: 24px 20px;
+  gap: 4px;
+}
+
+.summaryCard {
+  min-width: 320px;
+  flex-basis: 25%;
+  background: #121C24 !important;
+}
+
+.transactionListContainer {
+  background-color: #121C24 !important;
+  flex-basis: 75%;
+}
+
+.transactionFilters {
+
+}
+
+.transactionCards {
+  padding: 16px 12px;
+  overflow-y: scroll;
+  max-height: 400px;
+
+  /* Hide scrollbar for WebKit browsers (Chrome, Safari, etc.) */
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none; /* For Internet Explorer and Edge */
+}
+
+.transactionCards::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for WebKit browsers */
+}
+
+.pagination {
+  color: #FAFAFA !important;
+}
+
+@media (max-width: 768px) {
+  .transactionListContainer {
+  }
+}
+
+

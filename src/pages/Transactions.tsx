@@ -1,101 +1,235 @@
-/*
-* Summary box on the right side along with info about statements parsed
-* and statments saved.
-* it will also have a summary Box
-* '2023-06-18', '', '260.00', '', '1WwEjSUzbHhu3TBhLcflp0l_NruCgydW_', 'statement', 'HDFC_DEBIT', 'AwKnpKEPmEhQnpc2kJAnsEikOBK2'
-
-* */
-import BasicCard from "../components/BasicCard.tsx";
-import TransactionCard from "../components/TransactionCard.tsx";
-import TransactionFilters from "../components/TransactionFilters.tsx";
-import {useEffect, useState} from "react";
+import {useEffect} from "react";
 import {TablePagination} from "@mui/material";
-import {fetchTransactions, Transaction} from "../services/transactionService.ts";
-import {useFilterContext} from "../contexts/FilterContext.tsx";
-
+import BasicCard from "../components/BasicCard";
+import TransactionCard from "../components/TransactionCardComponent/TransactionCard.tsx";
+import TransactionFilters from "../components/TransactionFilterComponent/TransactionFilters.tsx";
+import {
+    fetchFileDetails,
+    fetchOptedBanks,
+    fetchTransactions,
+    FileDetails,
+    Transaction
+} from "../services/transactionService";
+import {useFilterContext} from "../contexts/FilterContext";
+import GoogleComponent from "../components/GoogleComponent /GoogleComponent.tsx";
+import CalendarComponent from "../components/CalendarComponent/Calendar.tsx";
+import style from "./Transaction.module.scss";
+import FieldSelector from "../components/ModeSelectorComponent/FieldSelector.tsx";
+import {useUser} from "../contexts/GlobalContext.tsx";
+import {useFileFilterContext} from "../contexts/FileFilterContext.tsx";
+import FileDetailsCard from "../components/FileDetailsCardComponent/FileDetailsCard.tsx";
+import FileFilterCompact from "../components/FileFilterComponent/FileFilterCompact.tsx";
+import SortedBy from "../components/SortComponent.tsx";
+import TransactionSummary from "../components/TransactionSummaryComponent/TransactionSummary.tsx";
+import FileSummary from "../components/FileSummaryComponent/FileSummary.tsx"; // Import the SortedBy component
 
 const Transactions = () => {
+    const {state, dispatch} = useFilterContext();
+    const {state: fileState, dispatch: fileDispatch} = useFileFilterContext();
+    const {transactionModeSelection, setTransactionMode, setOptedBanks, user} = useUser();
 
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [page, setPage] = useState(0);
-    const [count, setCount] = useState<number>(0);
-    const {state} = useFilterContext();
-
-    function checkInput(input: string) {
-        return input === "" || input === undefined ? undefined : input
-
-    }
-
-    function refreshTransactions() {
-        let requestBody = {
-            Page: page + 1,
+    const refreshTransactions = () => {
+        const requestBody = {
+            Page: state.page + 1,
             Filter: {
-                bank: checkInput(state.bank),
-                details: checkInput(state.searchTerm),
-                tag: checkInput(state.month),
+                bank: state.bank || undefined,
+                details: state.searchTerm || undefined,
+                tag: state.month || undefined,
+                source: state.source || undefined,
                 dateRange: {
-                    dateFrom: checkInput(state.startDate),
-                    dateTo: checkInput(state.endDate),
+                    dateFrom: state.startDate || undefined,
+                    dateTo: state.endDate || undefined,
                 },
+                sorted: {column: state.sortBy.sortBy, order: state.sortBy.sortDirection},
+                limit: state.limit
             },
-        }
-        if (!requestBody.Filter.dateRange.dateTo && !requestBody.Filter.dateRange.dateFrom) {
-            // @ts-ignore
+        };
+
+        if (!requestBody.Filter.dateRange.dateFrom && !requestBody.Filter.dateRange.dateTo) {
+            //@ts-ignore
             delete requestBody.Filter.dateRange;
         }
 
-        requestBody.Page = page + 1
         fetchTransactions(requestBody).then((result) => {
-            console.log(result);
-            setTransactions(result.results);
-            setCount(result.total_count);
-        })
+            dispatch({
+                type: "SET_TRANSACTIONS",
+                payload: {transaction: result.results, credits: result.credit_sum, debits: result.debit_sum}
+            });
+            dispatch({type: "SET_TRANSACTION_COUNT", payload: result.total_count});
+        });
+    };
 
-    }
+    const refreshFileDetails = () => {
+        const requestBody = {
+            Page: fileState.filePage + 1,
+            Filter: {
+                bank: fileState.bank || undefined,
+                fileName: fileState.fileName || undefined,
+                dateRange: {
+                    dateFrom: fileState.startDate || undefined,
+                    dateTo: fileState.endDate || undefined,
+                },
+                sorted: {column: fileState.sortBy.sortBy, order: fileState.sortBy.sortDirection},
+                limit: state.limit
+            },
+        };
+
+        if (!requestBody.Filter.dateRange.dateFrom && !requestBody.Filter.dateRange.dateTo) {
+            //@ts-ignore
+            delete requestBody.Filter.dateRange;
+        }
+
+        fetchFileDetails(requestBody).then((result) => {
+            fileDispatch({type: "SET_FILE_DETAILS", payload: result.results});
+            fileDispatch({type: "SET_FILE_COUNT", payload: result.total_count});
+        });
+    };
+    useEffect(() => {
+        refreshTransactions();
+    }, [state.transactionCount, state.page, state.sortBy, state.limit, state.source]);
 
     useEffect(() => {
-        refreshTransactions()
-    }, [page]);
+        refreshFileDetails();
+    }, [fileState.filePage, fileState.sortBy, fileState.limit]);
+
+    useEffect(() => {
+        fetchOptedBanks().then((response) => {
+            setOptedBanks(response);
+        }).catch(console.error);
+    }, [user]);
 
     return (
-        <div style={{display: 'flex', flexWrap: 'nowrap', height: '100vh'}}>
-            <BasicCard style={{flexBasis: '50%'}}>
-                Check
+        <div className={style.transactionContainer}>
+            <BasicCard className={style.summaryCard}>
+                <CalendarComponent/>
+                <GoogleComponent/>
+                <FieldSelector setTransactionMode={setTransactionMode}/>
             </BasicCard>
-            <BasicCard style={{
-                display: 'flex',
-                flexDirection: 'column',
-                flexWrap: 'nowrap',
-                height: '100vh',
-                flexBasis: '50%'
-            }}>
-                <BasicCard style={{flexBasis: '20%'}}>
-                    <TransactionFilters apply={() => {
-                        refreshTransactions()
-                    }}/>
-                </BasicCard>
-                <div style={{overflow: 'scroll', flexBasis: '80%'}}>
-                    {
-                        transactions && transactions.map((transaction: Transaction) => (
-                            <TransactionCard
-                                date={transaction.date}
-                                description={transaction.details}
-                                amount={parseFloat(transaction.amount)}
-                                tag={transaction.tag}
-                                bank={transaction.bank}
-                            />
-                        ))
-                    }
 
-                </div>
-                <BasicCard style={{}}>
-                    <TablePagination page={page} count={count} rowsPerPage={100} onPageChange={(_event, page) => {
-                        setPage(page)
-                    }}/>
-                </BasicCard>
+            <BasicCard className={style.transactionListContainer}>
+                {transactionModeSelection ? (
+                    <>
+                        <div className={style.transactionFilters}>
+                            <TransactionFilters apply={refreshTransactions}/>
+                            <TransactionSummary/>
+                        </div>
+                        <div className={style.transactionCards}>
+                            {state.transactions.transaction.map((transaction: Transaction) => (
+                                <TransactionCard
+                                    key={transaction.referenceID}
+                                    date={transaction.date}
+                                    description={transaction.details}
+                                    amount={parseFloat(transaction.amount)}
+                                    tag={transaction.tag}
+                                    bank={transaction.bank}
+                                />
+                            ))}
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'flex-end',
+                            justifyContent: 'flex-end'
+                        }}>
+                            <SortedBy
+                                columns={['date', 'amount', 'bank', 'tag']}
+                                column={state.sortBy.sortBy}
+                                order={state.sortBy.sortDirection}
+
+                                orderSetter={(item) => {
+                                    dispatch({
+                                        type: 'SET_SORT_BY',
+                                        payload: {...state.sortBy, sortDirection: item}
+                                    })
+                                }}
+                                columnSetter={(item) => {
+                                    dispatch({
+                                        type: 'SET_SORT_BY',
+                                        payload: {...state.sortBy, sortBy: item}
+                                    })
+                                }}
+                            />
+                            <TablePagination
+                                onRowsPerPageChange={(item) => {
+                                    const limit = parseInt(item.target.value);
+                                    console.log(limit)
+                                    dispatch({
+                                        type: "SET_LIMIT",
+                                        payload: limit ? limit : 100
+                                    })
+                                }}
+                                component={'div'}
+                                className={style.pagination}
+                                page={state.page}
+                                count={state.transactionCount}
+                                rowsPerPage={state.limit}
+                                onPageChange={(_, newPage) => dispatch({type: "SET_PAGE", payload: newPage})}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className={style.transactionFilters}>
+                            <FileFilterCompact apply={refreshFileDetails}/>
+                            <FileSummary/>
+                        </div>
+                        <div className={style.transactionCards}>
+                            {fileState.fileDetails.map((file: FileDetails) => (
+                                <FileDetailsCard
+                                    key={`${file.fileID}`}
+                                    bank={file.bank}
+                                    fileName={file.fileName}
+                                    uploadDate={file.uploadDate}
+                                    statementCount={file.statementCount}
+                                    onDownload={() => console.log("Download clicked")}
+                                    onDelete={() => console.log("Delete clicked")}
+                                />
+                            ))}
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'flex-end',
+                            justifyContent: 'flex-end'
+                        }}>
+                            <SortedBy
+                                columns={['uploadDate', 'fileName', 'bank']}
+                                column={fileState.sortBy.sortBy}
+                                order={fileState.sortBy.sortDirection}
+                                orderSetter={(item) => {
+                                    fileDispatch({
+                                        type: 'SET_SORT_BY',
+                                        payload: {...fileState.sortBy, sortDirection: item}
+                                    })
+                                }}
+                                columnSetter={(item) => {
+                                    fileDispatch({
+                                        type: 'SET_SORT_BY',
+                                        payload: {...fileState.sortBy, sortBy: item}
+                                    })
+                                }}
+                            />
+                            <TablePagination
+                                onRowsPerPageChange={(item) => {
+                                    const limit = parseInt(item.target.value);
+                                    fileDispatch({
+                                        type: "SET_LIMIT",
+                                        payload: limit ? limit : 100
+                                    })
+                                }}
+                                component={'div'}
+                                className={style.pagination}
+                                page={fileState.filePage}
+                                count={fileState.fileCount}
+                                rowsPerPage={fileState.limit}
+                                onPageChange={(_, newPage) => fileDispatch({type: "SET_FILE_PAGE", payload: newPage})}
+                            />
+                        </div>
+                    </>
+                )}
             </BasicCard>
         </div>
-    )
-}
+    );
+};
 
 export default Transactions;
