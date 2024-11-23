@@ -1,0 +1,50 @@
+.summaryContainer {
+  display: flex;
+  gap: 1rem;
+  background-color: #121c24;
+}
+
+.credit, .debit, .net {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.net {
+  padding-right: 12px;
+  border-right: 0.1px #FAFAFA solid;
+}
+
+.actionButtons {
+  width: 100%;
+  display: flex;
+  padding: 5px 16px;
+  gap: 12rem;
+  justify-content: flex-end;
+}
+
+.subtitle {
+  color: #FAFAFA;
+  font-weight: 600;
+}
+
+.creditAmount {
+  color: green;
+  font-weight: 700;
+}
+
+.debitAmount {
+  color: red;
+  font-weight: 700;
+}
+
+.netAmount {
+  font-weight: 700;
+}
+
+.netPositive {
+  color: green;
+}
+
+.netNegative {
+  color: red;
+}
