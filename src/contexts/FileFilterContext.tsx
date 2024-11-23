@@ -68,6 +68,8 @@ const fileFilterReducer = (state: FileFilterState, action: FileFilterAction): Fi
             return {...state, sortBy: action.payload};
         case "SET_LIMIT":
             return {...state, limit: action.payload};
+        case "RESET_FILTERS":
+            return initialState;
         default:
             throw new Error(`Unknown action type: ${action}`);
     }
