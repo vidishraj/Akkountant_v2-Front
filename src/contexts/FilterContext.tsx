@@ -1,4 +1,6 @@
 import React, {createContext, useContext, useReducer} from "react";
+import {Transaction} from "../services/transactionService.ts";
+import {SortType} from "./FileFilterContext.tsx";
 
 // Define the filter state type
 interface FilterState {
@@ -7,6 +9,11 @@ interface FilterState {
     endDate: string;
     bank: string;
     month: string;
+    sortBy: SortType;
+    limit: number;
+    transactions: Transaction[];
+    page: number;
+    transactionCount: number;
 }
 
 // Initial state
@@ -15,19 +22,31 @@ const initialState: FilterState = {
     startDate: "",
     endDate: "",
     bank: "",
+    sortBy: {
+        sortBy: 'date',
+        sortDirection: 'desc'
+    },
+    limit: 100,
     month: "",
+    transactions: [],
+    page: 0,
+    transactionCount: 0,
 };
 
-// Define action types
+// In FilterContext
 type FilterAction =
     | { type: "SET_SEARCH_TERM"; payload: string }
     | { type: "SET_START_DATE"; payload: string }
     | { type: "SET_END_DATE"; payload: string }
     | { type: "SET_BANK"; payload: string }
+    | { type: "SET_SORT_BY"; payload: SortType }
+    | { type: "SET_LIMIT"; payload: number }
     | { type: "SET_MONTH"; payload: string }
-    | { type: "APPLY"; };
+    | { type: "SET_PAGE"; payload: number }
+    | { type: "SET_TRANSACTIONS"; payload: Transaction[] }
+    | { type: "SET_TRANSACTION_COUNT"; payload: number }
+    | { type: "APPLY" };
 
-// Reducer function
 const filterReducer = (state: FilterState, action: FilterAction): FilterState => {
     switch (action.type) {
         case "SET_SEARCH_TERM":
@@ -40,6 +59,16 @@ const filterReducer = (state: FilterState, action: FilterAction): FilterState =>
             return {...state, bank: action.payload};
         case "SET_MONTH":
             return {...state, month: action.payload};
+        case "SET_PAGE":
+            return {...state, page: action.payload};
+        case "SET_TRANSACTIONS":
+            return {...state, transactions: action.payload};
+        case "SET_TRANSACTION_COUNT":
+            return {...state, transactionCount: action.payload};
+        case "SET_SORT_BY":
+            return {...state, sortBy: action.payload};
+        case "SET_LIMIT":
+            return {...state, limit: action.payload};
         default:
             throw new Error(`Unknown action type: ${action}`);
     }
