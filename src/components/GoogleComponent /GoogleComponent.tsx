@@ -7,10 +7,9 @@ import GmailPng from "../../assets/icons/gmail.png";
 import GoogleDrivePng from "../../assets/icons/google-drive.png";
 import {
     checkGoogleStatus,
-    makeDriveInitialRequest,
-    makeInitialRequest,
 } from "../../services/transactionService.ts";
 import styles from "./GoogleComponent.module.scss";
+import {makeDriveInitialRequest, makeInitialRequest} from "../../services/GoogleApiUtils.tsx";
 
 const GoogleComponent = () => {
     const [gmailStatus, setGmailStatus] = useState<"success" | "error" | null>(null);

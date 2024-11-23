@@ -7,8 +7,6 @@ import {
     fetchFileDetails,
     fetchOptedBanks,
     fetchTransactions,
-    FileDetails,
-    Transaction
 } from "../services/transactionService";
 import {useFilterContext} from "../contexts/FilterContext";
 import GoogleComponent from "../components/GoogleComponent /GoogleComponent.tsx";
@@ -21,7 +19,8 @@ import FileDetailsCard from "../components/FileDetailsCardComponent/FileDetailsC
 import FileFilterCompact from "../components/FileFilterComponent/FileFilterCompact.tsx";
 import SortedBy from "../components/SortComponent.tsx";
 import TransactionSummary from "../components/TransactionSummaryComponent/TransactionSummary.tsx";
-import FileSummary from "../components/FileSummaryComponent/FileSummary.tsx"; // Import the SortedBy component
+import FileSummary from "../components/FileSummaryComponent/FileSummary.tsx";
+import {FileDetails, Transaction} from "../utils/interfaces.ts"; // Import the SortedBy component
 
 const Transactions = () => {
     const {state, dispatch} = useFilterContext();

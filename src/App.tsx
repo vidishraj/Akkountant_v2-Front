@@ -1,13 +1,13 @@
 import './App.css'
 import Login from "./pages/Login.tsx";
 import {Route, Routes} from 'react-router-dom';
-import {useAxiosSetup} from "./services/transactionService.ts";
+import {setupAxiosInterceptors} from "./services/AxiosConfig.tsx";
 import HomePage from "./pages/HomePage.tsx";
 import Transactions from "./pages/Transactions.tsx";
 
 function App() {
 
-    useAxiosSetup(); // Set up the axios interceptors
+    setupAxiosInterceptors();
     return (
         <Routes>
             <Route path="*" element={<Login/>}/>
