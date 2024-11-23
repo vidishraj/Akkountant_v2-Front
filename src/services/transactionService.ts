@@ -1,83 +1,72 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import Axios from 'axios';
-import { setupCache } from 'axios-cache-interceptor';
-import { useLoading } from '../contexts/LoadingContext';
-import { auth } from '../components/FirebaseConfig';
-const instance = Axios.create();
-const axios = setupCache(instance, { debug: console.log });
+import axios from './AxiosConfig.tsx';
+import {queueRequest} from './AxiosQueueManager.tsx';
+import {
+    TransactionRequestBody,
+    FileDetailsRequestBody,
+    TransactionResponse,
+    FileDetailsResponse, GoogleStatusResponse
+} from '../utils/interfaces.ts';
 
-const requestQueue: (() => void)[] = [];
-export const useAxiosSetup = () => {
-    const { setLoading } = useLoading();
-
-    axios.interceptors.request.use(
-        async (config) => {
-            setLoading(true);
-            const user = auth.currentUser; // Get currently signed-in user
-            if (user) {
-                const token = await user.getIdToken();
-                config['headers'].setAuthorization(`Bearer ${token}`);
-            }
-            return config;
-        },
-        (error) => {
-            setLoading(false);
-            return Promise.reject(error);
-        }
+/**
+ * Fetch transactions with filtering and pagination.
+ */
+export async function fetchTransactions(body: TransactionRequestBody): Promise<TransactionResponse> {
+    return queueRequest(() =>
+        axios.post('/fetchTransactions', body).then((res) => res.data)
     );
+}
 
-    axios.interceptors.response.use(
-        (response) => {
-            if (requestQueue.length === 0) {
-                setLoading(false);
-            }
-            return response;
-        },
-        (error) => {
-            if (requestQueue.length === 0) {
-                setLoading(false);
-            }
-            return Promise.reject(error);
-        }
+/**
+ * Fetch file details with filtering and pagination.
+ */
+export async function fetchFileDetails(body: FileDetailsRequestBody): Promise<FileDetailsResponse> {
+    return queueRequest(() =>
+        axios.post('/getFileDetails', body).then((res) => res.data)
     );
-};
+}
 
-let isRequestPending = false;
-const delayBetweenRequests = 100;
+/**
+ * Fetch opted banks for the user.
+ */
+export async function fetchOptedBanks(): Promise<any> {
+    return queueRequest(() => axios.get('/fetchOptedBanks').then((res) => res.data));
+}
 
-const processNextRequest = () => {
-    if (requestQueue.length > 0 && !isRequestPending) {
-        isRequestPending = true;
-        const nextRequest = requestQueue.shift();
-        if (nextRequest) {
-            nextRequest();
-        }
-    }
-};
-
-const queueRequest = (requestFunc: () => Promise<any>) => {
-    return new Promise((resolve, reject) => {
-        const executeRequest = () => {
-            requestFunc()
-                .then(resolve)
-                .catch(reject)
-                .finally(() => {
-                    setTimeout(() => {
-                        isRequestPending = false;
-                        processNextRequest();
-                    }, delayBetweenRequests);
-                });
-        };
-        requestQueue.push(executeRequest);
-        processNextRequest();
-    });
-};
-
+/**
+ * Insert a new user into the system.
+ */
 export async function insertUser(body: any): Promise<any> {
-    axios.storage.remove('summary');
+    axios.storage?.remove('summary'); // Ensure cached data is cleared
+    return queueRequest(() =>
+        axios.post('/createUser', body).then((res) => res)
+    );
+}
+
+/**
+ * Check the status of Google API services (Gmail or Drive).
+ */
+export async function checkGoogleStatus(serviceType: string): Promise<GoogleStatusResponse> {
     return queueRequest(() =>
         axios
-            .post(process.env.REACT_APP_BACKENDURL + '/createUser', body)
-            .then((response) => response)
+            .get('/getGoogleStatus', {params: {serviceType}})
+            .then((res) => res.data)
+    );
+}
+
+/**
+ * Update Google OAuth tokens for a specific service.
+ */
+export async function updateGoogleTokens(body: any): Promise<any> {
+    return queueRequest(() =>
+        axios.post('/updateGoogleTokens', body).then((res) => res.data)
+    );
+}
+
+/**
+ * Fetch transactions for calendar view.
+ */
+export async function fetchCalendarTransactions(body: any): Promise<any> {
+    return queueRequest(() =>
+        axios.post('/calendarTransactions', body).then((res) => res.data)
     );
 }
