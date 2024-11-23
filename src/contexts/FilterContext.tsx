@@ -2,6 +2,13 @@ import React, {createContext, useContext, useReducer} from "react";
 import {Transaction} from "../services/transactionService.ts";
 import {SortType} from "./FileFilterContext.tsx";
 
+
+interface Transactions {
+    transaction: Transaction[];
+    credits: number;
+    debits: number;
+}
+
 // Define the filter state type
 interface FilterState {
     searchTerm: string;
@@ -9,9 +16,10 @@ interface FilterState {
     endDate: string;
     bank: string;
     month: string;
+    source: 'email' | 'statement'
     sortBy: SortType;
     limit: number;
-    transactions: Transaction[];
+    transactions: Transactions;
     page: number;
     transactionCount: number;
 }
@@ -22,13 +30,14 @@ const initialState: FilterState = {
     startDate: "",
     endDate: "",
     bank: "",
+    source: "statement",
     sortBy: {
         sortBy: 'date',
         sortDirection: 'desc'
     },
     limit: 100,
     month: "",
-    transactions: [],
+    transactions: {transaction: [], credits: 0, debits: 0},
     page: 0,
     transactionCount: 0,
 };
@@ -42,10 +51,12 @@ type FilterAction =
     | { type: "SET_SORT_BY"; payload: SortType }
     | { type: "SET_LIMIT"; payload: number }
     | { type: "SET_MONTH"; payload: string }
+    | { type: "SET_SOURCE"; payload: 'statement' | 'email' }
     | { type: "SET_PAGE"; payload: number }
-    | { type: "SET_TRANSACTIONS"; payload: Transaction[] }
+    | { type: "SET_TRANSACTIONS"; payload: Transactions }
     | { type: "SET_TRANSACTION_COUNT"; payload: number }
-    | { type: "APPLY" };
+    | { type: "APPLY" }
+    | { type: "RESET_FILTERS" };
 
 const filterReducer = (state: FilterState, action: FilterAction): FilterState => {
     switch (action.type) {
@@ -57,6 +68,8 @@ const filterReducer = (state: FilterState, action: FilterAction): FilterState =>
             return {...state, endDate: action.payload};
         case "SET_BANK":
             return {...state, bank: action.payload};
+        case "SET_SOURCE":
+            return {...state, source: action.payload};
         case "SET_MONTH":
             return {...state, month: action.payload};
         case "SET_PAGE":
@@ -69,6 +82,8 @@ const filterReducer = (state: FilterState, action: FilterAction): FilterState =>
             return {...state, sortBy: action.payload};
         case "SET_LIMIT":
             return {...state, limit: action.payload};
+        case "RESET_FILTERS":
+            return initialState;
         default:
             throw new Error(`Unknown action type: ${action}`);
     }
