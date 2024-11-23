@@ -1,0 +1,54 @@
+.googleContainer {
+  padding: 16px 12px;
+  background-color: #121c24 !important;
+}
+
+.statusRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+  padding: 16px 12px;
+}
+
+.iconButton {
+  margin-top: 8px;
+  flex-basis: 10%;
+}
+
+.reconnectButton {
+  margin-top: 8px;
+  flex-basis: 90%;
+  display: flex;
+  justify-content: space-evenly !important;
+  color: #FAFAFA !important;
+  font-family: "Lexend", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+.reconnectButton:hover {
+  background-color: #607AFB !important;
+}
+
+.reconnectButtonDisabled {
+  cursor: not-allowed !important; /* Stop interaction */
+  background-color: #3d404a !important;
+}
+
+.Mui-disabled {
+  background-color: #5cb85c !important;
+}
+
+.reconnectIcon {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+
+.lexendFont {
+  font-family: "Lexend", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
