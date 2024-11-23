@@ -24,25 +24,24 @@ export const convertToLocaleString = (dateString: string): string => {
     });
 };
 
-
 export const getFirstAndLastDateOfMonth = (monthYear: string) => {
     // Parse the month and year from the string
-    const [monthName, year] = monthYear.split(', ');
+    const [monthName, year] = monthYear.split(", ");
     const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth(); // Get the month index from the name
 
-    // First day of the month (1st day)
-    const firstDate = new Date(Number(year), monthIndex, 1);
-    const firstDay = firstDate.toLocaleDateString('en-GB'); // 'dd/mm/yyyy' format
+    // First day of the month
+    const firstDate = new Date(Number(year), monthIndex, 2);
+    const firstDay = firstDate.toISOString().split("T")[0]; // 'yyyy-mm-dd' format
 
-    // Last day of the month (last day)
-    const lastDate = new Date(Number(year), monthIndex + 1, 0); // Last day of the month
-    const lastDay = lastDate.toLocaleDateString('en-GB'); // 'dd/mm/yyyy' format
+    // Last day of the month
+    const lastDate = new Date(Number(year), monthIndex + 1, 1);
+    const lastDay = lastDate.toISOString().split("T")[0]; // 'yyyy-mm-dd' format
 
     return {
         firstDay,
-        lastDay
+        lastDay,
     };
-}
+};
 
 export const getLast5Months = () => {
     const months = [];
