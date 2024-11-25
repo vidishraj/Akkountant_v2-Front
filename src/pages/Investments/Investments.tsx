@@ -1,9 +1,14 @@
 import React from 'react';
-import styles from "../Investments/Investments.module.scss";
+import style from "../Investments/Investments.module.scss";
+import Evaluation from '../../components/EvaluationComponent/Evaluation';
 
 const Investments = () => {
   return (
-    <div>Investments</div>
+    <>
+        <div className={style.investmentsParentContainer}>
+        
+        </div>
+    </>
   )
 }
 
