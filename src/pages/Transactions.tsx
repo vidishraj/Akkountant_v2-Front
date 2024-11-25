@@ -126,7 +126,7 @@ const Transactions = () => {
 
     return (
         <div className={style.transactionContainer}>
-            <ToastContainer/>
+            <ToastContainer toastClassName={style.customToast} bodyClassName={style.customToast}/>
            
             <BasicCard className={style.summaryCard}>
                 <CalendarComponent/>
