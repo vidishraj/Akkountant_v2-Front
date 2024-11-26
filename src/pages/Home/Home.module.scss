@@ -1,0 +1,36 @@
+
+.homeContainer {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    height: 100%;
+    width: 100%; 
+    align-items: center; 
+    margin:0;
+    gap:0;
+    flex-wrap: wrap;
+
+}
+
+.investmentsContainer,
+.transactionsContainer {
+    display: flex;
+    justify-content: center; 
+    align-items: center; 
+    flex: 1;
+    margin-top:-2rem;
+    border: 1px solid white;
+    transform: scale(0.6);
+    transform-origin: center; 
+    box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+    .homeContainer {
+        // flex-direction: column; 
+        flex-wrap: wrap;
+    }
+}
+.investmentsTag{
+    display: block;
+}
