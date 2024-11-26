@@ -131,7 +131,6 @@ const Transactions = () => {
             <BasicCard className={style.summaryCard}>
                 <CalendarComponent/>
                 <GoogleComponent/>
-                {/* <button onClick={showToast}>Click me</button> */}
                 <FieldSelector setTransactionMode={setTransactionMode}/>
             </BasicCard>
 
