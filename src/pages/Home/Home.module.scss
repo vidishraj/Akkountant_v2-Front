@@ -23,6 +23,8 @@
     transform: scale(0.6);
     transform-origin: center; 
     box-sizing: border-box;
+    flex-direction: column;
+    cursor: pointer;
 }
 
 @media (max-width: 900px) {
@@ -31,6 +33,9 @@
         flex-wrap: wrap;
     }
 }
-.investmentsTag{
-    display: block;
+.investmentsTag, 
+.transactionsTag {
+    font-size: 1.5rem; 
+    font-weight: bold;  
 }
+
