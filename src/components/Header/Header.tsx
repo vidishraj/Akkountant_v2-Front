@@ -50,6 +50,7 @@ const Header = () => {
                         <Button sx={{mx: 1}}><Link style={{color: "#FAFAFA"}} to={'/home'}> Home</Link></Button>
                         <Button color="inherit" sx={{mx: 1}}><Link style={{color: "#FAFAFA"}}
                                                                    to={'/transactions'}> Transactions</Link></Button>
+                        <Button sx={{mx: 1}}><Link style={{color: "#FAFAFA"}} to={'/investments'}> Investments</Link></Button>
                         {/*<Button color="inherit" sx={{mx: 1}}>Settings</Button>*/}
                     </Box>
                 </Box>
