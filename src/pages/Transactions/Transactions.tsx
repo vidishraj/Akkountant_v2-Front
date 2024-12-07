@@ -1,26 +1,26 @@
 import {useEffect} from "react";
 import {TablePagination} from "@mui/material";
-import BasicCard from "../components/BasicCard";
-import TransactionCard from "../components/TransactionCardComponent/TransactionCard.tsx";
-import TransactionFilters from "../components/TransactionFilterComponent/TransactionFilters.tsx";
+import BasicCard from "../../components/BasicCard.tsx";
+import TransactionCard from "../../components/TransactionCardComponent/TransactionCard.tsx";
+import TransactionFilters from "../../components/TransactionFilterComponent/TransactionFilters.tsx";
 import {
     fetchFileDetails,
     fetchOptedBanks,
     fetchTransactions,
-} from "../services/transactionService";
-import {useFilterContext} from "../contexts/FilterContext";
-import GoogleComponent from "../components/GoogleComponent /GoogleComponent.tsx";
-import CalendarComponent from "../components/CalendarComponent/Calendar.tsx";
+} from "../../services/transactionService.ts";
+import {useFilterContext} from "../../contexts/FilterContext.tsx";
+import GoogleComponent from "../../components/GoogleComponent /GoogleComponent.tsx";
+import CalendarComponent from "../../components/CalendarComponent/Calendar.tsx";
 import style from "./Transaction.module.scss";
-import FieldSelector from "../components/ModeSelectorComponent/FieldSelector.tsx";
-import {useUser} from "../contexts/GlobalContext.tsx";
-import {useFileFilterContext} from "../contexts/FileFilterContext.tsx";
-import FileDetailsCard from "../components/FileDetailsCardComponent/FileDetailsCard.tsx";
-import FileFilterCompact from "../components/FileFilterComponent/FileFilterCompact.tsx";
-import SortedBy from "../components/SortComponent.tsx";
-import TransactionSummary from "../components/TransactionSummaryComponent/TransactionSummary.tsx";
-import FileSummary from "../components/FileSummaryComponent/FileSummary.tsx";
-import {FileDetails, Transaction} from "../utils/interfaces.ts"; // Import the SortedBy component
+import FieldSelector from "../../components/ModeSelectorComponent/FieldSelector.tsx";
+import {useUser} from "../../contexts/GlobalContext.tsx";
+import {useFileFilterContext} from "../../contexts/FileFilterContext.tsx";
+import FileDetailsCard from "../../components/FileDetailsCardComponent/FileDetailsCard.tsx";
+import FileFilterCompact from "../../components/FileFilterComponent/FileFilterCompact.tsx";
+import SortedBy from "../../components/SortComponent.tsx";
+import TransactionSummary from "../../components/TransactionSummaryComponent/TransactionSummary.tsx";
+import FileSummary from "../../components/FileSummaryComponent/FileSummary.tsx";
+import {FileDetails, Transaction} from "../../utils/interfaces.ts"; // Import the SortedBy component
 import {ToastContainer, toast} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -174,7 +174,6 @@ const Transactions = () => {
                             <TablePagination
                                 onRowsPerPageChange={(item) => {
                                     const limit = parseInt(item.target.value);
-                                    console.log(limit)
                                     dispatch({
                                         type: "SET_LIMIT",
                                         payload: limit ? limit : 100
