@@ -5,11 +5,12 @@ interface IBasicCard {
     style?: CSSProperties;
     children?: any;
     className?: string;
+    onClick?: () => void;
 }
 
 const BasicCard: React.FC<IBasicCard> = (props) => {
     const {style} = props;
-    return (<Card className={props.className} style={style}>
+    return (<Card onClick={props.onClick} className={props.className} style={style}>
         {props.children}
     </Card>)
 }

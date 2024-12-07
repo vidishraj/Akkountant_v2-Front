@@ -3,7 +3,7 @@ import Login from "./pages/Login.tsx";
 import {Route, Routes} from 'react-router-dom';
 import {setupAxiosInterceptors} from "./services/AxiosConfig.tsx";
 import Home from "./pages/Home/Home.tsx";
-import Transactions from "./pages/Transactions.tsx";
+import Transactions from "./pages/Transactions/Transactions.tsx";
 import PrivateRoute from "./utils/PrivateRoute.tsx";
 import Investments from './pages/Investments/Investments.tsx';
 

@@ -9,6 +9,7 @@ import {BrowserRouter as Router} from "react-router-dom";
 import {FilterProvider} from "./contexts/FilterContext.tsx";
 import {FileFilterProvider} from "./contexts/FileFilterContext.tsx";
 import Header from "./components/Header/Header.tsx";
+import {MSNProvider} from "./contexts/MSNContext.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <Router>
@@ -17,13 +18,15 @@ createRoot(document.getElementById("root")!).render(
                 <UserProvider>
                     <FilterProvider>
                         <FileFilterProvider>
-                            <div className="layout">
-                                <div className="header"><Header/></div>
-                                <div className="content">
-                                    <App/>
+                            <MSNProvider>
+                                <div className="layout">
+                                    <div className="header"><Header/></div>
+                                    <div className="content">
+                                        <App/>
+                                    </div>
+                                    <div className="footer">© 2023 Akkountant</div>
                                 </div>
-                                <div className="footer">© 2023 Akkountant</div>
-                            </div>
+                            </MSNProvider>
                         </FileFilterProvider>
                     </FilterProvider>
                 </UserProvider>

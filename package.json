@@ -28,6 +28,7 @@
     "react-infinite-scroll-component": "^6.1.0",
     "react-pro-sidebar": "^1.1.0",
     "react-router-dom": "^6.28.0",
+    "react-search-autocomplete": "^8.5.2",
     "react-toastify": "^10.0.6",
     "sass": "^1.80.7",
     "web-vitals": "^4.2.4"
