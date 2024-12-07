@@ -1,0 +1,151 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: #121c24;
+}
+
+//summary
+.assetCard {
+  background-color: #121c24 !important;
+  padding: 5px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+  min-width: 350px;
+  max-height: 130px !important;
+}
+
+.innerCard {
+  display: flex;
+  //gap: 20px;
+  justify-content: space-between;
+}
+
+.header {
+  color: #7a7d85;
+  margin-bottom: 10px;
+  font-size: 18px;
+  text-align: center;
+}
+
+.totalValueGrid {
+  margin-right: 10px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.value {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #FAFAFA;
+  text-align: center;
+}
+
+
+.infoGrid {
+  margin-left: 10px !important;
+  text-align: center;
+}
+
+.dValue {
+  color: #FAFAFA;
+}
+
+.label {
+  color: #7a7d85;
+  font-weight: bold;
+}
+
+.status {
+  font-weight: bold;
+  color: #1a73e8;
+}
+
+//summary ends
+
+//list
+.scrollContainer {
+  display: flex;
+  flex-direction: column;
+  //gap: 12px;
+  width: 100%;
+  max-height: 300px; // Adjust based on need
+  overflow-y: auto;
+  padding: 3px;
+  background-color: #29384D;
+  border-radius: 8px;
+}
+
+.stockCard {
+  display: flex;
+  min-height: 60px;
+  min-width: 370px;
+  //min-width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #121c24 !important;
+  border-radius: 12px;
+  padding: 10px;
+  padding-left: 0 !important;
+  border-bottom: 0.1px solid #E5E8EB;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cardContent {
+  padding-left: 0 !important;
+  display: flex;
+  gap: 10px;
+  text-align: center;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+}
+
+.symbol {
+  padding-left: 10px !important;
+  font-weight: bold;
+  color: #FAFAFA;
+}
+
+.previousValue {
+  color: #888;
+  font-size: 14px;
+}
+
+.currentValue {
+  font-weight: bold;
+  color: #FAFAFA;
+  font-size: 18px;
+}
+
+.positiveChange {
+  color: #4caf50; // Green for positive change
+}
+
+.negativeChange {
+  color: #f44336; // Red for negative change
+}
+
+//list ends
+
+.scrollContainer {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollContainer::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.search .wrapper:first-child input {
+  border: 4px solid red !important;
+}

@@ -1,0 +1,73 @@
+.fileUploadDialog {
+  .dialogContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background-color: #121c24;
+  }
+
+  .dropArea {
+    width: 320px;
+    height: 300px;
+    border: 2px dashed #aaa;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin: 20px 0;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+    position: relative;
+  }
+
+  .dropArea:hover {
+    border-color: #1976d2;
+  }
+
+  .fileSelected {
+    background-color: #1a2b38;
+    border: 2px solid #1976d2;
+  }
+
+  .uploadLabel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    text-align: center;
+  }
+
+  .uploadText {
+    color: #666;
+    font-weight: bold;
+  }
+
+  .fileDetails {
+    color: #fafafa;
+    text-align: center;
+  }
+
+  .buttonContainer {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .loadingOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
+}

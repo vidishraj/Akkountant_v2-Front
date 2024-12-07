@@ -1,17 +1,50 @@
-.investmentsParentContainer{
-    display:flex;
-    flex-direction: row;
-    height:80vh;
-    justify-content: space-between;
-    gap:2rem;
-    margin:1rem;
+.investmentsParentContainer {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-wrap: nowrap;
+  background-color: #121c24 !important;
 }
-.evaluationContainer, .allocationContainer{
-    flex:1;
-    border: 1px solid white;
 
+@media screen and (max-width: 450px) {
+  .investmentsParentContainer {
+    flex-direction: column;
+  }
 }
-.allocationContainer{
-  
-  
+
+.dashboard {
+  min-width: 50%;
+  flex-basis: 50%;
+  background-color: #121c24 !important;
+  border-right: 1px solid #FAFAFA !important;
+}
+
+
+.cardContainer {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 10px 5px 5px 10px;
+  gap: 10px;
+  width: 50%;
+}
+
+.stockContainer {
+  background-color: #121c24 !important;
+  height: 200px;
+  width: 300px;
+  border: 1px solid white !important;
+}
+
+.mfContainer {
+  background-color: #121c24 !important;
+  height: 200px;
+  width: 300px;
+  border: 1px solid white !important;
+}
+
+.npsContainer {
+  background-color: #121c24 !important;
+  height: 200px;
+  width: 300px;
+  border: 1px solid white !important;
 }
