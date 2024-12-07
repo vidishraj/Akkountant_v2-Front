@@ -71,3 +71,58 @@ export interface FileDetailsResponse {
     page_size: number;
     results: FileDetails[];
 }
+
+// FileUpload.types.ts
+
+// Response from the Flask API
+export interface FileUploadResponse {
+    file_count: string; // or number if you prefer to parse it
+}
+
+// Error response from the Flask API
+export interface FileUploadError {
+    error: string;
+}
+
+// Request parameters (if any, such as serviceType)
+export interface FileUploadParams {
+    serviceType: string;
+}
+
+export interface MSNSummaryResponse {
+    totalValue: number; // Represents Decimal, mapped to number
+    currentValue: number; // Represents Decimal, mapped to number
+    changePercent: number; // Represents Decimal, mapped to number
+    changeAmount: number; // Represents Decimal, mapped to number
+    count: number; // Represents Integer, must be greater than 0
+    marketStatus: boolean; // Represents Boolean
+}
+
+export interface MSNRateResponse {
+    symbol: string; // Represents String
+    companyName: string; // Represents String
+    industry: string; // Represents String
+    lastPrice: number; // Represents Decimal, must be >= 0
+    change: number; // Represents Decimal
+    pChange: number; // Represents Decimal
+    previousClose: number; // Represents Decimal, must be >= 0
+    open: number; // Represents Decimal, must be >= 0
+    close: number; // Represents Decimal, must be >= 0
+    dayHigh: number; // Represents Decimal, must be >= 0
+    dayLow: number; // Represents Decimal, must be >= 0
+    pfmName?: string;
+    yesterday?: string;
+    lastWeek?: string;
+    sixMonthsAgo?: string;
+}
+
+export interface MSNListResponse {
+    buyID: number | string; // The ID of the buy transaction, inferred as number or string
+    buyCode: string; // Security code of the transaction
+    buyPrice: number; // Quantity of securities purchased
+    buyQuant: number; // Quantity of securities purchased
+    schemeCode: string; // Code representing the security type or scheme
+    serviceType: string; // Type of service (investment type)
+    date: string; // Date in "YYYY-MM-DD" format
+    info: MSNRateResponse
+}
