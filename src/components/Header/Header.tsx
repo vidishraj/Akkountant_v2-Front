@@ -8,10 +8,13 @@ import {useState} from "react";
 import {getAuth, signOut} from "firebase/auth";
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
-    const [isDrawerOpen, setDrawerOpen] = useState(false); 
+    const [isDrawerOpen, setDrawerOpen] = useState(false); // State for the sidebar
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
+        if(open){
+            handleCloseUserMenu();
+        }
     };
 
     const handleCloseUserMenu = () => {
@@ -99,18 +102,11 @@ const Header = () => {
                               <MenuItem
                                   style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
                                   key={setting}
-
-                                onClick={()=>{
-                                    
-                                    if(setting==="Settings"){
-                                        handleCloseUserMenu();
-                                        toggleDrawer(true);
-                                    }
-                                    else if (setting==="Logout"){
-                                        handleCloseUserMenu();
-                                        handleLogOut();
-                                    }
-                                }}
+                                  onClick={
+                                      setting === 'Settings'
+                                          ? toggleDrawer(true) // Open sidebar for "Settings"
+                                          : handleLogOut
+                                  }
                               >
                                   <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
                               </MenuItem>
@@ -148,14 +144,14 @@ const Header = () => {
                         Settings
                     </Typography>
                     <Divider />
-                    {/* <List>
-                        <ListItem button onClick={() => navigate('/select-banks')} component="a">
+                    <List>
+                        {/* <ListItem button onClick={() => navigate('/select-banks')} component="a">
                             <ListItemText primary="Select Banks" />
                         </ListItem>
                         <ListItem button onClick={() => navigate('/change-password')} compo>
                             <ListItemText primary="Change Password" />
-                        </ListItem>
-                    </List> */}
+                        </ListItem> */}
+                    </List>
                 </Box>
             </Drawer>
         </>
