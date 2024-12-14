@@ -1,0 +1,81 @@
+.dialog {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dialogTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 16px 24px;
+  background-color: #121c24;
+  color: #fafafa;
+}
+
+.dialogContent {
+  background-color: #121c24;
+  margin-top: 0px;
+  padding: 16px 24px;
+}
+
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inputField {
+  color: #fafafa !important;
+
+  .MuiInputBase-root {
+    color: #fafafa !important;
+    font-size: 1rem;
+  }
+
+  .inputFi {
+    color: #fafafa !important;
+  }
+
+  .testLabel {
+    color: #fafafa !important;
+  }
+
+
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: space-evenly;
+  padding: 16px 24px;
+  gap: 8px;
+}
+
+.cancelButton {
+  color: #6c757d;
+  border-color: #6c757d;
+
+  &:hover {
+    background-color: #f5f5f5;
+    border-color: #5a6268;
+  }
+}
+
+.submitButton {
+  background-color: #007bff;
+  color: #ffffff;
+
+  &:hover {
+    background-color: #0056b3;
+  }
+}
+
+.inputField input[type="number"] {
+  appearance: none;
+  -moz-appearance: textfield;
+}
+
+.inputField input[type="number"]::-webkit-inner-spin-button,
+.inputField input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
