@@ -11,7 +11,7 @@ const Header = () => {
     const [isDrawerOpen, setDrawerOpen] = useState(false); // State for the sidebar
     const [selectedBanks, setSelectedBanks]= useState<string[]>([]);
     const [dropdown, setDropdown]= useState(null);
-    const banks= ["Millenia Credit", "HDFC Debit","ICICI Amazon Pay", "Yes Bank Debit", "Yes Bank Ace"]
+    const banks= ["Millenia_Credit", "HDFC_DEBIT","ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
 
     const handleOpenDropdown=(e)=>{
         setDropdown(e.currentTarget);
@@ -28,7 +28,7 @@ const Header = () => {
         );
     };
     console.log(selectedBanks);
-    
+
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
         if(open){
