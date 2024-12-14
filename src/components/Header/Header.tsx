@@ -1,4 +1,4 @@
-import {AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, MenuItem, ListItemText, Divider, List, ListItem, Drawer} from '@mui/material';
+import {AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, MenuItem, ListItemText, Divider, List, ListItem, Drawer, FormControl, FormControlLabel, Checkbox, FormGroup} from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
 import {auth} from "../FirebaseConfig.tsx"
@@ -9,7 +9,26 @@ import {getAuth, signOut} from "firebase/auth";
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false); // State for the sidebar
+    const [selectedBanks, setSelectedBanks]= useState<string[]>([]);
+    const [dropdown, setDropdown]= useState(null);
+    const banks= ["Millenia Credit", "HDFC Debit","ICICI Amazon Pay", "Yes Bank Debit", "Yes Bank Ace"]
 
+    const handleOpenDropdown=(e)=>{
+        setDropdown(e.currentTarget);
+    }
+    const handleCloseDropdown=()=>{
+        setDropdown(null);
+    }
+
+    const handleBankToggle = (bank: string) => {
+        setSelectedBanks((prevSelected) =>
+            prevSelected.includes(bank)
+                ? prevSelected.filter((b) => b !== bank) 
+                : [...prevSelected, bank] 
+        );
+    };
+    console.log(selectedBanks);
+    
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
         if(open){
@@ -104,7 +123,7 @@ const Header = () => {
                                   key={setting}
                                   onClick={
                                       setting === 'Settings'
-                                          ? toggleDrawer(true) // Open sidebar for "Settings"
+                                          ? toggleDrawer(true) 
                                           : handleLogOut
                                   }
                               >
@@ -145,12 +164,39 @@ const Header = () => {
                     </Typography>
                     <Divider />
                     <List>
-                        {/* <ListItem button onClick={() => navigate('/select-banks')} component="a">
-                            <ListItemText primary="Select Banks" />
+                        <ListItem sx={{padding:0}}>
+                            <ListItemText primary="Select Banks" sx={{color:"white", cursor:"pointer"}} onClick={handleOpenDropdown}/>
                         </ListItem>
-                        <ListItem button onClick={() => navigate('/change-password')} compo>
-                            <ListItemText primary="Change Password" />
-                        </ListItem> */}
+
+                <Menu
+                anchorEl={dropdown}
+                open={Boolean(dropdown)}
+                onClose={handleCloseDropdown}
+                MenuListProps={{ sx: { width: '250px' } }}
+            >
+                <MenuItem>
+                    <FormControl component="fieldset" sx={{ width: '100%' }}>
+                        <FormGroup>
+                            {banks.map((bank) => (
+                                <FormControlLabel
+                                    key={bank}
+                                    control={
+                                        <Checkbox
+                                            checked={selectedBanks.includes(bank)}
+                                            onChange={() => handleBankToggle(bank)}
+                                        />
+                                    }
+                                    label={bank}
+                                />
+                            ))}
+                        </FormGroup>
+                    </FormControl>
+                </MenuItem>
+
+            </Menu>
+                        <ListItem sx={{padding:0}}>
+                            <ListItemText primary="Change Password" sx={{color:"white", cursor: "pointer"}}/>
+                        </ListItem>
                     </List>
                 </Box>
             </Drawer>
