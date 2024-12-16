@@ -1,0 +1,113 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: #121c24;
+}
+
+.scrollContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 300px;
+  max-height: 300px; // Adjust based on need
+  overflow-y: auto;
+  background-color: #29384D;
+  border-radius: 8px;
+
+  // Hide scrollbar
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollContainer::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.stockCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 60px;
+  min-width: 370px;
+  background-color: #121c24 !important;
+  border-radius: 12px;
+  padding: 10px;
+  padding-left: 0 !important;
+  border-bottom: 0.1px solid #E5E8EB;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cardContent {
+  padding-left: 0 !important;
+  display: flex;
+  gap: 10px;
+  text-align: center;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+}
+
+.date,
+.amount,
+.quantity,
+.interest,
+.goldType,
+.description {
+  font-weight: bold;
+  color: #FAFAFA;
+  text-align: center;
+}
+
+
+.date {
+  width: 20%;
+}
+
+.description {
+  width: 20%;
+  color: #FAFAFA !important;
+}
+
+.currentBox {
+  width: 20%;
+}
+
+.basicFlex {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.listBackButton {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  height: 100%;
+}
+
+.backButton {
+  width: max-content;
+  color: white !important;
+  padding: 5px 20px !important;
+  border: 3px solid #29384D !important;
+  background-color: #121c24 !important;
+}
+
+.search .wrapper:first-child input {
+  border: 4px solid red !important;
+}
+
+.headerCard {
+  position: sticky;
+  top: 0; // Sticks the header card to the top
+  z-index: 10; // Ensures it stays above other elements
+  background-color: #121c24; // Matches the card's background
+  padding: 0 !important;
+}

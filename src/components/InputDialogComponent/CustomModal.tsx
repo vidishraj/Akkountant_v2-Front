@@ -5,7 +5,10 @@ import {
     Dialog,
     DialogContent,
     DialogTitle,
-    FormControl, InputLabel, MenuItem, Select,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
     TextField,
 } from "@mui/material";
 import styles from "./CustomModal.module.scss";
@@ -14,37 +17,47 @@ type Props = {
     title: string;
     open: boolean;
     onCancel: () => void;
-    onSubmit: (formData: any) => void;
-    cardType: "mf" | string;
+    onSubmit: (formData: FormDataType) => void;
+    cardType: "mf" | "gold" | string;
     maxNav?: number;
 };
 
-const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props) => {
-    const [formData, setFormData] = useState({
+type FormDataType = {
+    date: string;
+    nav: string;
+    quantity: string;
+    description: string;
+    amount: string;
+    goldCarat: string;
+};
+
+const CustomModal: React.FC<Props> = ({
+                                          title,
+                                          open,
+                                          onCancel,
+                                          onSubmit,
+                                          cardType,
+                                          maxNav,
+                                      }) => {
+    const [formData, setFormData] = useState<FormDataType>({
         date: "",
         nav: "",
         quantity: "",
         description: "",
         amount: "",
-        goldCarat: "18 carat"
+        goldCarat: "18 carat",
     });
 
-    const [errors, setErrors] = useState({
-        date: "",
-        nav: "",
-        quantity: "",
-        description: "",
-        amount: "",
-        goldCarat: "18 carat"
-    });
+    const [errors, setErrors] = useState<Partial<FormDataType>>({});
 
-    const handleInputChange = (field: string, value: string) => {
+    const handleInputChange = (field: keyof FormDataType, value: string) => {
         setFormData((prev) => ({...prev, [field]: value}));
         setErrors((prev) => ({...prev, [field]: ""})); // Clear error on input change
     };
 
     const validateForm = () => {
-        const newErrors: any = {};
+        const newErrors: Partial<FormDataType> = {};
+
         if (!formData.date) newErrors.date = "Date is required.";
 
         if (cardType === "mf") {
@@ -52,7 +65,9 @@ const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props)
             if (!formData.quantity) newErrors.quantity = "Quantity is required.";
         } else {
             if (!formData.description) newErrors.description = "Description is required.";
-            if (!formData.quantity) newErrors.quantity = "Quantity is required.";
+            if (cardType === "gold" && !formData.quantity) {
+                newErrors.quantity = "Quantity is required.";
+            }
             if (!formData.amount) newErrors.amount = "Amount is required.";
         }
 
@@ -62,12 +77,24 @@ const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props)
 
     const handleFormSubmit = () => {
         if (validateForm()) {
-            onSubmit(formData);
+            const formattedDate = new Date(formData.date)
+                .toISOString()
+                .split("T")[0]
+                .split("-")
+                .reverse()
+                .join("-");
+            onSubmit({...formData, date: formattedDate});
         }
     };
 
     return (
-        <Dialog open={open} onClose={onCancel} fullWidth maxWidth="sm" className={styles.dialog}>
+        <Dialog
+            open={open}
+            onClose={onCancel}
+            fullWidth
+            maxWidth="sm"
+            className={styles.dialog}
+        >
             <DialogTitle className={styles.dialogTitle}>{title}</DialogTitle>
             <DialogContent className={styles.dialogContent}>
                 <Box className={styles.formContainer}>
@@ -77,15 +104,14 @@ const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props)
                         type="date"
                         value={formData.date}
                         onChange={(e) => handleInputChange("date", e.target.value)}
-                        InputLabelProps={{className: styles.inputFi, shrink: true}}
+                        InputLabelProps={{shrink: true}}
                         fullWidth
                         className={styles.inputField}
                         error={!!errors.date}
                         helperText={errors.date}
-                        InputProps={{className: styles.inputFi,}}
                     />
 
-                    {cardType === "mf" ? (
+                    {cardType === "mf" && (
                         <>
                             {/* NAV Field */}
                             <TextField
@@ -93,7 +119,7 @@ const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props)
                                 type="number"
                                 value={formData.nav}
                                 onChange={(e) => handleInputChange("nav", e.target.value)}
-                                InputProps={{className: styles.inputFi, inputProps: {min: 0, max: maxNav}}}
+                                InputProps={{inputProps: {min: 0, max: maxNav}}}
                                 fullWidth
                                 className={styles.inputField}
                                 error={!!errors.nav}
@@ -106,14 +132,16 @@ const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props)
                                 type="number"
                                 value={formData.quantity}
                                 onChange={(e) => handleInputChange("quantity", e.target.value)}
-                                InputProps={{className: styles.inputFi, inputProps: {min: 0, step: 0.01}}}
+                                InputProps={{inputProps: {min: 0, step: 0.01}}}
                                 fullWidth
                                 className={styles.inputField}
                                 error={!!errors.quantity}
                                 helperText={errors.quantity}
                             />
                         </>
-                    ) : (
+                    )}
+
+                    {cardType !== "mf" && (
                         <>
                             {/* Description Field */}
                             <TextField
@@ -124,7 +152,6 @@ const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props)
                                 fullWidth
                                 className={styles.inputField}
                                 error={!!errors.description}
-                                InputProps={{className: styles.inputFi}}
                                 helperText={errors.description}
                             />
 
@@ -134,46 +161,52 @@ const CustomModal = ({title, open, onCancel, onSubmit, cardType, maxNav}: Props)
                                 type="number"
                                 value={formData.amount}
                                 onChange={(e) => handleInputChange("amount", e.target.value)}
-                                InputProps={{className: styles.inputFi, inputProps: {min: 0, step: 0.01}}}
+                                InputProps={{inputProps: {min: 0, step: 0.01}}}
                                 fullWidth
                                 className={styles.inputField}
                                 error={!!errors.amount}
                                 helperText={errors.amount}
                             />
-                            <TextField
-                                label="Quantity"
-                                type="number"
-                                value={formData.quantity}
-                                onChange={(e) => handleInputChange("quantity", e.target.value)}
-                                InputProps={{className: styles.inputFi, inputProps: {min: 0, step: 0.01}}}
-                                fullWidth
-                                className={styles.inputField}
-                                error={!!errors.quantity}
-                                helperText={errors.quantity}
-                            />
-                            {/* Gold Carat Dropdown */}
-                            {
-                                cardType === "gold" &&
-                                <FormControl fullWidth className={styles.inputField}>
-                                    <InputLabel id="gold-carat-label">Gold Carat</InputLabel>
-                                    <Select
-                                        labelId="gold-carat-label"
-                                        value={formData.goldCarat}
-                                        style={{color: "white"}}
-                                        onChange={(e) => handleInputChange("goldCarat", e.target.value)}
-                                    >
-                                        <MenuItem value="18 carat">18 carat</MenuItem>
-                                        <MenuItem value="22 carat">22 carat</MenuItem>
-                                        <MenuItem value="24 carat">24 carat</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            }
+
+                            {/* Gold-Specific Fields */}
+                            {cardType === "gold" && (
+                                <>
+                                    <TextField
+                                        label="Quantity"
+                                        type="number"
+                                        value={formData.quantity}
+                                        onChange={(e) => handleInputChange("quantity", e.target.value)}
+                                        InputProps={{inputProps: {min: 0, step: 0.01}}}
+                                        fullWidth
+                                        className={styles.inputField}
+                                        error={!!errors.quantity}
+                                        helperText={errors.quantity}
+                                    />
+
+                                    <FormControl fullWidth className={styles.inputField}>
+                                        <InputLabel id="gold-carat-label">Gold Carat</InputLabel>
+                                        <Select
+                                            labelId="gold-carat-label"
+                                            value={formData.goldCarat}
+                                            onChange={(e) => handleInputChange("goldCarat", e.target.value)}
+                                        >
+                                            <MenuItem value="18 carat">18 carat</MenuItem>
+                                            <MenuItem value="22 carat">22 carat</MenuItem>
+                                            <MenuItem value="24 carat">24 carat</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </>
+                            )}
                         </>
                     )}
                 </Box>
             </DialogContent>
             <Box className={styles.dialogActions}>
-                <Button variant="outlined" onClick={onCancel} className={styles.cancelButton}>
+                <Button
+                    variant="outlined"
+                    onClick={onCancel}
+                    className={styles.cancelButton}
+                >
                     Cancel
                 </Button>
                 <Button

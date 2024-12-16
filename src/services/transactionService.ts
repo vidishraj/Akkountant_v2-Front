@@ -4,32 +4,57 @@ import {
     TransactionRequestBody,
     FileDetailsRequestBody,
     TransactionResponse,
-    FileDetailsResponse, GoogleStatusResponse
+    FileDetailsResponse,
+    GoogleStatusResponse,
 } from '../utils/interfaces.ts';
+
+/**
+ * Helper to clear cache by adding the `cache-control: no-cache` header.
+ * @param options - The existing request options to modify.
+ * @returns The modified request options with cache bypass.
+ */
+function withCacheCleared(options: Record<string, any> = {}): Record<string, any> {
+    return {
+        ...options,
+        params: {
+            ...options.params,
+            clearCacheEntry: true,
+        },
+    };
+}
 
 /**
  * Fetch transactions with filtering and pagination.
  */
-export async function fetchTransactions(body: TransactionRequestBody): Promise<TransactionResponse> {
+export async function fetchTransactions(
+    body: TransactionRequestBody,
+    clearCache = false
+): Promise<TransactionResponse> {
+    const options = clearCache ? withCacheCleared() : {};
     return queueRequest(() =>
-        axios.post('/fetchTransactions', body).then((res) => res.data)
+        axios.post('/fetchTransactions', body, options).then((res) => res.data)
     );
 }
 
 /**
  * Fetch file details with filtering and pagination.
  */
-export async function fetchFileDetails(body: FileDetailsRequestBody): Promise<FileDetailsResponse> {
+export async function fetchFileDetails(
+    body: FileDetailsRequestBody,
+    clearCache = false
+): Promise<FileDetailsResponse> {
+    const options = clearCache ? withCacheCleared() : {};
     return queueRequest(() =>
-        axios.post('/getFileDetails', body).then((res) => res.data)
+        axios.post('/getFileDetails', body, options).then((res) => res.data)
     );
 }
 
 /**
  * Fetch opted banks for the user.
  */
-export async function fetchOptedBanks(): Promise<any> {
-    return queueRequest(() => axios.get('/fetchOptedBanks').then((res) => res.data));
+export async function fetchOptedBanks(clearCache = false): Promise<any> {
+    const options = clearCache ? withCacheCleared() : {};
+    return queueRequest(() => axios.get('/fetchOptedBanks', options).then((res) => res.data));
 }
 
 /**
@@ -45,11 +70,13 @@ export async function insertUser(body: any): Promise<any> {
 /**
  * Check the status of Google API services (Gmail or Drive).
  */
-export async function checkGoogleStatus(serviceType: string): Promise<GoogleStatusResponse> {
+export async function checkGoogleStatus(
+    serviceType: string,
+    clearCache = false
+): Promise<GoogleStatusResponse> {
+    const options = clearCache ? withCacheCleared({params: {serviceType}}) : {params: {serviceType}};
     return queueRequest(() =>
-        axios
-            .get('/getGoogleStatus', {params: {serviceType}})
-            .then((res) => res.data)
+        axios.get('/getGoogleStatus', options).then((res) => res.data)
     );
 }
 
@@ -65,8 +92,12 @@ export async function updateGoogleTokens(body: any): Promise<any> {
 /**
  * Fetch transactions for calendar view.
  */
-export async function fetchCalendarTransactions(body: any): Promise<any> {
+export async function fetchCalendarTransactions(
+    body: any,
+    clearCache = false
+): Promise<any> {
+    const options = clearCache ? withCacheCleared() : {};
     return queueRequest(() =>
-        axios.post('/calendarTransactions', body).then((res) => res.data)
+        axios.post('/calendarTransactions', body, options).then((res) => res.data)
     );
 }

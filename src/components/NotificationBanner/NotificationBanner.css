@@ -1,0 +1,32 @@
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999 !important;
+}
+
+#toast-container {
+    z-index: 9999999;
+}
+
+.notification-message {
+    padding: 10px 20px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.warning {
+    background-color: #ff9800;
+    color: white;
+}
+
+.error {
+    background-color: #f44336;
+    color: white;
+}

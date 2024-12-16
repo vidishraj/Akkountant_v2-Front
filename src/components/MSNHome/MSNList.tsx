@@ -2,6 +2,8 @@ import React from "react";
 import {Card, CardContent, Typography, Box} from "@mui/material";
 import style from "./MSNHome.module.scss";
 import {MSNListResponse} from "../../utils/interfaces.ts";
+import withLoader from "../LoaderHOC.tsx";
+import {useMSNContext} from "../../contexts/MSNContext.tsx";
 
 interface MSNListProps {
     list: MSNListResponse[];
@@ -9,13 +11,46 @@ interface MSNListProps {
 }
 
 const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
+    const {state} = useMSNContext()
     return (
-        <Box className={style.scrollContainer}>
+        <Box className={style.scrollContainer} style={{
+            justifyContent: list.length === 0 ? 'center' : '',
+            alignItems: list.length === 0 ? 'center' : '',
+        }}>
             {/* Render a card for each stock in the list */}
-            {list.map((stock) => {
-                const {buyCode, info} = stock;
-                const {lastPrice, previousClose, pChange, change} = info;
-
+            {list.length > 0 ? list.map((stock) => {
+                let lastPrice = 0
+                let buyQuant = 0;
+                let buyPrice = 0
+                let pChange = 0
+                let {buyCode, info} = stock;
+                let previousClose = info.lastPrice;
+                if (state.selectedCard.stocks || state.selectedCard.mf) {
+                    if (state.selectedCard.mf) {
+                        buyCode = info.schemeType
+                    }
+                    lastPrice = info.lastPrice;
+                    pChange = info.pChange;
+                    buyPrice = stock.buyPrice
+                    buyQuant = stock.buyQuant;
+                } else if (state.selectedCard.nps && stock.info.lastWeek) {
+                    buyCode = info.name
+                    lastPrice = Number(stock.info.nav);
+                    previousClose = Number(stock.info.lastWeek);
+                    buyQuant = stock.buyQuant;
+                    buyPrice = stock.buyPrice;
+                    pChange = Number(((lastPrice - previousClose) / previousClose * 100).toFixed(2))
+                }
+                const profit = (Number(lastPrice * buyQuant) - Number(buyPrice * buyQuant))
+                const profitString = profit.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                })
+                const profitPercentage = (profit / Number(buyPrice * buyQuant) * 100);
+                const profitPercentageString = profitPercentage.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                })
                 const isPositiveChange = pChange >= 0; // Determine if the price change is positive
 
                 return (
@@ -26,21 +61,21 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     >
                         <CardContent className={style.cardContent}>
                             {/* Stock Buy Code */}
-                            <Typography variant="h6" className={style.symbol}>
+                            <Typography variant={'body2'} className={style.symbol}>
                                 {buyCode}
                             </Typography>
 
                             {/* Current Value */}
-                            <Box>
+                            <Box className={style.currentBox}>
                                 <Typography variant="body1" className={style.currentValue}>
                                     &#8377;{lastPrice}
                                 </Typography>
                             </Box>
 
                             {/* Previous Value and Price Change */}
-                            <Box>
+                            <Box className={style.previousBox}>
                                 <Typography variant="body2" className={style.previousValue}>
-                                    {previousClose}
+                                    &#8377;{previousClose}
                                 </Typography>
                                 <Typography
                                     variant="body2"
@@ -51,26 +86,27 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                             </Box>
 
                             {/* Absolute Change and Percentage Change */}
-                            <Box>
+                            <Box className={style.changeBox}>
                                 <Typography
                                     variant="body2"
-                                    className={isPositiveChange ? style.positiveChange : style.negativeChange}
+                                    className={profit > 0 ? style.positiveChange : style.negativeChange}
                                 >
-                                    &#8377;{change}
+                                    &#8377;{profitString}
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    className={isPositiveChange ? style.positiveChange : style.negativeChange}
+                                    className={profitPercentage > 0 ? style.positiveChange : style.negativeChange}
                                 >
-                                    {isPositiveChange ? `+${pChange}%` : `${pChange}%`}
+                                    {profitPercentage > 0 ? `+${profitPercentageString}%` : `${profitPercentageString}%`}
                                 </Typography>
                             </Box>
                         </CardContent>
                     </Card>
                 );
-            })}
+            }) : <div style={{textAlign: 'center'}}> No data! <br/>
+                Upload statement or Add instrument!</div>}
         </Box>
     );
 };
 
-export default MSNList;
+export default withLoader(MSNList);

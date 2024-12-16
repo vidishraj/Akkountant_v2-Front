@@ -1,21 +1,26 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Axios from 'axios';
-import {setupCache} from 'axios-cache-interceptor';
 import {auth} from '../components/FirebaseConfig';
 import {onAuthStateChanged} from 'firebase/auth';
-import {useLoading} from '../contexts/LoadingContext';
+import {setupCache} from 'axios-cache-interceptor';
 
 const instance = Axios.create({baseURL: 'http://127.0.0.1:8000'});
-const axios = setupCache(instance, {debug: console.log});
+const axios = setupCache(instance, {
+    debug: console.log,
+});
+
 
 export const setupAxiosInterceptors = () => {
-    const {setLoading} = useLoading();
-
     axios.interceptors.request.use(
         async (config) => {
-            setLoading(true);
+            if (config.params && config.params.clearCacheEntry && config.id) {
+                try {
+                    // Remove the cache entry for the current request
+                    await axios.storage.remove(config.id);
+                } catch (error) {
+                    console.error('Error removing cache entry:', error);
+                }
+            }
             const user = auth.currentUser;
-
             if (!user) {
                 await new Promise((resolve) => {
                     onAuthStateChanged(auth, (loggedInUser) => {
@@ -31,18 +36,15 @@ export const setupAxiosInterceptors = () => {
             return config;
         },
         (error) => {
-            setLoading(false);
             return Promise.reject(error);
         }
     );
 
     axios.interceptors.response.use(
         (response) => {
-            setLoading(false);
             return response;
         },
         (error) => {
-            setLoading(false);
             return Promise.reject(error);
         }
     );

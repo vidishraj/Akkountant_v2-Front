@@ -4,34 +4,35 @@ import MSNCard from "../../components/MSNCardComponent/MSNCard.tsx";
 import BasicCard from "../../components/BasicCard.tsx";
 import MSNHome from "../../components/MSNHome/MSNHome.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
-import {fetchSummary} from "../../services/investmentService.ts";
+import EPGHome from "../../components/EPGHomeComponent/EPGHome.tsx";
 
 const Investments = () => {
-    const {state, dispatch} = useMSNContext();
-
-    // Helper function to fetch and dispatch summaries
-    const fetchAndSetSummary = (serviceType: string, key: keyof typeof state.summaries) => {
-        fetchSummary(serviceType)
-            .then((response) => {
-                dispatch({
-                    type: "MSNSummarySetter",
-                    payload: {[key]: response.data},
-                });
-            })
-            .catch((err) => console.error(`Error fetching ${serviceType} summary:`, err));
-    };
+    const {state, fetchAndSetSummary, AllInfoForEpf} = useMSNContext();
 
     useEffect(() => {
-        fetchAndSetSummary("Stocks", "stocks");
-        fetchAndSetSummary("NPS", "nps");
-        fetchAndSetSummary("Mutual_Funds", "mf");
+        fetchAndSetSummary("Stocks", false);
+        fetchAndSetSummary("NPS", false);
+        fetchAndSetSummary("Mutual_Funds", false);
+        AllInfoForEpf("EPF", false)
+        AllInfoForEpf("Gold", false)
+        AllInfoForEpf("PF", false)
     }, []);
 
     const renderCards = () => (
         <>
-            <MSNCard title="Stocks" className={style.stockContainer} cardType="stocks"/>
-            <MSNCard title="Mutual Funds" className={style.mfContainer} cardType="mf"/>
-            <MSNCard title="NPS" className={style.npsContainer} cardType="nps"/>
+            <MSNCard isLoading={state.loadingState.stocks.summary} title="Stocks" className={style.stockContainer}
+                     cardType="stocks"/>
+            <MSNCard isLoading={state.loadingState.mf.summary} title="Mutual Funds" className={style.mfContainer}
+                     cardType="mf"/>
+            <MSNCard isLoading={state.loadingState.nps.summary} title="NPS" className={style.npsContainer}
+                     cardType="nps"/>
+            <MSNCard isLoading={state.loadingState.epf.summary} title="EPF" className={style.epfContainer}
+                     cardType2="epf"/>
+            <MSNCard isLoading={state.loadingState.ppf.summary} title="PPF" className={style.epfContainer}
+                     cardType2="ppf"/>
+            <MSNCard isLoading={state.loadingState.gold.summary} title="Gold" className={style.epfContainer}
+                     cardType2="gold"/>
+
         </>
     );
 
@@ -41,7 +42,7 @@ const Investments = () => {
             <div className={style.cardContainer}>
                 {state.selectedCard.stocks || state.selectedCard.mf || state.selectedCard.nps ? (
                     <MSNHome/>
-                ) : (
+                ) : state.selectedCard.gold || state.selectedCard.epf || state.selectedCard.ppf ? <EPGHome/> : (
                     renderCards()
                 )}
             </div>

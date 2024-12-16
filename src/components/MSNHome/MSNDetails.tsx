@@ -12,36 +12,38 @@ import {
     TableContainer,
     TableRow,
     Paper,
-    Button,
 } from "@mui/material";
 import style from "./MSNDetails.module.scss";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {MSNListResponse} from "../../utils/interfaces.ts";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
-
-const financialData = [
-    {date: "2024-08-01", price: 350.25, quantity: 10, action: "Buy"},
-    {date: "2024-08-05", price: 355.10, quantity: 5, action: "Sell"},
-    {date: "2024-08-12", price: 348.75, quantity: 8, action: "Buy"},
-    {date: "2024-08-18", price: 360.50, quantity: 6, action: "Sell"},
-    // Add more rows as needed
-];
+import withLoader from "../LoaderHOC.tsx";
+import {formatDateString} from "../../utils/util.tsx";
 
 interface MSNDetailsProps {
     details: MSNListResponse;
-    goBack: () => void;
 }
 
-const MSNDetails: React.FC<MSNDetailsProps> = ({details, goBack}) => {
-    const {state} = useMSNContext();
-    const [activeTab, setActiveTab] = useState<number>(0);
-    const [stockOverview, setStockOverview] = useState<Record<string, string | number | undefined>>({});
+export interface Transaction {
+    date: string; // The date of the transaction in ISO string format.
+    id: number; // The unique identifier for the transaction.
+    price: string; // The price as a string, possibly for precision.
+    quant: string; // The quantity as a string, possibly for precision.
+    transactionType: 'buy' | 'sell'; // The type of transaction, constrained to specific values.
+}
 
+const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
+    const {state, fetchTransactions, getServiceType, getContextKey} = useMSNContext();
+    const [activeTab, setActiveTab] = useState<number>(0);
+
+    const [stockOverview, setStockOverview] = useState<Record<string, string | number | undefined>>({});
+    const [financialData, setFinancialData] = useState<Transaction[]>([]);
     // Update stock overview based on investment type
     useEffect(() => {
         if (state.selectedCard.nps) {
             setStockOverview({
-                "Fund Manager": details.info["pfmName"],
+                "Fund Manager": details.info["pfm_name"],
+                "Name": details.info["name"],
+                "Current": details.info["nav"],
                 "Yesterday": details.info["yesterday"],
                 "Last Week": details.info["lastWeek"],
                 "6 Months Ago": details.info["sixMonthsAgo"],
@@ -54,13 +56,30 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details, goBack}) => {
                 "Day Low": details.info["dayLow"],
                 Industry: details.info["industry"],
             });
+        } else if (state.selectedCard.mf) {
+            setStockOverview(details.info);
         }
-    }, [details, state.selectedCard]);
+        const selected = getContextKey();
+        setFinancialData(state.transactions[selected])
+    }, [details, state.selectedCard, state.transactions]);
 
+    useEffect(() => {
+        fetchTransactions(getServiceType(), false)
+    }, []);
     // Handle tab change
     const handleTabChange = (_: React.ChangeEvent<{}>, newValue: number) => {
         setActiveTab(newValue);
     };
+
+    const mfLabelMap: any = {
+        "change": "Change",
+        "fundHouse": "Fund House",
+        "lastPrice": "Last Price",
+        "pChange": "% Change",
+        "previousClose": "Prev. Close",
+        "schemeType": "Scheme",
+        "scheme_id": "ID",
+    }
 
     return (
         <Box className={style.container}>
@@ -82,7 +101,8 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details, goBack}) => {
                     <Grid container spacing={2} className={style.innerContent}>
                         {Object.entries(stockOverview).map(([label, value]) => (
                             <Grid item xs={6} key={label}>
-                                <Typography className={style.label}>{label}</Typography>
+                                <Typography
+                                    className={style.label}>{state.selectedCard.mf ? mfLabelMap[label] : label}</Typography>
                                 <Typography className={style.value}>{value}</Typography>
                             </Grid>
                         ))}
@@ -105,10 +125,10 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details, goBack}) => {
                             <TableBody>
                                 {financialData.map((row, index) => (
                                     <TableRow key={index}>
-                                        <TableCell>{row.date}</TableCell>
+                                        <TableCell>{formatDateString(row.date)}</TableCell>
                                         <TableCell>{row.price}</TableCell>
-                                        <TableCell>{row.quantity}</TableCell>
-                                        <TableCell>{row.action}</TableCell>
+                                        <TableCell>{row.quant}</TableCell>
+                                        <TableCell>{row.transactionType}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -117,16 +137,8 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details, goBack}) => {
                 </Box>
             )}
 
-            {/* Back Button */}
-            <Button
-                startIcon={<ArrowBackIcon/>}
-                onClick={goBack}
-                className={style.backButton}
-            >
-                Back
-            </Button>
         </Box>
     );
 };
 
-export default MSNDetails;
+export default withLoader(MSNDetails);

@@ -20,7 +20,9 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-setPersistence(auth, browserLocalPersistence).catch((error) => {
+setPersistence(auth, browserLocalPersistence).then(() => {
+    console.log("Login Completed");
+}).catch((error) => {
     console.error('Error `setting Firebase persistence: ', error);
 });
 

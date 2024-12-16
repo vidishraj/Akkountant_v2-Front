@@ -110,10 +110,13 @@ export interface MSNRateResponse {
     close: number; // Represents Decimal, must be >= 0
     dayHigh: number; // Represents Decimal, must be >= 0
     dayLow: number; // Represents Decimal, must be >= 0
-    pfmName?: string;
+    pfm_name?: string;
+    nav?: string;
     yesterday?: string;
     lastWeek?: string;
     sixMonthsAgo?: string;
+    schemeType?: string;
+    name?: string
 }
 
 export interface MSNListResponse {
@@ -125,4 +128,42 @@ export interface MSNListResponse {
     serviceType: string; // Type of service (investment type)
     date: string; // Date in "YYYY-MM-DD" format
     info: MSNRateResponse
+    stockCode?: string;
+    name?: string;
+    schemeName?: string;
+}
+
+
+interface Deposit {
+    amount: number;
+    buyId: string;
+    date: string; // ISO or GMT string format
+    description: string;
+}
+
+interface TransactionEPG {
+    amount: number;
+    date: string; // YYYY-MM format
+    description?: string;
+    interest: number;
+    goldType?: string;
+    quant?: number;
+}
+
+export interface EPGResponse {
+    deposits: Deposit[];
+    net: any;
+    netProfit: any;
+    transactions: TransactionEPG[];
+    unAccountedProfit: any;
+}
+
+
+export interface InsertEPGRequest {
+    date: string;
+    description?: string;
+    amount: number;
+    quantity?: number;
+    schemeCode?: any;
+    goldType?: string;
 }
