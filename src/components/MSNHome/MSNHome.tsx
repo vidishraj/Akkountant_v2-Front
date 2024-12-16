@@ -52,7 +52,6 @@ const MSNHome = () => {
     // Handlers
     const handleOnSelect = async (searchItem: any) => {
         try {
-            console.log(searchItem)
             const contextKey = getContextKey();
             const response = await fetchSecurityScheme(getServiceType(), contextKey === "mf" || contextKey === "nps" ? searchItem.code : searchItem.name);
             setOpen(true);

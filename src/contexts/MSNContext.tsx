@@ -346,7 +346,6 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         fetchSecurityTransactions(serviceTy, clearCache)
             .then((response) => {
                 if (response.status === 200) {
-                    console.log(response, contextKey)
                     dispatch({
                         type: "MSNTransactionSetter",
                         payload: {[contextKey]: response.data}
