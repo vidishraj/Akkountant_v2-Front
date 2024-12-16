@@ -27,6 +27,8 @@ interface SummaryContext {
     epf: EPGResponse;
     gold: EPGResponse;
     ppf: EPGResponse;
+
+    [key: string]: any;
 }
 
 interface ListContext {

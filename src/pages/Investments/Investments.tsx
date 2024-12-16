@@ -5,6 +5,7 @@ import BasicCard from "../../components/BasicCard.tsx";
 import MSNHome from "../../components/MSNHome/MSNHome.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import EPGHome from "../../components/EPGHomeComponent/EPGHome.tsx";
+import GlobalSummary from "../../components/GlobalSummary.tsx";
 
 const Investments = () => {
     const {state, fetchAndSetSummary, AllInfoForEpf} = useMSNContext();
@@ -38,7 +39,7 @@ const Investments = () => {
 
     return (
         <div className={style.investmentsParentContainer}>
-            <BasicCard className={style.dashboard}>Dashboard</BasicCard>
+            <BasicCard className={style.dashboard}><GlobalSummary/></BasicCard>
             <div className={style.cardContainer}>
                 {state.selectedCard.stocks || state.selectedCard.mf || state.selectedCard.nps ? (
                     <MSNHome/>
