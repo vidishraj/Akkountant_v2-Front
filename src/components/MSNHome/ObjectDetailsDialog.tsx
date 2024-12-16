@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState} from "react";
 import {
     Dialog,
     DialogTitle,
@@ -8,9 +8,14 @@ import {
     IconButton,
     useMediaQuery,
     useTheme,
-    Box,
+    Box, DialogActions, Button,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import CustomModal from "../InputDialogComponent/CustomModal.tsx";
+import {insertEPG} from "../../services/investmentService.ts";
+import {InsertEPGRequest} from "../../utils/interfaces.ts";
+import {useMessage} from "../../contexts/MessageContext.tsx";
 
 interface ObjectDetailsDialogProps {
     open: boolean;
@@ -27,7 +32,9 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                                                                  }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
+    const {state} = useMSNContext();
+    const {setPayload} = useMessage()
+    const [modalState, setModalState] = useState<boolean>(false)
     return (
         <Dialog
             open={open}
@@ -113,9 +120,45 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                         ))}
                     </Grid>
                 </Box>
+                <CustomModal title={`Buy ${title}`}
+                             open={modalState}
+                             onCancel={() => setModalState(false)}
+                             onSubmit={(formData: any) => {
+                                 // Insert MF
+                                 const requestBody: InsertEPGRequest = {
+                                     schemeCode: data['scheme_id'],
+                                     date: formData.date,
+                                     quantity: formData.quantity,
+                                     amount: formData.nav
+                                 };
+                                 insertEPG("Mutual_Funds", requestBody).then((response) => {
+                                     setPayload({
+                                         type: 'success',
+                                         message: response.data.Message,
+                                     })
+                                 }).catch(() => {
+                                     setPayload({
+                                         type: 'error',
+                                         message: "Error occurred while inserting mutual fund"
+                                     })
+                                 })
+                                 setModalState(false)
+                             }}
+                             cardType={"mf"}
+                             maxNav={100}/>
             </DialogContent>
+            {state.selectedCard.mf &&
+                <DialogActions style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <Button style={{
+                        backgroundColor: '#3d404a',
+                        color: "#FAFAFA"
+                    }} onClick={() => {
+                        setModalState(true)
+                    }}>Buy</Button>
+                </DialogActions>}
         </Dialog>
     );
 };
 
 export default ObjectDetailsDialog;
+

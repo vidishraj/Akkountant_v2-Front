@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {ReactSearchAutocomplete} from "react-search-autocomplete";
-import {Button, Divider} from "@mui/material";
+import {Button, IconButton} from "@mui/material";
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import style from "./MSNHome.module.scss";
 import MSNSummary from "./MSNSummary.tsx";
@@ -8,11 +9,13 @@ import MSNList from "./MSNList.tsx";
 import MSNDetails from "./MSNDetails.tsx";
 import ObjectDetailsDialog from "./ObjectDetailsDialog.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
-import {fetchSecuritiesList, fetchSecurityScheme, fetchUserSecurities} from "../../services/investmentService.ts";
+import {fetchSecurityScheme} from "../../services/investmentService.ts";
 import {MSNListResponse, MSNSummaryResponse} from "../../utils/interfaces.ts";
+import ConfirmationDialog from "../ConfirmationDialogComponent.tsx";
 
 const MSNHome = () => {
-    const {state, dispatch} = useMSNContext();
+
+    const {state, dispatch, fetchAndSetUserSecurities, fetchAndSetSearchItems, deleteComplete} = useMSNContext();
     const [searchItems, setSearchItems] = useState<[]>([]);
     const [detailState, setDetailState] = useState<MSNListResponse | undefined>(undefined);
     const [summaryState, setSummaryState] = useState<MSNSummaryResponse | undefined>(undefined);
@@ -20,7 +23,11 @@ const MSNHome = () => {
     const [open, setOpen] = useState(false);
     const [schemeData, setSchemeData] = useState<any>({});
     const [showDetails, setShowDetails] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState(false);
 
+    const deleteAll = () => {
+        deleteComplete()
+    }
     // Utility functions
     const getServiceType = () => (state.selectedCard.mf ? "Mutual_Funds" : state.selectedCard.stocks ? "Stocks" : "NPS");
     const getContextKey = () => (state.selectedCard.mf ? "mf" : state.selectedCard.stocks ? "stocks" : "nps");
@@ -30,49 +37,24 @@ const MSNHome = () => {
         const contextKey = getContextKey();
         setSummaryState(state.summaries[contextKey]);
         setListState(state.lists[contextKey]);
-    }, []);
+    }, [state]);
 
     // Fetch and set user securities and search items
     useEffect(() => {
-        const serviceType = getServiceType();
-        const contextKey = getContextKey();
-
-        const fetchAndSetUserSecurities = async () => {
-            try {
-                const response = await fetchUserSecurities(serviceType);
-                dispatch({
-                    type: "MSNListSetter",
-                    payload: {...state.lists, [contextKey]: response.data},
-                });
-            } catch (error) {
-                console.error(`Error fetching user securities for ${serviceType}:`, error);
-            }
-        };
-
-        const fetchAndSetSearchItems = async () => {
-            try {
-                const response = await fetchSecuritiesList(serviceType);
-                if (response.status === 200 && Array.isArray(response.data.data)) {
-                    const searchTypeList = response.data.data.map((item: any, index: number) => ({
-                        id: index,
-                        name: contextKey === "stocks" ? item.stockCode : contextKey === "nps" ? item.name : item.schemeName,
-                        code: contextKey === "mf" ? item.schemeCode : undefined,
-                    }));
-                    setSearchItems(searchTypeList);
-                }
-            } catch (error) {
-                console.error(`Error fetching securities list for ${serviceType}:`, error);
-            }
-        };
-
         fetchAndSetUserSecurities();
-        fetchAndSetSearchItems();
+        fetchAndSetSearchItems().then((response) => {
+            setSearchItems(response)
+        }).catch(() => {
+            setSearchItems([]);
+        })
     }, []);
 
     // Handlers
     const handleOnSelect = async (searchItem: any) => {
         try {
-            const response = await fetchSecurityScheme(getServiceType(), getContextKey() === "mf" ? searchItem.code : searchItem.name);
+            console.log(searchItem)
+            const contextKey = getContextKey();
+            const response = await fetchSecurityScheme(getServiceType(), contextKey === "mf" || contextKey === "nps" ? searchItem.code : searchItem.name);
             setOpen(true);
             setSchemeData(response.data);
         } catch (error) {
@@ -81,32 +63,61 @@ const MSNHome = () => {
     };
 
     const renderSearchBar = () => (
-        <div style={{width: 300, color: "white"}}>
-            <ReactSearchAutocomplete
-                styling={{
-                    backgroundColor: "#29384D",
-                    color: "#FAFAFA !important",
-                    border: "0",
-                    iconColor: "white",
-                    lineColor: "white",
-                    hoverBackgroundColor: "#121c24",
-                }}
-                resultStringKeyName="name"
-                items={searchItems}
-                onSelect={handleOnSelect}
-            />
+        <div style={{minWidth: 300, color: "white", width: "100%", display: "flex", justifyContent: "space-evenly"}}>
+            <div style={{width: '80%'}}>
+                <ReactSearchAutocomplete
+                    styling={{
+                        backgroundColor: "#29384D",
+                        color: "#FAFAFA !important",
+                        border: "0",
+                        iconColor: "white",
+                        borderRadius: '15px',
+                        lineColor: "white",
+                        hoverBackgroundColor: "#121c24",
+                        zIndex: 50
+                    }}
+                    resultStringKeyName="name"
+                    items={searchItems}
+                    onSelect={handleOnSelect}
+                />
+            </div>
+            <IconButton style={{backgroundColor: "#121c24", color: "#FAFAFA", border: "2px #29384D solid",}}
+                        onClick={() => setDeleteConfirmation(true)}>
+                <DeleteForeverIcon/>
+            </IconButton>
         </div>
     );
 
     const renderDetails = () =>
         showDetails && detailState ? (
-            <MSNDetails goBack={() => setShowDetails(false)} details={detailState}/>
+
+            <div style={{minWidth: '320px', width: "100%"}} className={style.listBackButton}>
+                <div style={{flexBasis: '70%'}}>
+                    <MSNDetails isLoading={false} details={detailState}/>
+                    {/* Back Button */}
+                </div>
+                <Button
+                    startIcon={<ArrowBackIcon/>}
+                    onClick={() => setShowDetails(false)}
+                    className={style.backButton}
+                >
+                    Back
+                </Button>
+            </div>
         ) : (
-            <div style={{width: "100%"}} onClick={() => setShowDetails(true)}>
+            <div style={{minWidth: '320px', width: "100%"}} className={style.listBackButton}>
                 <MSNList
+                    isLoading={state.loadingState[getContextKey()].list}
                     list={listState || []}
                     onClick={(stockCode: string) => {
-                        setDetailState(listState?.find((item) => item.buyCode === stockCode));
+                        setShowDetails(true)
+                        if (state.selectedCard.nps) {
+                            setDetailState(listState?.find((item) => item.info.name === stockCode));
+                        } else if (state.selectedCard.mf) {
+                            setDetailState(listState?.find((item) => item.info.schemeType === stockCode));
+                        } else {
+                            setDetailState(listState?.find((item) => item.buyCode === stockCode));
+                        }
                     }}
                 />
                 <Button
@@ -124,11 +135,11 @@ const MSNHome = () => {
             {summaryState && listState ? (
                 <>
                     {renderSearchBar()}
-                    <Divider sx={{borderColor: "#E5E8EB", borderWidth: 0.5, width: "100%"}}/>
-                    <div className={style.summary}>
-                        <MSNSummary/>
+                    {/*<Divider sx={{borderColor: "#E5E8EB", borderWidth: 0.5, width: "100%"}}/>*/}
+                    <div className={style.innerSummary}>
+                        <MSNSummary isLoading={false}/>
                     </div>
-                    <Divider sx={{borderColor: "#E5E8EB", borderWidth: 0.5, width: "100%"}}/>
+                    {/*<Divider sx={{borderColor: "#E5E8EB", borderWidth: 0.5, width: "100%"}}/>*/}
                     {renderDetails()}
                 </>
             ) : null}
@@ -137,6 +148,15 @@ const MSNHome = () => {
                 onClose={() => setOpen(false)}
                 title={schemeData?.companyName || ""}
                 data={schemeData}
+            />
+            <ConfirmationDialog
+                open={deleteConfirmation}
+                onCancel={() => setDeleteConfirmation(false)}
+                onSubmit={() => {
+                    setDeleteConfirmation(true)
+                    deleteAll()
+                }}
+                message={"Are you sure you want to delete all data?"}
             />
         </div>
     );
