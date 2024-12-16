@@ -10,6 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 import { auth } from "../FirebaseConfig.tsx";
+import { updatePassword, User } from "firebase/auth";
 
 interface ChangePasswordDialogProps{
     open:boolean,
@@ -17,13 +18,24 @@ interface ChangePasswordDialogProps{
 }
 const ChangepasswordDialog:React.FC<ChangePasswordDialogProps> = ({open, onClose}) => {
     const [newPassword, setNewPassword]= useState("");
-    const handlePasswordChange =()=>{
-
+    const handlePasswordChange = async()=>{
+        const user= auth.currentUser;
+        if(user){
+            await updatePassword(user,newPassword);
+            onClose();
+        }
     }
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog open={open} onClose={onClose} fullWidth PaperProps={{
+        sx: {
+            backgroundColor: "#121C24",
+            color: "#FAFAFA",
+            borderRadius: 2,
+            padding: 3,
+        },
+    }}>
             <DialogTitle>
-                <Typography variant="h6">Change Password</Typography>
+                <Typography variant="inherit">Change Password</Typography>
             </DialogTitle>
             <DialogContent>
                 <Box display="flex" flexDirection="column" gap={2}>
@@ -34,13 +46,20 @@ const ChangepasswordDialog:React.FC<ChangePasswordDialogProps> = ({open, onClose
                         fullWidth
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
+                        sx={{
+                            color: "#FAFAFA",
+                            backgroundColor: "#1E2A34",
+                            borderRadius: 1,
+                            '& .MuiInputLabel-root': { color: '#888' }, // Style the label directly
+                            '& .MuiInputBase-root': { color: '#FAFAFA' }  // Style the input text
+                        }}
                     />
                 </Box>
             </DialogContent>
             <DialogActions>
                 <Button
                     onClick={onClose}
-                    color="secondary"
+                    color="error"
                     variant="text"
                 >
                     Cancel
@@ -48,7 +67,7 @@ const ChangepasswordDialog:React.FC<ChangePasswordDialogProps> = ({open, onClose
                 <Button
                     onClick={handlePasswordChange}
                     color="primary"
-                    variant="contained"
+                    variant="text"
                 >
                     Submit
                 </Button>
