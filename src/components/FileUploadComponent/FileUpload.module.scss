@@ -71,3 +71,75 @@
     z-index: 10;
   }
 }
+
+.box {
+  width: 300px !important;
+  height: 300px !important;
+  font-size: 1.25rem;
+  background-color: #c8dadf;
+
+  position: relative;
+  align-self: center;
+  /* padding: 100px 20px; */
+  outline: 2px dashed #92b0b3;
+  outline-offset: -10px;
+  -webkit-transition: outline-offset 0.15s ease-in-out,
+  background-color 0.15s linear;
+  transition: outline-offset 0.15s ease-in-out,
+  background-color 0.15s linear;
+}
+
+.box_input {
+  color: #FAFAFA !important;
+  padding: 50px 20px;
+}
+
+.box__icon {
+  width: 100%;
+  height: 80px;
+  fill: #92b0b3;
+  display: block;
+  margin-bottom: 40px;
+}
+
+svg {
+  fill: currentColor;
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+.box__file {
+  //background-color: hotpink;
+  opacity: 0;
+  position: absolute;
+}
+
+label {
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  gap: 4px;
+  color: white !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.drop_zone {
+  font-weight: 2100;
+}
+
+.dragging {
+  background-color: transparent;
+}
+
+.file_preview_font {
+  text-align: center;
+  width: 100%;
+  height: 20px;
+  color: white !important;
+  overflow: hidden;
+  font-size: small;
+}
