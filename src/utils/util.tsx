@@ -61,3 +61,30 @@ export const getLast5Months = () => {
 export const getBankIcon = (bankKey: string): string | null => {
     return bankIcons[bankKey] || null;
 };
+
+export function formatDateString(dateString: string) {
+    const optionsFullDate: any = {year: "numeric", month: "long", day: "numeric"};
+    const optionsYearMonth: any = {year: "numeric", month: "long"};
+
+    // Check if the input matches the `yyyy-mm-dd` format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString(undefined, optionsFullDate);
+    }
+
+    // Check if the input matches the `yyyy-mm` format
+    if (/^\d{4}-\d{2}$/.test(dateString)) {
+        const [year, month] = dateString.split("-");
+        const date = new Date(Number(year), Number(month) - 1); // Month is zero-based
+        return date.toLocaleDateString(undefined, optionsYearMonth);
+    }
+
+    // Check if the input matches the `Fri, 23 Dec 2022 00:00:00 GMT` format
+    if (/^[A-Za-z]{3}, \d{2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(dateString)) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString(undefined, optionsFullDate);
+    }
+
+    // If none of the formats match, return the original string
+    return "Invalid date format";
+}
