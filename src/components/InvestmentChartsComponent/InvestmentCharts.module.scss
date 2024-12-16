@@ -1,0 +1,14 @@
+.carousel {
+  min-height: 350px;
+  border-top: 1px solid #FAFAFA;
+  padding-top: 20px;
+}
+
+.MuiChartsAxis-bottom {
+  color: #FAFAFA !important;
+}
+
+.slick-dots li.slick-active button:before {
+  // your code here
+  color: #FAFAFA !important;
+}

@@ -1,5 +1,11 @@
 import React, {createContext, ReactNode, useContext, useReducer} from 'react';
-import {EPGResponse, MSNListResponse, MSNSummaryResponse} from "../utils/interfaces";
+import {
+    EPGResponse,
+    GlobalSummaryInterface,
+    MSNListResponse,
+    MSNSummaryResponse,
+    SecuritiesRead
+} from "../utils/interfaces";
 import {
     deleteAll,
     fetchCompleteEPG,
@@ -175,6 +181,7 @@ interface MSNContextType {
     getServiceType: () => string;
     getContextKey: () => string;
     fetchTransactions: (serviceType: string, clearCache: boolean) => void;
+    calculateSummary: (summary: GlobalSummaryInterface, read: SecuritiesRead) => [SecuritiesRead, GlobalSummaryInterface];
 }
 
 // Create the context
@@ -362,6 +369,41 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
             });
     };
 
+    const msnContextKeys = ["mf", "stocks", "nps"];
+    const epgContextKeys = ["ppf", "epf", "gold"];
+
+    const calculateSummary = (summary: GlobalSummaryInterface, read: SecuritiesRead) => {
+        const updatedSummary = {...summary};
+        const updatedRead = {...read};
+        const processContext = (keys: string[], isEPG: boolean) => {
+            keys.forEach((key) => {
+                const data = state.summaries[key];
+                if (!read[key] && (isEPG ? data.net !== 0 : data.totalValue !== 0)) {
+                    updatedRead[key] = true;
+
+                    if (isEPG) {
+                        const profit = Number(data.netProfit);
+                        updatedSummary.totalInvestment += Number(data.net) - profit;
+                        updatedSummary.currentValue += Number(data.net);
+                        updatedSummary.profit += profit;
+                    } else {
+                        updatedSummary.totalInvestment += Number(data.totalValue);
+                        updatedSummary.currentValue += Number(data.currentValue);
+                        updatedSummary.profit += Number(data.changeAmount);
+                    }
+                }
+            });
+        };
+
+        processContext(msnContextKeys, false);
+        processContext(epgContextKeys, true);
+
+
+        updatedSummary.profitPercentage =
+            (updatedSummary.profit / updatedSummary.totalInvestment) * 100;
+
+        return [updatedRead, updatedSummary];
+    };
     const contextValue: MSNContextType = {
         state,
         dispatch,
@@ -372,7 +414,8 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         AllInfoForEpf,
         getServiceType,
         getContextKey,
-        fetchTransactions
+        fetchTransactions,
+        calculateSummary
     };
 
     return (
