@@ -9,6 +9,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import styles from "../Header/Header.module.scss";
+import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
@@ -16,6 +17,14 @@ const Header = () => {
     const [selectedBanks, setSelectedBanks]= useState<string[]>([]);
     const [dropdown, setDropdown]= useState(null);
     const banks= ["Millenia_Credit", "HDFC_DEBIT","ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
+    const [isDialogOpen, setDialogOpen]= useState<boolean>(false);
+
+    const handleDialogOpen = ()=>{
+        setDialogOpen(true);
+    }
+    const handleDialogClose = ()=>{
+        setDialogOpen(false);
+    }
 
     const handleOpenDropdown=(e)=>{
         setDropdown(e.currentTarget);
@@ -239,9 +248,10 @@ const Header = () => {
                             </Menu>
                         </ListItem>
 
-                        <ListItem sx={{padding:0, marginTop:"1rem"}}>
+                        <ListItem sx={{padding:0, marginTop:"1rem"}} onClick={handleDialogOpen}>
                             <LockResetIcon style={{verticalAlign:"middle", marginRight:"0.5rem"}}/><ListItemText primary="Change Password" sx={{color:"white", cursor: "pointer"}}/>
                         </ListItem>
+                        <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                     </List>
                 </Box>
             </Drawer>
