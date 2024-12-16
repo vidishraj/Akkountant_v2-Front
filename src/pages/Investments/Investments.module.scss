@@ -25,7 +25,8 @@
   flex-wrap: wrap;
   padding: 10px 5px 5px 10px;
   gap: 10px;
-  width: 50%;
+  width: 100%;
+  //height: max-content;
 }
 
 .stockContainer {
@@ -43,6 +44,13 @@
 }
 
 .npsContainer {
+  background-color: #121c24 !important;
+  height: 200px;
+  width: 300px;
+  border: 1px solid white !important;
+}
+
+.epfContainer {
   background-color: #121c24 !important;
   height: 200px;
   width: 300px;

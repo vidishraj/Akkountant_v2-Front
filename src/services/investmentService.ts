@@ -1,19 +1,46 @@
 import axios from './AxiosConfig.tsx';
 import {
+    EPGResponse,
     FileUploadParams,
     FileUploadResponse,
+    InsertEPGRequest,
     MSNListResponse,
     MSNRateResponse,
-    MSNSummaryResponse
+    MSNSummaryResponse,
 } from '../utils/interfaces.ts';
 import {queueRequest} from './AxiosQueueManager.tsx';
 import {CacheAxiosResponse} from 'axios-cache-interceptor';
 
 /**
+ * Helper to clear cache by adding the `cache-control: no-cache` header.
+ * @param options - The existing request options to modify.
+ * @returns The modified request options with cache bypass.
+ */
+function withCacheCleared(options: Record<string, any> = {}): Record<string, any> {
+    return {
+        ...options,
+        params: {
+            ...options.params,
+            clearCacheEntry: true,
+        },
+    };
+}
+
+/**
+ * Adds a unique `id` to the options for tracking or cache invalidation.
+ * @param endpoint - The API endpoint being called.
+ * @param options - The request options to modify.
+ * @returns The modified request options with an `id`.
+ */
+function withRequestId(endpoint: string, options: Record<string, any>): Record<string, any> {
+    return {
+        ...options,
+        id: `${endpoint}-${JSON.stringify(options.params || {})}`,
+    };
+}
+
+/**
  * Uploads a file to the server with additional parameters.
- * @param file - The file to upload.
- * @param params - Additional parameters for the request.
- * @returns A promise that resolves with the server response.
  */
 export async function uploadFile(
     file: File,
@@ -22,77 +49,165 @@ export async function uploadFile(
     const formData = new FormData();
     formData.append('file', file);
 
-    return queueRequest(() =>
-        axios.post('uploadSecuritiesFile', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            params, // Pass additional query parameters
-        })
-    );
+    const options = withRequestId('uploadSecuritiesFile', {
+        headers: {'Content-Type': 'multipart/form-data'},
+        params,
+    });
+
+    return queueRequest(() => axios.post('uploadSecuritiesFile', formData, options));
 }
 
 /**
  * Fetches a list of securities based on the security type.
- * @param securityType - The type of security to fetch.
- * @returns A promise that resolves with a cached Axios response.
  */
 export async function fetchSecuritiesList(
-    securityType: string
+    securityType: string,
+    clearCache = false
 ): Promise<CacheAxiosResponse<any>> {
-    return queueRequest(() =>
-        axios.get('fetchSecurityList', {
-            params: {serviceType: securityType},
-        })
+    const options = withRequestId(
+        'fetchSecurityList',
+        clearCache
+            ? withCacheCleared({params: {serviceType: securityType}})
+            : {params: {serviceType: securityType}}
     );
+
+    return queueRequest(() => axios.get('fetchSecurityList', options));
 }
 
 /**
  * Fetches a summary of a specific service type.
- * @param serviceType - The type of service to fetch the summary for.
- * @returns A promise that resolves with a cached Axios response containing the summary.
  */
 export async function fetchSummary(
-    serviceType: string
+    serviceType: string,
+    clearCache = false
 ): Promise<CacheAxiosResponse<MSNSummaryResponse>> {
-    return queueRequest(() =>
-        axios.get('fetchSummary', {
-            params: {serviceType},
-        })
+    const options = withRequestId(
+        'fetchSummary',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
     );
+
+    return queueRequest(() => axios.get('fetchSummary', options));
 }
 
 /**
- * Fetches user-specific securities for a given service type.
- * @param serviceType - The type of service to fetch user securities for.
- * @returns A promise that resolves with a cached Axios response containing the securities list.
+ * Fetches user-specific securities.
  */
 export async function fetchUserSecurities(
-    serviceType: string
+    serviceType: string,
+    clearCache = false
 ): Promise<CacheAxiosResponse<MSNListResponse[]>> {
-    return queueRequest(() =>
-        axios.get('fetchUserSecurities', {
-            params: {serviceType},
-        })
+    const options = withRequestId(
+        'fetchUserSecurities',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
     );
+
+    return queueRequest(() => axios.get('fetchUserSecurities', options));
 }
 
 /**
- * Fetches a security scheme based on the service type and scheme code.
- * @param serviceType - The type of service to fetch the scheme for.
- * @param schemeCode - The code of the scheme to fetch.
- * @returns A promise that resolves with a cached Axios response containing the rate response.
+ * Fetches a security scheme.
  */
 export async function fetchSecurityScheme(
     serviceType: string,
-    schemeCode: string
+    schemeCode: string,
+    clearCache = false
 ): Promise<CacheAxiosResponse<MSNRateResponse>> {
-    return queueRequest(() =>
-        axios.get('fetchSecurityScheme', {
-            params: {
-                serviceType,
-                schemeCode,
-            },
-        })
+    const options = withRequestId(
+        'fetchSecurityScheme',
+        clearCache
+            ? withCacheCleared({params: {serviceType, schemeCode}})
+            : {params: {serviceType, schemeCode}}
     );
+
+    return queueRequest(() => axios.get('fetchSecurityScheme', options));
+}
+
+/**
+ * Deletes all data for a specific investment type.
+ */
+export async function deleteAll(
+    serviceType: string,
+    clearCache = false
+): Promise<CacheAxiosResponse<any>> {
+    const options = withRequestId(
+        'deleteAllInvestments',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
+    );
+
+    return queueRequest(() => axios.get('deleteAllInvestments', options));
+}
+
+/**
+ * Fetches the complete EPG for a specific service type.
+ */
+export async function fetchCompleteEPG(
+    serviceType: string,
+    clearCache = false
+): Promise<CacheAxiosResponse<EPGResponse>> {
+    const options = withRequestId(
+        'fetchCompleteEPG',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
+    );
+
+    return queueRequest(() => axios.get('fetchCompleteEPG', options));
+}
+
+/**
+ * Inserts EPG data for a specific service type.
+ */
+export async function insertEPG(
+    serviceType: string,
+    body: InsertEPGRequest,
+    clearCache = false
+): Promise<CacheAxiosResponse<any>> {
+    const options = withRequestId(
+        'insertSecurityTransaction',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
+    );
+
+    return queueRequest(() => axios.post('insertSecurityTransaction', body, options));
+}
+
+/**
+ * Fetches rates for a specific service type.
+ */
+export async function fetchRates(
+    serviceType: string,
+    clearCache = false
+): Promise<CacheAxiosResponse<any>> {
+    const options = withRequestId(
+        'fetchRates',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
+    );
+
+    return queueRequest(() => axios.get('fetchRates', options));
+}
+
+/**
+ * Fetches rates for a specific service type.
+ */
+export async function fetchSecurityTransactions(
+    serviceType: string,
+    clearCache = false
+): Promise<CacheAxiosResponse<any>> {
+    const options = withRequestId(
+        'fetchSecurityTransactions',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
+    );
+
+    return queueRequest(() => axios.get('fetchSecurityTransactions', options));
 }
