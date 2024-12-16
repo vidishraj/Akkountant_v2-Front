@@ -10,27 +10,33 @@ import {FilterProvider} from "./contexts/FilterContext.tsx";
 import {FileFilterProvider} from "./contexts/FileFilterContext.tsx";
 import Header from "./components/Header/Header.tsx";
 import {MSNProvider} from "./contexts/MSNContext.tsx";
+import {MessageProvider} from "./contexts/MessageContext.tsx";
+import NotificationMessage from "./components/NotificationBanner/NotificationBanner.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <Router>
-        <LoadingProvider>
-            <AuthProvider>
-                <UserProvider>
-                    <FilterProvider>
-                        <FileFilterProvider>
-                            <MSNProvider>
-                                <div className="layout">
-                                    <div className="header"><Header/></div>
-                                    <div className="content">
-                                        <App/>
-                                    </div>
-                                    <div className="footer">© 2023 Akkountant</div>
-                                </div>
-                            </MSNProvider>
-                        </FileFilterProvider>
-                    </FilterProvider>
-                </UserProvider>
-            </AuthProvider>
-        </LoadingProvider>
+        <MessageProvider>
+            <LoadingProvider>
+                <AuthProvider>
+                    <UserProvider>
+                        <FilterProvider>
+                            <FileFilterProvider>
+                                <MSNProvider>
+                                    <NotificationMessage>
+                                        <div className="layout">
+                                            <div className="header"><Header/></div>
+                                            <div className="content">
+                                                <App/>
+                                            </div>
+                                            <div className="footer">© 2023 Akkountant</div>
+                                        </div>
+                                    </NotificationMessage>
+                                </MSNProvider>
+                            </FileFilterProvider>
+                        </FilterProvider>
+                    </UserProvider>
+                </AuthProvider>
+            </LoadingProvider>
+        </MessageProvider>
     </Router>
 );
