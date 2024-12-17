@@ -41,16 +41,21 @@ const Header = () => {
                     {/*<IconButton edge="start" color="inherit" aria-label="menu" sx={{mr: 2}}>*/}
                     {/*    <MenuIcon/>*/}
                     {/*</IconButton>*/}
-                    <Typography variant="h6" sx={{fontWeight: 'bold'}}>
-                        Akkountant
-                    </Typography>
+                    <IconButton onClick={() => {
+                        navigate('/home')
+                    }}>
+                        <Typography variant="h6" sx={{fontWeight: 'bold', color: 'white'}}>
+                            Akkountant
+                        </Typography>
+                    </IconButton>
 
                     {/* Center Navigation Buttons */}
                     <Box>
                         <Button sx={{mx: 1}}><Link style={{color: "#FAFAFA"}} to={'/home'}> Home</Link></Button>
                         <Button color="inherit" sx={{mx: 1}}><Link style={{color: "#FAFAFA"}}
                                                                    to={'/transactions'}> Transactions</Link></Button>
-                        <Button sx={{mx: 1}}><Link style={{color: "#FAFAFA"}} to={'/investments'}> Investments</Link></Button>
+                        <Button sx={{mx: 1}}><Link style={{color: "#FAFAFA"}}
+                                                   to={'/investments'}> Investments</Link></Button>
                         {/*<Button color="inherit" sx={{mx: 1}}>Settings</Button>*/}
                     </Box>
                 </Box>
