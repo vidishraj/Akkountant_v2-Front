@@ -21,8 +21,6 @@ import SortedBy from "../../components/SortComponent.tsx";
 import TransactionSummary from "../../components/TransactionSummaryComponent/TransactionSummary.tsx";
 import FileSummary from "../../components/FileSummaryComponent/FileSummary.tsx";
 import {FileDetails, Transaction} from "../../utils/interfaces.ts"; // Import the SortedBy component
-import {ToastContainer, toast} from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 
 const Transactions = () => {
     const {state, dispatch} = useFilterContext();
@@ -58,12 +56,6 @@ const Transactions = () => {
             });
             dispatch({type: "SET_TRANSACTION_COUNT", payload: result.total_count});
         })
-            .catch((error) => {
-                toast.error("Failed to load transactions. Please try again!", {
-                    position: "top-right"
-                });
-                console.error("Error fetching the trasactions", error);
-            })
     };
 
     const refreshFileDetails = () => {
@@ -90,12 +82,6 @@ const Transactions = () => {
             fileDispatch({type: "SET_FILE_DETAILS", payload: result.results});
             fileDispatch({type: "SET_FILE_COUNT", payload: result.total_count});
         })
-            .catch((error) => {
-                toast.error("Failed to fetch file details. Please try again!", {
-                    position: "top-right"
-                });
-                console.error("Error fetching the file details", error);
-            })
     };
     useEffect(() => {
         refreshTransactions();
@@ -109,18 +95,11 @@ const Transactions = () => {
         fetchOptedBanks().then((response) => {
             setOptedBanks(response);
         })
-            .catch((error) => {
-                toast.error("Failed to fetch opted banks. Please try again!", {
-                    position: "top-right"
-                });
-                console.error("Error fetching opted banks", error);
-            })
     }, [user]);
 
 
     return (
         <div className={style.transactionContainer}>
-            <ToastContainer toastClassName={style.customToast} bodyClassName={style.customToast}/>
 
             <BasicCard className={style.summaryCard}>
                 <CalendarComponent/>
