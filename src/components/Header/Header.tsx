@@ -1,4 +1,22 @@
-import {AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, MenuItem, ListItemText, Divider, List, ListItem, Drawer, FormControl, FormControlLabel, Checkbox, FormGroup, Select, Dialog, DialogTitle, DialogContent, DialogActions, TextField} from '@mui/material';
+import {
+    AppBar,
+    Toolbar,
+    Typography,
+    Button,
+    Box,
+    IconButton,
+    Avatar,
+    MenuItem,
+    ListItemText,
+    Divider,
+    List,
+    ListItem,
+    Drawer,
+    FormControl,
+    FormControlLabel,
+    Checkbox,
+    FormGroup,
+} from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
 import {auth} from "../FirebaseConfig.tsx"
@@ -8,7 +26,6 @@ import {getAuth, signOut} from "firebase/auth";
 import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
-import styles from "../Header/Header.module.scss";
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
 
 const Header = () => {
@@ -28,10 +45,10 @@ const Header = () => {
         setBankDialogOpen(false);
     }
 
-    const handleDialogOpen = ()=>{
+    const handleDialogOpen = () => {
         setDialogOpen(true);
     }
-    const handleDialogClose = ()=>{
+    const handleDialogClose = () => {
         setDialogOpen(false);
     }
 
@@ -76,7 +93,7 @@ const Header = () => {
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
-        if(open){
+        if (open) {
             handleCloseUserMenu();
         }
     };
@@ -163,29 +180,29 @@ const Header = () => {
                 >
                     {auth.currentUser
                         ? LoggedinSettings.map((setting) => (
-                              <MenuItem
-                                  style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
-                                  key={setting}
-                                  onClick={
-                                      setting === 'Settings'
-                                          ? toggleDrawer(true) 
-                                          : handleLogOut
-                                  }
-                              >
-                                  <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
-                              </MenuItem>
-                          ))
+                            <MenuItem
+                                style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
+                                key={setting}
+                                onClick={
+                                    setting === 'Settings'
+                                        ? toggleDrawer(true)
+                                        : handleLogOut
+                                }
+                            >
+                                <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
+                            </MenuItem>
+                        ))
                         : LoggedOutSettings.map((setting) => (
-                              <MenuItem
-                                  style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
-                                  key={setting}
-                                  onClick={() => {
-                                      navigate('/login');
-                                  }}
-                              >
-                                  <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
-                              </MenuItem>
-                          ))}
+                            <MenuItem
+                                style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
+                                key={setting}
+                                onClick={() => {
+                                    navigate('/login');
+                                }}
+                            >
+                                <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
+                            </MenuItem>
+                        ))}
                 </Menu>
             </AppBar>
 
@@ -198,7 +215,7 @@ const Header = () => {
                 <Box
                     sx={{
                         width: 250,
-                        backgroundColor:"#121C24",
+                        backgroundColor: "#121C24",
                         height: "100%",
                         color: "#FAFAFA",
                         p: 2,
@@ -206,24 +223,28 @@ const Header = () => {
                     }}
                 >
                     <Typography variant="h6" sx={{fontWeight: 'bold', mb: 2}}>
-                        <SettingsIcon style={{verticalAlign:"middle"}}/> Settings
+                        <SettingsIcon style={{verticalAlign: "middle"}}/> Settings
                     </Typography>
-                    <Divider />
+                    <Divider/>
                     <List>
 
                         <ListItem sx={{ padding: 0, alignItems: "center" }} onClick={handleBankDialogOpen}>
+                        <ListItem sx={{padding: 0, alignItems: "center"}}>
                             <AssuredWorkloadIcon
-                                style={{ verticalAlign: "middle", marginRight: "0.5rem" }}
+                                style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
                             <Typography
                                 sx={{ color: "white", cursor: "pointer" }}
+                                sx={{color: "white", cursor: "pointer"}}
+                                onClick={handleOpenDropdown}
                             >
                                 Select Banks
                             </Typography>
                         </ListItem>
 
-                        <ListItem sx={{padding:0, marginTop:"1rem"}} onClick={handleDialogOpen}>
-                            <LockResetIcon style={{verticalAlign:"middle", marginRight:"0.5rem"}}/><ListItemText primary="Change Password" sx={{color:"white", cursor: "pointer"}}/>
+                        <ListItem sx={{padding: 0, marginTop: "1rem"}} onClick={handleDialogOpen}>
+                            <LockResetIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
+                            primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                     </List>

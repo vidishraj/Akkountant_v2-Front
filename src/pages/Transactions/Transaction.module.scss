@@ -24,6 +24,7 @@
   padding: 16px 12px;
   overflow-y: scroll;
   max-height: 400px;
+  min-height: 400px;
 
   /* Hide scrollbar for WebKit browsers (Chrome, Safari, etc.) */
   scrollbar-width: none; /* For Firefox */
