@@ -1,5 +1,5 @@
-import {useEffect} from "react";
-import {TablePagination} from "@mui/material";
+import React, {useEffect, useState} from "react";
+import {Drawer, TablePagination} from "@mui/material";
 import BasicCard from "../../components/BasicCard.tsx";
 import TransactionCard from "../../components/TransactionCardComponent/TransactionCard.tsx";
 import TransactionFilters from "../../components/TransactionFilterComponent/TransactionFilters.tsx";
@@ -28,7 +28,7 @@ const Transactions = () => {
     const {state, dispatch} = useFilterContext();
     const {state: fileState, dispatch: fileDispatch} = useFileFilterContext();
     const {transactionModeSelection, setTransactionMode, setOptedBanks, user} = useUser();
-
+    const [drawerState, setDrawerState] = useState<boolean>(false)
     const refreshTransactions = () => {
         const requestBody = {
             Page: state.page + 1,
@@ -146,7 +146,7 @@ const Transactions = () => {
         <>
             <div className={style.transactionFilters}>
                 <TransactionFilters apply={refreshTransactions}/>
-                <TransactionSummary/>
+                <TransactionSummary refreshTransactions={refreshTransactions}/>
             </div>
             <div className={style.transactionCards}>
                 {transactionLengthCheck() === 0 ? emptyTransactionBox() : state.transactions.transaction.map((transaction: Transaction) => (
@@ -244,11 +244,25 @@ const Transactions = () => {
     return (
         <div className={style.transactionContainer}>
             <ToastContainer toastClassName={style.customToast} bodyClassName={style.customToast}/>
-            <BasicCard className={style.summaryCard}>
-                <CalendarComponent/>
-                <GoogleComponent/>
-                <FieldSelector setTransactionMode={setTransactionMode}/>
-            </BasicCard>
+            <Drawer
+                anchor="left"
+                open={false}
+                className={style.drawerState}
+                onClose={() => setDrawerState(false)}
+            >
+                <BasicCard className={style.summaryCard}>
+                    <CalendarComponent/>
+                    <GoogleComponent/>
+                    <FieldSelector setTransactionMode={setTransactionMode}/>
+                </BasicCard>
+            </Drawer>
+            <div>
+                <BasicCard className={style.summaryCard}>
+                    <CalendarComponent/>
+                    <GoogleComponent/>
+                    <FieldSelector setTransactionMode={setTransactionMode}/>
+                </BasicCard>
+            </div>
             <BasicCard className={style.transactionListContainer}>
                 {transactionModeSelection ? renderTransactionMode() : renderFileMode()}
             </BasicCard>

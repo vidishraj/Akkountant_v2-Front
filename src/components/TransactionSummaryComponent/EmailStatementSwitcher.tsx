@@ -7,6 +7,7 @@ import GoogleDriveIcon from "../../assets/icons/google-drive.png";
 import {useFilterContext} from "../../contexts/FilterContext.tsx"; // Update with actual path
 
 interface CustomSwitchProps extends SwitchProps {
+    setChecked: any;
 }
 
 const StyledSwitch = styled(Switch)(({theme}) => ({
@@ -41,7 +42,7 @@ const StyledSwitch = styled(Switch)(({theme}) => ({
 }));
 
 const CustomIconSwitch: React.FC<CustomSwitchProps> = ({
-                                                           checked,
+                                                           setChecked,
                                                            onChange,
                                                            ...rest
                                                        }) => {
@@ -57,6 +58,7 @@ const CustomIconSwitch: React.FC<CustomSwitchProps> = ({
                         type: "SET_SOURCE",
                         payload: target
                     })
+                    setChecked()
                 }}
                 icon={<img src={GmailIcon} alt="Gmail" style={{width: 30, height: 30}}/>}
                 checkedIcon={<img src={GoogleDriveIcon} alt="Google Drive" style={{width: 30, height: 30}}/>}

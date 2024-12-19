@@ -101,3 +101,15 @@ export async function fetchCalendarTransactions(
         axios.post('/calendarTransactions', body, options).then((res) => res.data)
     );
 }
+
+
+/**
+ * Trigger email check for a date from and date to
+ */
+export async function triggerEmailCheck(dateTo: string,
+                                        dateFrom: string,
+                                        clearCache = false): Promise<any> {
+    const options = clearCache ? withCacheCleared({dateTo, dateFrom}) : {params: {dateTo, dateFrom}};
+    return queueRequest(() => axios.get('/readEmails', options).then((res) => res.data));
+
+}

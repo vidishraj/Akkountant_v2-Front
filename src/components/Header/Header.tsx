@@ -1,4 +1,22 @@
-import {AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, MenuItem, ListItemText, Divider, List, ListItem, Drawer, FormControl, FormControlLabel, Checkbox, FormGroup, Select} from '@mui/material';
+import {
+    AppBar,
+    Toolbar,
+    Typography,
+    Button,
+    Box,
+    IconButton,
+    Avatar,
+    MenuItem,
+    ListItemText,
+    Divider,
+    List,
+    ListItem,
+    Drawer,
+    FormControl,
+    FormControlLabel,
+    Checkbox,
+    FormGroup,
+} from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
 import {auth} from "../FirebaseConfig.tsx"
@@ -8,43 +26,42 @@ import {getAuth, signOut} from "firebase/auth";
 import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
-import styles from "../Header/Header.module.scss";
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false); // State for the sidebar
-    const [selectedBanks, setSelectedBanks]= useState<string[]>([]);
-    const [dropdown, setDropdown]= useState(null);
-    const banks= ["Millenia_Credit", "HDFC_DEBIT","ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
-    const [isDialogOpen, setDialogOpen]= useState<boolean>(false);
+    const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
+    const [dropdown, setDropdown] = useState(null);
+    const banks = ["Millenia_Credit", "HDFC_DEBIT", "ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
 
-    const handleDialogOpen = ()=>{
+    const handleDialogOpen = () => {
         setDialogOpen(true);
     }
-    const handleDialogClose = ()=>{
+    const handleDialogClose = () => {
         setDialogOpen(false);
     }
 
-    const handleOpenDropdown=(e)=>{
+    const handleOpenDropdown = (e) => {
         setDropdown(e.currentTarget);
     }
-    const handleCloseDropdown=()=>{
+    const handleCloseDropdown = () => {
         setDropdown(null);
     }
 
     const handleBankToggle = (bank: string) => {
         setSelectedBanks((prevSelected) =>
             prevSelected.includes(bank)
-                ? prevSelected.filter((b) => b !== bank) 
-                : [...prevSelected, bank] 
+                ? prevSelected.filter((b) => b !== bank)
+                : [...prevSelected, bank]
         );
     };
     console.log(selectedBanks);
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
-        if(open){
+        if (open) {
             handleCloseUserMenu();
         }
     };
@@ -131,29 +148,29 @@ const Header = () => {
                 >
                     {auth.currentUser
                         ? LoggedinSettings.map((setting) => (
-                              <MenuItem
-                                  style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
-                                  key={setting}
-                                  onClick={
-                                      setting === 'Settings'
-                                          ? toggleDrawer(true) 
-                                          : handleLogOut
-                                  }
-                              >
-                                  <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
-                              </MenuItem>
-                          ))
+                            <MenuItem
+                                style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
+                                key={setting}
+                                onClick={
+                                    setting === 'Settings'
+                                        ? toggleDrawer(true)
+                                        : handleLogOut
+                                }
+                            >
+                                <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
+                            </MenuItem>
+                        ))
                         : LoggedOutSettings.map((setting) => (
-                              <MenuItem
-                                  style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
-                                  key={setting}
-                                  onClick={() => {
-                                      navigate('/login');
-                                  }}
-                              >
-                                  <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
-                              </MenuItem>
-                          ))}
+                            <MenuItem
+                                style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
+                                key={setting}
+                                onClick={() => {
+                                    navigate('/login');
+                                }}
+                            >
+                                <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
+                            </MenuItem>
+                        ))}
                 </Menu>
             </AppBar>
 
@@ -166,7 +183,7 @@ const Header = () => {
                 <Box
                     sx={{
                         width: 250,
-                        backgroundColor:"#121C24",
+                        backgroundColor: "#121C24",
                         height: "100%",
                         color: "#FAFAFA",
                         p: 2,
@@ -174,17 +191,17 @@ const Header = () => {
                     }}
                 >
                     <Typography variant="h6" sx={{fontWeight: 'bold', mb: 2}}>
-                        <SettingsIcon style={{verticalAlign:"middle"}}/> Settings
+                        <SettingsIcon style={{verticalAlign: "middle"}}/> Settings
                     </Typography>
-                    <Divider />
+                    <Divider/>
                     <List>
 
-                        <ListItem sx={{ padding: 0, alignItems: "center" }}>
+                        <ListItem sx={{padding: 0, alignItems: "center"}}>
                             <AssuredWorkloadIcon
-                                style={{ verticalAlign: "middle", marginRight: "0.5rem" }}
+                                style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
                             <Typography
-                                sx={{ color: "white", cursor: "pointer" }}
+                                sx={{color: "white", cursor: "pointer"}}
                                 onClick={handleOpenDropdown}
                             >
                                 Select Banks
@@ -209,8 +226,8 @@ const Header = () => {
                                     },
                                 }}
                             >
-                                <MenuItem >
-                                    <FormControl component="fieldset" sx={{ width: "100%" }}>
+                                <MenuItem>
+                                    <FormControl component="fieldset" sx={{width: "100%"}}>
                                         <FormGroup>
                                             {banks.map((bank) => (
                                                 <FormControlLabel
@@ -219,11 +236,11 @@ const Header = () => {
                                                         <Checkbox
                                                             checked={selectedBanks.includes(bank)}
                                                             onChange={() => handleBankToggle(bank)}
-                                                            sx={{ color: "#FAFAFA" }}
+                                                            sx={{color: "#FAFAFA"}}
                                                         />
                                                     }
                                                     label={bank}
-                                                    sx={{ color: "#FAFAFA", margin: 0, fontSize:"0.8rem"}}
+                                                    sx={{color: "#FAFAFA", margin: 0, fontSize: "0.8rem"}}
                                                 />
                                             ))}
                                         </FormGroup>
@@ -233,11 +250,11 @@ const Header = () => {
                                             color="primary"
                                             size='small'
                                             sx={{
-                                                display:"flex",
-                                                alignSelf:"flex-start",
-                                                padding:0,
-                                                textTransform:"none",
-                                                fontSize:"0.8rem"
+                                                display: "flex",
+                                                alignSelf: "flex-start",
+                                                padding: 0,
+                                                textTransform: "none",
+                                                fontSize: "0.8rem"
                                             }}
                                             onClick={handleCloseDropdown}
                                         >
@@ -248,8 +265,9 @@ const Header = () => {
                             </Menu>
                         </ListItem>
 
-                        <ListItem sx={{padding:0, marginTop:"1rem"}} onClick={handleDialogOpen}>
-                            <LockResetIcon style={{verticalAlign:"middle", marginRight:"0.5rem"}}/><ListItemText primary="Change Password" sx={{color:"white", cursor: "pointer"}}/>
+                        <ListItem sx={{padding: 0, marginTop: "1rem"}} onClick={handleDialogOpen}>
+                            <LockResetIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
+                            primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                     </List>
