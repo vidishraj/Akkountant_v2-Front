@@ -1,4 +1,4 @@
-import {AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, MenuItem, ListItemText, Divider, List, ListItem, Drawer, FormControl, FormControlLabel, Checkbox, FormGroup, Select} from '@mui/material';
+import {AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, MenuItem, ListItemText, Divider, List, ListItem, Drawer, FormControl, FormControlLabel, Checkbox, FormGroup, Select, Dialog, DialogTitle, DialogContent, DialogActions, TextField} from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
 import {auth} from "../FirebaseConfig.tsx"
@@ -15,22 +15,24 @@ const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false); // State for the sidebar
     const [selectedBanks, setSelectedBanks]= useState<string[]>([]);
-    const [dropdown, setDropdown]= useState(null);
     const banks= ["Millenia_Credit", "HDFC_DEBIT","ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
     const [isDialogOpen, setDialogOpen]= useState<boolean>(false);
+    const [isBankDialogOpen, setBankDialogOpen]= useState<boolean>(false);
+    const [bankPasswords, setBankPasswords]=useState<{[key:string]:string}>({});
+
+
+    const handleBankDialogOpen = ()=>{
+        setBankDialogOpen(true);
+    }
+    const handleBankDialogClose =()=>{
+        setBankDialogOpen(false);
+    }
 
     const handleDialogOpen = ()=>{
         setDialogOpen(true);
     }
     const handleDialogClose = ()=>{
         setDialogOpen(false);
-    }
-
-    const handleOpenDropdown=(e)=>{
-        setDropdown(e.currentTarget);
-    }
-    const handleCloseDropdown=()=>{
-        setDropdown(null);
     }
 
     const handleBankToggle = (bank: string) => {
@@ -41,6 +43,16 @@ const Header = () => {
         );
     };
     console.log(selectedBanks);
+    console.log(bankPasswords);
+
+    const handleSelectedBankPassword=(bank:string, password:string)=>{
+        setBankPasswords((prev)=>(
+            {
+                ...prev,
+                [bank]:password,
+            }
+        ))
+    }
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
@@ -179,73 +191,15 @@ const Header = () => {
                     <Divider />
                     <List>
 
-                        <ListItem sx={{ padding: 0, alignItems: "center" }}>
+                        <ListItem sx={{ padding: 0, alignItems: "center" }} onClick={handleBankDialogOpen}>
                             <AssuredWorkloadIcon
                                 style={{ verticalAlign: "middle", marginRight: "0.5rem" }}
                             />
                             <Typography
                                 sx={{ color: "white", cursor: "pointer" }}
-                                onClick={handleOpenDropdown}
                             >
                                 Select Banks
                             </Typography>
-                            <Menu
-                                anchorEl={dropdown}
-                                open={Boolean(dropdown)}
-                                onClose={handleCloseDropdown}
-                                anchorOrigin={{
-                                    vertical: "bottom",
-                                    horizontal: "left",
-                                }}
-                                transformOrigin={{
-                                    vertical: "top",
-                                    horizontal: "left",
-                                }}
-                                MenuListProps={{
-                                    style: {
-                                        padding: "0",
-                                        backgroundColor: "#121C24",
-                                        color: "#FAFAFA",
-                                    },
-                                }}
-                            >
-                                <MenuItem >
-                                    <FormControl component="fieldset" sx={{ width: "100%" }}>
-                                        <FormGroup>
-                                            {banks.map((bank) => (
-                                                <FormControlLabel
-                                                    key={bank}
-                                                    control={
-                                                        <Checkbox
-                                                            checked={selectedBanks.includes(bank)}
-                                                            onChange={() => handleBankToggle(bank)}
-                                                            sx={{ color: "#FAFAFA" }}
-                                                        />
-                                                    }
-                                                    label={bank}
-                                                    sx={{ color: "#FAFAFA", margin: 0, fontSize:"0.8rem"}}
-                                                />
-                                            ))}
-                                        </FormGroup>
-
-                                        <Button
-                                            variant="text"
-                                            color="primary"
-                                            size='small'
-                                            sx={{
-                                                display:"flex",
-                                                alignSelf:"flex-start",
-                                                padding:0,
-                                                textTransform:"none",
-                                                fontSize:"0.8rem"
-                                            }}
-                                            onClick={handleCloseDropdown}
-                                        >
-                                            Done
-                                        </Button>
-                                    </FormControl>
-                                </MenuItem>
-                            </Menu>
                         </ListItem>
 
                         <ListItem sx={{padding:0, marginTop:"1rem"}} onClick={handleDialogOpen}>
@@ -255,6 +209,70 @@ const Header = () => {
                     </List>
                 </Box>
             </Drawer>
+{/* Opt banks dialog */}
+
+        <Dialog open={isBankDialogOpen} onClose={handleBankDialogClose} fullWidth PaperProps={{
+        sx: {
+            backgroundColor: "#121C24",
+            color: "#FAFAFA",
+            borderRadius: 2,
+            padding: 3,
+        },
+    }} >
+        <DialogTitle>Select Banks</DialogTitle>
+        <DialogContent>
+          <FormControl component="fieldset">
+            <FormGroup sx={{
+                display: "flex",
+                flexDirection: "column", 
+                gap: 1,
+            }}>
+              {banks.map((bank) => (
+                <>
+                <FormControlLabel
+                  key={bank}
+                  sx={{
+                    display:"flex",
+                    flexWrap:"wrap",
+                    color:"#FAFAFA",
+                    margin:0
+                  }}
+                  control={
+                    <Checkbox
+                      checked={selectedBanks.includes(bank)}
+                      onChange={() => handleBankToggle(bank)}
+                      sx={{ color: "#FAFAFA" }}
+                    />
+                  }
+                  label={bank}
+                />
+                    {selectedBanks.includes(bank) && (
+                    <TextField
+                        value={bankPasswords[bank] || ""}
+                        onChange={(e) => handleSelectedBankPassword(bank, e.target.value)}
+                        placeholder="Enter password"
+                        type="password"
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                        backgroundColor: "#1E2A36",
+                        borderRadius: 1,
+                        input: { color: "#FAFAFA" },
+
+                        }}
+                    />
+                    )}
+                </>
+              ))}
+            </FormGroup>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleBankDialogClose} color="primary">
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
         </>
     );
 };
