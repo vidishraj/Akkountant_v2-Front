@@ -16,6 +16,11 @@ import {
     FormControlLabel,
     Checkbox,
     FormGroup,
+    DialogTitle,
+    DialogContent,
+    Dialog,
+    DialogActions,
+    TextField,
 } from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
@@ -229,14 +234,11 @@ const Header = () => {
                     <List>
 
                         <ListItem sx={{ padding: 0, alignItems: "center" }} onClick={handleBankDialogOpen}>
-                        <ListItem sx={{padding: 0, alignItems: "center"}}>
                             <AssuredWorkloadIcon
                                 style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
                             <Typography
                                 sx={{ color: "white", cursor: "pointer" }}
-                                sx={{color: "white", cursor: "pointer"}}
-                                onClick={handleOpenDropdown}
                             >
                                 Select Banks
                             </Typography>
@@ -250,6 +252,7 @@ const Header = () => {
                     </List>
                 </Box>
             </Drawer>
+            
 {/* Opt banks dialog */}
 
         <Dialog open={isBankDialogOpen} onClose={handleBankDialogClose} fullWidth PaperProps={{
