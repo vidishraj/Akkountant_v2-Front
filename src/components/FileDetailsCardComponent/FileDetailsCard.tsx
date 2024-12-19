@@ -53,15 +53,21 @@ const FileDetailsCard: React.FC<FileDetailsPage> = (props) => {
             </Box>
             <DialogComponent
                 open={downloadDialog}
-                message={`Are you sure you want to delete the file  ${fileName}?`}
+                message={`Are you sure you want to download the file  ${fileName}?`}
                 onCancel={() => setDownloadDialog(false)}
-                onConfirm={() => onDownload()}
+                onConfirm={() => {
+                    setDownloadDialog(false)
+                    onDownload()
+                }}
             />
             <DialogComponent
                 open={deleteConfirm}
                 message={`Are you sure you want to delete the file ${fileName}?`}
                 onCancel={() => setDeleteConfirm(false)}
-                onConfirm={() => onDelete()}
+                onConfirm={() => {
+                    setDeleteConfirm(false)
+                    onDelete()
+                }}
             />
 
         </Card>

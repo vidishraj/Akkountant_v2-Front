@@ -12,6 +12,7 @@ const axios = setupCache(instance, {
 export const setupAxiosInterceptors = () => {
     axios.interceptors.request.use(
         async (config) => {
+            console.log(config)
             if (config.params && config.params.clearCacheEntry && config.id) {
                 try {
                     // Remove the cache entry for the current request

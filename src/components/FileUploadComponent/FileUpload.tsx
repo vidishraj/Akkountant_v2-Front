@@ -9,6 +9,8 @@ import {
 } from '@mui/material';
 import styles from './FileUpload.module.scss';
 import {useMessage} from "../../contexts/MessageContext.tsx";
+import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import axios from "../../services/AxiosConfig.tsx";
 
 interface FileUploadProps {
     open: boolean;
@@ -17,9 +19,10 @@ interface FileUploadProps {
     onUpload: (file: File) => Promise<void>;
 }
 
-const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload}) => {
+const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload, cardType}) => {
     const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
     const [uploading, setUploading] = useState(false);
+    const {fetchAndSetSummary, getServiceType} = useMSNContext()
     const [isDragging, setIsDragging] = useState(false)
     const inputRef: any = useRef()
     const {setPayload} = useMessage()
@@ -77,6 +80,9 @@ const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload}) 
                         type: 'success',
                         message: `File Read successfully. Bought ${bought} Sold ${sold}`
                     })
+                    fetchAndSetSummary(getServiceType(), true)
+                    const service = cardType === "stocks" ? "Stocks" : cardType === "nps" ? "NPS" : "EPF";
+                    axios.storage.remove(`fetchUserSecurities-{\\"serviceType\\":\\"${service}\\"}`)
                 }).catch(() => {
                     setPayload({
                         type: 'error',
@@ -86,11 +92,10 @@ const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload}) 
                 }).finally(() => {
                     setUploading(false);
                     setSelectedFile(undefined);
-
+                    onClose();
                 });
-            } finally {
-                onClose();
-
+            } catch (error: any) {
+                onClose()
             }
         }
     };

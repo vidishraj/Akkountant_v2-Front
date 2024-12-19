@@ -15,7 +15,14 @@ import ConfirmationDialog from "../ConfirmationDialogComponent.tsx";
 
 const MSNHome = () => {
 
-    const {state, dispatch, fetchAndSetUserSecurities, fetchAndSetSearchItems, deleteComplete} = useMSNContext();
+    const {
+        state,
+        dispatch,
+        fetchAndSetSummary,
+        fetchAndSetUserSecurities,
+        fetchAndSetSearchItems,
+        deleteComplete, getServiceType, getContextKey
+    } = useMSNContext();
     const [searchItems, setSearchItems] = useState<[]>([]);
     const [detailState, setDetailState] = useState<MSNListResponse | undefined>(undefined);
     const [summaryState, setSummaryState] = useState<MSNSummaryResponse | undefined>(undefined);
@@ -28,10 +35,6 @@ const MSNHome = () => {
     const deleteAll = () => {
         deleteComplete()
     }
-    // Utility functions
-    const getServiceType = () => (state.selectedCard.mf ? "Mutual_Funds" : state.selectedCard.stocks ? "Stocks" : "NPS");
-    const getContextKey = () => (state.selectedCard.mf ? "mf" : state.selectedCard.stocks ? "stocks" : "nps");
-
     // Effect to set state based on selected card
     useEffect(() => {
         const contextKey = getContextKey();
@@ -152,7 +155,7 @@ const MSNHome = () => {
                 open={deleteConfirmation}
                 onCancel={() => setDeleteConfirmation(false)}
                 onSubmit={() => {
-                    setDeleteConfirmation(true)
+                    setDeleteConfirmation(false)
                     deleteAll()
                 }}
                 message={"Are you sure you want to delete all data?"}

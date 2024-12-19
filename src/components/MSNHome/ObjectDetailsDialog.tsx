@@ -32,7 +32,7 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                                                                  }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-    const {state} = useMSNContext();
+    const {state, fetchAndSetUserSecurities, getServiceType, fetchAndSetSummary} = useMSNContext();
     const {setPayload} = useMessage()
     const [modalState, setModalState] = useState<boolean>(false)
     return (
@@ -125,6 +125,7 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                              onCancel={() => setModalState(false)}
                              onSubmit={(formData: any) => {
                                  // Insert MF
+                                 setModalState(false)
                                  const requestBody: InsertEPGRequest = {
                                      schemeCode: data['scheme_id'],
                                      date: formData.date,
@@ -136,6 +137,9 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                                          type: 'success',
                                          message: response.data.Message,
                                      })
+                                     fetchAndSetUserSecurities(true);
+                                     fetchAndSetSummary(getServiceType(), true);
+                                     onClose()
                                  }).catch(() => {
                                      setPayload({
                                          type: 'error',

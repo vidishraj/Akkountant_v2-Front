@@ -1,9 +1,11 @@
-import React, {useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {Drawer, TablePagination} from "@mui/material";
 import BasicCard from "../../components/BasicCard.tsx";
 import TransactionCard from "../../components/TransactionCardComponent/TransactionCard.tsx";
 import TransactionFilters from "../../components/TransactionFilterComponent/TransactionFilters.tsx";
 import {
+    deleteFile,
+    downloadFile,
     fetchFileDetails,
     fetchOptedBanks,
     fetchTransactions,
@@ -20,15 +22,16 @@ import SortedBy from "../../components/SortComponent.tsx";
 import TransactionSummary from "../../components/TransactionSummaryComponent/TransactionSummary.tsx";
 import FileSummary from "../../components/FileSummaryComponent/FileSummary.tsx";
 import {FileDetails, Transaction} from "../../utils/interfaces.ts";
-import {ToastContainer, toast} from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import GoogleComponent from "../../components/GoogleComponent /GoogleComponent.tsx";
+import {useMessage} from "../../contexts/MessageContext.tsx";
 
 const Transactions = () => {
     const {state, dispatch} = useFilterContext();
     const {state: fileState, dispatch: fileDispatch} = useFileFilterContext();
     const {transactionModeSelection, setTransactionMode, setOptedBanks, user} = useUser();
     const [drawerState, setDrawerState] = useState<boolean>(false)
+    const {setPayload} = useMessage()
     const refreshTransactions = () => {
         const requestBody = {
             Page: state.page + 1,
@@ -64,9 +67,10 @@ const Transactions = () => {
                 dispatch({type: "SET_TRANSACTION_COUNT", payload: result.total_count});
             })
             .catch((error) => {
-                toast.error("Failed to load transactions. Please try again!", {
-                    position: "top-right",
-                });
+                setPayload({
+                    type: 'error',
+                    message: "Failed to load transactions. Please try again!"
+                })
                 console.error("Error fetching transactions:", error);
             });
     };
@@ -100,10 +104,10 @@ const Transactions = () => {
                 fileDispatch({type: "SET_FILE_COUNT", payload: result.total_count});
             })
             .catch((error) => {
-                toast.error("Failed to fetch file details. Please try again!", {
-                    position: "top-right",
-                });
-                console.error("Error fetching file details:", error);
+                setPayload({
+                    type: 'error',
+                    message: "Failed to fetch file details. Please try again!"
+                })
             });
     };
 
@@ -119,10 +123,10 @@ const Transactions = () => {
         fetchOptedBanks()
             .then((response) => setOptedBanks(response))
             .catch((error) => {
-                toast.error("Failed to fetch opted banks. Please try again!", {
-                    position: "top-right",
-                });
-                console.error("Error fetching opted banks:", error);
+                setPayload({
+                    type: 'error',
+                    message: "Failed to fetch opted banks. Please try again!"
+                })
             });
     }, [user]);
 
@@ -201,8 +205,42 @@ const Transactions = () => {
                         fileName={file.fileName}
                         uploadDate={file.uploadDate}
                         statementCount={file.statementCount}
-                        onDownload={() => console.log("Download clicked")}
-                        onDelete={() => console.log("Delete clicked")}
+                        onDownload={() => {
+                            downloadFile(file.fileID).then((blob: any) => {
+                                const url = window.URL.createObjectURL(new Blob([blob]))
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.setAttribute('download', file.fileName) // Specify the filename
+                                document.body.appendChild(link)
+                                link.click()
+                                setPayload({
+                                    message: 'Download started successfully',
+                                    type: 'success',
+                                })
+                                document.body.removeChild(link)
+                            }).catch(() => {
+                                setPayload({
+                                    type: "error",
+                                    message: "Error downloading file"
+                                })
+                            })
+                        }}
+                        onDelete={() => {
+                            deleteFile(file.fileID).then((r) => {
+                                if (r.status === 200) {
+                                    setPayload({
+                                        message: 'File deleted successfully.',
+                                        type: 'success',
+                                    })
+                                    refreshFileDetails()
+                                }
+                            }).catch(() => {
+                                setPayload({
+                                    type: "error",
+                                    message: "Error deleting file"
+                                })
+                            })
+                        }}
                     />
                 ))}
             </div>
@@ -243,7 +281,6 @@ const Transactions = () => {
 
     return (
         <div className={style.transactionContainer}>
-            <ToastContainer toastClassName={style.customToast} bodyClassName={style.customToast}/>
             <Drawer
                 anchor="left"
                 open={false}

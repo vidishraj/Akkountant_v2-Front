@@ -175,13 +175,15 @@ interface MSNContextType {
     dispatch: React.Dispatch<MSNAction>;
     fetchAndSetSummary: (serviceType: string, clearCache: boolean) => void;
     fetchAndSetSearchItems: () => Promise<MSNListResponse[]>;
-    fetchAndSetUserSecurities: () => void;
+    fetchAndSetUserSecurities: (clearCache?: boolean) => void;
     deleteComplete: () => void;
     AllInfoForEpf: (serviceType: string, clearCache: boolean) => void;
     getServiceType: () => string;
     getContextKey: () => string;
     fetchTransactions: (serviceType: string, clearCache: boolean) => void;
     calculateSummary: (summary: GlobalSummaryInterface, read: SecuritiesRead) => [SecuritiesRead, GlobalSummaryInterface];
+    globalInvestmentRefresh: () => void;
+
 }
 
 // Create the context
@@ -259,14 +261,14 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
             });
     };
 
-    const fetchAndSetUserSecurities = async (): Promise<void> => {
+    const fetchAndSetUserSecurities = async (clearCache = false): Promise<void> => {
         dispatch({
             type: "MSNLoaderSetter",
             payload: {...state.loadingState, [contextKey]: {...state.loadingState[contextKey], list: true}}
         });
 
         try {
-            fetchUserSecurities(serviceType)
+            fetchUserSecurities(serviceType, clearCache)
                 .then((response) => {
                     dispatch({
                         type: "MSNListSetter",
@@ -322,6 +324,8 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
                         type: "success",
                         message: `Successfully deleted all ${serviceType}.`
                     });
+                    fetchAndSetUserSecurities(true);
+                    fetchAndSetSummary(getServiceType(), true);
                 }
             })
             .catch(() => {
@@ -334,6 +338,10 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
 
     const AllInfoForEpf = async (serviceTy: string, clearCache: boolean): Promise<void> => {
         const serviceType = getContextFromService(serviceTy);
+        dispatch({
+            type: "MSNLoaderSetter",
+            payload: {[serviceType]: {...state.loadingState[serviceType], summary: true}}
+        });
         fetchCompleteEPG(serviceTy, clearCache)
             .then((response) => {
                 if (response.status === 200) {
@@ -348,7 +356,12 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
                     type: "error",
                     message: `Error fetching EPG ${serviceType}. Please try again!`
                 });
+            }).finally(() => {
+            dispatch({
+                type: "MSNLoaderSetter",
+                payload: {[serviceType]: {...state.loadingState[serviceType], summary: false}}
             });
+        });
     };
     const fetchTransactions = async (serviceTy: string, clearCache: boolean): Promise<void> => {
         const serviceType = getContextFromService(serviceTy);
@@ -378,6 +391,7 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         const processContext = (keys: string[], isEPG: boolean) => {
             keys.forEach((key) => {
                 const data = state.summaries[key];
+                console.log(data)
                 if (!read[key] && (isEPG ? data.net !== 0 : data.totalValue !== 0)) {
                     updatedRead[key] = true;
 
@@ -404,6 +418,15 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
 
         return [updatedRead, updatedSummary];
     };
+
+    const globalInvestmentRefresh = () => {
+        fetchAndSetSummary("Stocks", true);
+        fetchAndSetSummary("NPS", true);
+        fetchAndSetSummary("Mutual_Funds", true);
+        AllInfoForEpf("EPF", true)
+        AllInfoForEpf("Gold", true)
+        AllInfoForEpf("PF", true)
+    }
     const contextValue: MSNContextType = {
         state,
         dispatch,
@@ -415,7 +438,8 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         getServiceType,
         getContextKey,
         fetchTransactions,
-        calculateSummary
+        calculateSummary,
+        globalInvestmentRefresh
     };
 
     return (

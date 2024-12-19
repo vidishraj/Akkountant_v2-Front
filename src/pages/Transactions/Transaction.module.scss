@@ -11,6 +11,11 @@
   background: #121C24 !important;
 }
 
+@media (max-width: 768px) {
+  .transactionListContainer {
+  }
+}
+
 .transactionListContainer {
   background-color: #121C24 !important;
   flex-basis: 75%;
@@ -44,4 +49,7 @@
   }
 }
 
+
+.drawerState {
+}
 

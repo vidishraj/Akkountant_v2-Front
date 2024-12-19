@@ -6,7 +6,8 @@ import ClearFilterButton from "../ClearFilterComponent.tsx";
 import CustomIconSwitch from "./EmailStatementSwitcher.tsx";
 import DateModal from "../DateModalComponent.tsx";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import {triggerEmailCheck} from "../../services/transactionService.ts";
+import {triggerEmailCheck, triggerStatementCheck} from "../../services/transactionService.ts";
+import {useMessage} from "../../contexts/MessageContext.tsx";
 
 interface TransactionSummaryProps {
     refreshTransactions: any
@@ -20,7 +21,7 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
     const [dateModalState, setDateModalState] = useState(false);
     const [googleSwitch, setGoogleSwitch] = useState(true);
     const net = -1 * (debit - (-1 * credit)); // Calculate net balance
-
+    const {setPayload} = useMessage();
     return (
         <Box className={styles.summaryContainer}>
             {/* Credit */}
@@ -78,13 +79,49 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                 }}/>
                 <DateModal title={!googleSwitch ? "Trigger Mail Check" : "Trigger Statement Check"}
                            isOpen={dateModalState} onSubmit={(dates) => {
+                    setDateModalState(false);
                     if (!googleSwitch) {
                         triggerEmailCheck(dates.to, dates.from, false).then(r => {
-                            console.log(r)
+                            if (r.status === 200) {
+                                const successCount = r.data.Message.read;
+                                const errors = r.data.Message.conflicts;
+                                setPayload({
+                                    type: 'success',
+                                    message: `${successCount} emails read successfully. ${errors} errors`
+                                })
+                                refreshTransactions()
+                            }
                         }).catch(() => {
-                            console.log("Error while reading mails.")
+                            setPayload({
+                                type: 'error',
+                                message: "Error while reading emails."
+                            })
                         });
-
+                        setPayload({
+                            type: 'success',
+                            message: "Email reading started"
+                        })
+                    } else {
+                        triggerStatementCheck(dates.to, dates.from, false).then(r => {
+                            if (r.status === 200) {
+                                const successCount = r.data.Message.read;
+                                const errors = r.data.Message.conflicts;
+                                setPayload({
+                                    type: 'success',
+                                    message: `${successCount} transactions read successfully. ${errors} integrity errors`
+                                })
+                                refreshTransactions()
+                            }
+                        }).catch(() => {
+                            setPayload({
+                                type: 'error',
+                                message: "Error while reading statements."
+                            })
+                        });
+                        setPayload({
+                            type: 'success',
+                            message: "Statement reading started"
+                        })
                     }
                 }} onCancel={() => {
                     setDateModalState(false);
