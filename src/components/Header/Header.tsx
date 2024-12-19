@@ -35,13 +35,41 @@ const Header = () => {
         setDialogOpen(false);
     }
 
+    // const handleBankToggle = (bank: string) => {
+    //     setSelectedBanks((prevSelected) =>
+    //         prevSelected.includes(bank)
+    //             ? prevSelected.filter((b) => b !== bank) 
+    //             : [...prevSelected, bank] 
+    //     );
+
+    // };
+
     const handleBankToggle = (bank: string) => {
-        setSelectedBanks((prevSelected) =>
-            prevSelected.includes(bank)
-                ? prevSelected.filter((b) => b !== bank) 
-                : [...prevSelected, bank] 
-        );
-    };
+        setSelectedBanks((prevSelected) => {
+          const isSelected = prevSelected.includes(bank);
+      
+          // Update selectedBanks
+          const updatedBanks = isSelected
+            ? prevSelected.filter((b) => b !== bank) // Deselect
+            : [...prevSelected, bank]; // Select
+      
+          // Update bankPasswords based on updated selection
+          setBankPasswords((prevPasswords) => {
+            const updatedPasswords = { ...prevPasswords };
+            if (!isSelected) {
+              // Initialize password for newly selected bank
+              updatedPasswords[bank] = "";
+            } else {
+              // Remove password for deselected bank
+              delete updatedPasswords[bank];
+            }
+            return updatedPasswords;
+          });
+      
+          return updatedBanks;
+        });
+      };
+      
     console.log(selectedBanks);
     console.log(bankPasswords);
 
@@ -53,6 +81,8 @@ const Header = () => {
             }
         ))
     }
+
+    const allPasswordsFilled= selectedBanks.every((bank)=>bankPasswords[bank]?.trim()!=="");
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
@@ -250,13 +280,14 @@ const Header = () => {
                     <TextField
                         value={bankPasswords[bank] || ""}
                         onChange={(e) => handleSelectedBankPassword(bank, e.target.value)}
-                        placeholder="Enter password"
+                        placeholder="Enter password *"
                         type="password"
                         size="small"
                         variant="outlined"
                         sx={{
                         backgroundColor: "#1E2A36",
                         borderRadius: 1,
+                        fontSize:"0.5rem",
                         input: { color: "#FAFAFA" },
 
                         }}
@@ -268,7 +299,11 @@ const Header = () => {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleBankDialogClose} color="primary">
+          <Button onClick={handleBankDialogClose}  variant="contained" disabled={!allPasswordsFilled} sx={{backgroundColor:!allPasswordsFilled?"red":"primary.main",
+                '&.Mui-disabled': {
+                    backgroundColor: 'red !important'
+                  },
+          }}>
             Done
           </Button>
         </DialogActions>
