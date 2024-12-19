@@ -35,24 +35,14 @@ const Header = () => {
         setDialogOpen(false);
     }
 
-    // const handleBankToggle = (bank: string) => {
-    //     setSelectedBanks((prevSelected) =>
-    //         prevSelected.includes(bank)
-    //             ? prevSelected.filter((b) => b !== bank) 
-    //             : [...prevSelected, bank] 
-    //     );
-
-    // };
-
     const handleBankToggle = (bank: string) => {
         setSelectedBanks((prevSelected) => {
           const isSelected = prevSelected.includes(bank);
       
-          // Update selectedBanks
           const updatedBanks = isSelected
-            ? prevSelected.filter((b) => b !== bank) // Deselect
-            : [...prevSelected, bank]; // Select
-      
+            ? prevSelected.filter((b) => b !== bank)
+            : [...prevSelected, bank];
+
           // Update bankPasswords based on updated selection
           setBankPasswords((prevPasswords) => {
             const updatedPasswords = { ...prevPasswords };
@@ -126,7 +116,7 @@ const Header = () => {
                 <Toolbar sx={{justifyContent: 'space-between'}}>
                     <Box display="flex" alignItems="center" gap={5}>
                         <Typography variant="h6" sx={{fontWeight: 'bold'}}>
-                            Akkountant
+                           <Link style={{color: "#FAFAFA", fontWeight:"700"}} to={'/home'}>Akkountant</Link>
                         </Typography>
                         <Box>
                             <Button sx={{mx: 1}}>
