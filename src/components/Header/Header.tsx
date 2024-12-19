@@ -57,7 +57,6 @@ const Header = () => {
                 : [...prevSelected, bank]
         );
     };
-    console.log(selectedBanks);
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);

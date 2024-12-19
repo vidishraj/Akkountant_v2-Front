@@ -391,7 +391,6 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         const processContext = (keys: string[], isEPG: boolean) => {
             keys.forEach((key) => {
                 const data = state.summaries[key];
-                console.log(data)
                 if (!read[key] && (isEPG ? data.net !== 0 : data.totalValue !== 0)) {
                     updatedRead[key] = true;
 
