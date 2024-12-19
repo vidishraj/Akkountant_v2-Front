@@ -12,6 +12,7 @@
   "dependencies": {
     "@mui/icons-material": "^6.1.7",
     "@mui/lab": "^6.0.0-beta.15",
+    "@mui/x-charts": "^7.23.2",
     "@mui/x-date-pickers": "^7.22.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
@@ -29,8 +30,10 @@
     "react-pro-sidebar": "^1.1.0",
     "react-router-dom": "^6.28.0",
     "react-search-autocomplete": "^8.5.2",
+    "react-slick": "^0.30.2",
     "react-toastify": "^10.0.6",
     "sass": "^1.80.7",
+    "slick-carousel": "^1.8.1",
     "web-vitals": "^4.2.4"
   },
   "devDependencies": {
@@ -40,6 +43,7 @@
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/react-slick": "^0.23.13",
     "@vitejs/plugin-react": "^4.3.3",
     "eslint": "^9.13.0",
     "eslint-plugin-react-hooks": "^5.0.0",

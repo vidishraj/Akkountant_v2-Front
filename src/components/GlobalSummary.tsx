@@ -2,19 +2,10 @@ import {useEffect, useState} from "react";
 import {useMSNContext} from "../contexts/MSNContext.tsx";
 import {Card, CardContent, Divider, Grid, Typography} from "@mui/material";
 import style from "./MSNHome/MSNHome.module.scss";
+import {SecuritiesRead, GlobalSummaryInterface} from "../utils/interfaces.ts";
 
-interface GlobalSummary {
-    totalInvestment: number;
-    currentValue: number;
-    profit: number;
-    profitPercentage: number;
-}
 
-interface SecuritiesRead {
-    [key: string]: boolean;
-}
-
-const initialSecuritiesRead: SecuritiesRead = {
+export const initialSecuritiesRead: SecuritiesRead = {
     ppf: false,
     epf: false,
     nps: false,
@@ -23,7 +14,7 @@ const initialSecuritiesRead: SecuritiesRead = {
     mf: false,
 };
 
-const initialSummaryState: GlobalSummary = {
+export const initialSummaryState: GlobalSummaryInterface = {
     totalInvestment: 0,
     currentValue: 0,
     profit: 0,
@@ -31,50 +22,17 @@ const initialSummaryState: GlobalSummary = {
 };
 
 const GlobalSummary = () => {
-    const [summary, setSummary] = useState<GlobalSummary>(initialSummaryState);
+    const [summary, setSummary] = useState<GlobalSummaryInterface>(initialSummaryState);
     const [read, setRead] = useState<SecuritiesRead>(initialSecuritiesRead);
-    const {state} = useMSNContext();
+    const {state, calculateSummary} = useMSNContext();
 
-    const msnContextKeys = ["mf", "stocks", "nps"];
-    const epgContextKeys = ["ppf", "epf", "gold"];
-
-    const calculateSummary = () => {
-        const updatedSummary = {...initialSummaryState};
-        const updatedRead = {...read};
-
-        const processContext = (keys: string[], isEPG: boolean) => {
-            keys.forEach((key) => {
-                const data = state.summaries[key];
-                if (!read[key] && (isEPG ? data.net !== 0 : data.totalValue !== 0)) {
-                    updatedRead[key] = true;
-
-                    if (isEPG) {
-                        const profit = Number(data.netProfit);
-                        updatedSummary.totalInvestment += Number(data.net) - profit;
-                        updatedSummary.currentValue += Number(data.net);
-                        updatedSummary.profit += profit;
-                    } else {
-                        updatedSummary.totalInvestment += Number(data.totalValue);
-                        updatedSummary.currentValue += Number(data.currentValue);
-                        updatedSummary.profit += Number(data.changeAmount);
-                    }
-                }
-            });
-        };
-
-        processContext(msnContextKeys, false);
-        processContext(epgContextKeys, true);
-
-        updatedSummary.profitPercentage =
-            (updatedSummary.profit / updatedSummary.totalInvestment) * 100;
-
-        setRead(updatedRead);
-        setSummary(updatedSummary);
-    };
 
     useEffect(() => {
-        calculateSummary();
-    }, [state]);
+        const summaryRead = calculateSummary(summary, read);
+        setRead(summaryRead[0]);
+        setSummary(summaryRead[1]);
+    }, [state.summaries]);
+
 
     const formatCurrency = (value: number): string =>
         value.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2});

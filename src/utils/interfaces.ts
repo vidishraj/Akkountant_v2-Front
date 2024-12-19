@@ -167,3 +167,14 @@ export interface InsertEPGRequest {
     schemeCode?: any;
     goldType?: string;
 }
+
+export interface GlobalSummaryInterface {
+    totalInvestment: number;
+    currentValue: number;
+    profit: number;
+    profitPercentage: number;
+}
+
+export interface SecuritiesRead {
+    [key: string]: boolean;
+}
