@@ -100,7 +100,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
             <FileUploadDialog
                 open={openFileUpload}
                 onClose={() => setOpenFileUpload(false)}
-                cardType={title}
+                cardType={cardType2 || cardType}
                 onUpload={(selectedFile) => {
                     return handleFileUpload(selectedFile, getServiceType()).then((response) => {
                         return response;

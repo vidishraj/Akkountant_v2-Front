@@ -31,6 +31,7 @@
 .innerCard {
   display: flex;
   //gap: 20px;
+  align-items: center;
   justify-content: space-between;
 }
 
@@ -204,4 +205,9 @@ previousBox {
   border: 3px solid #121c24 !important;
   border-radius: 20px !important;
   background-color: #29384D !important;
+}
+
+.refresh {
+  max-height: fit-content;
+  background-color: white !important;
 }

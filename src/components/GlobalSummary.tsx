@@ -1,8 +1,9 @@
 import {useEffect, useState} from "react";
 import {useMSNContext} from "../contexts/MSNContext.tsx";
-import {Card, CardContent, Divider, Grid, Typography} from "@mui/material";
+import {Button, Card, CardContent, Divider, Grid, Typography} from "@mui/material";
 import style from "./MSNHome/MSNHome.module.scss";
 import {SecuritiesRead, GlobalSummaryInterface} from "../utils/interfaces.ts";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 
 export const initialSecuritiesRead: SecuritiesRead = {
@@ -24,7 +25,7 @@ export const initialSummaryState: GlobalSummaryInterface = {
 const GlobalSummary = () => {
     const [summary, setSummary] = useState<GlobalSummaryInterface>(initialSummaryState);
     const [read, setRead] = useState<SecuritiesRead>(initialSecuritiesRead);
-    const {state, calculateSummary} = useMSNContext();
+    const {state, calculateSummary, globalInvestmentRefresh} = useMSNContext();
 
 
     useEffect(() => {
@@ -64,7 +65,7 @@ const GlobalSummary = () => {
                     </Typography>
                 </Grid>
 
-                <Divider sx={{borderColor: "#ccc", borderWidth: 1}}/>
+                <Divider sx={{borderColor: "#ccc", borderWidth: 1, minHeight: '55px'}}/>
 
                 <Grid container spacing={1} className={style.infoGrid}>
                     {renderSummaryItem(
@@ -84,6 +85,16 @@ const GlobalSummary = () => {
                         summary.profitPercentage >= 0 ? "green" : "red"
                     )}
                 </Grid>
+                <Button
+                    className={style.refresh}
+                    variant="contained"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        globalInvestmentRefresh()
+                    }}
+                >
+                    <RefreshIcon style={{color: "black"}}/>
+                </Button>
             </CardContent>
         </Card>
     );

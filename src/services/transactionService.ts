@@ -125,6 +125,36 @@ export async function triggerEmailCheck(dateTo: string,
                                         dateFrom: string,
                                         clearCache = false): Promise<any> {
     const options = clearCache ? withCacheCleared({dateTo, dateFrom}) : {params: {dateTo, dateFrom}};
-    return queueRequest(() => axios.get('/readEmails', options).then((res) => res.data));
+    return queueRequest(() => axios.get('/readEmails', options).then((res) => res));
 
+}
+
+/**
+ * Trigger statement check for a date from and date to
+ */
+export async function triggerStatementCheck(dateTo: string,
+                                            dateFrom: string,
+                                            clearCache = false): Promise<any> {
+    const options = clearCache ? withCacheCleared({dateTo, dateFrom}) : {params: {dateTo, dateFrom}};
+    return queueRequest(() => axios.get('/readStatements', options).then((res) => res));
+
+}
+
+/**
+ * Trigger statement check for a date from and date to
+ */
+export async function downloadFile(fileId: string): Promise<any> {
+    return queueRequest(() => axios.get('/downloadFile', {
+        params: {fileId: fileId},
+        responseType: 'blob'
+    }).then((res) => res));
+}
+
+/**
+ * Trigger statement check for a date from and date to
+ */
+export async function deleteFile(fileId: string): Promise<any> {
+    return queueRequest(() => axios.get('/deleteFile', {
+        params: {fileId: fileId},
+    }).then((res) => res));
 }

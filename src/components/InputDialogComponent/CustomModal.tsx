@@ -106,6 +106,7 @@ const CustomModal: React.FC<Props> = ({
                         onChange={(e) => handleInputChange("date", e.target.value)}
                         InputLabelProps={{shrink: true}}
                         fullWidth
+                        InputProps={{style: {color: 'white'}}}
                         className={styles.inputField}
                         error={!!errors.date}
                         helperText={errors.date}
@@ -119,7 +120,7 @@ const CustomModal: React.FC<Props> = ({
                                 type="number"
                                 value={formData.nav}
                                 onChange={(e) => handleInputChange("nav", e.target.value)}
-                                InputProps={{inputProps: {min: 0, max: maxNav}}}
+                                InputProps={{inputProps: {min: 0, max: maxNav, style: {color: 'white'}}}}
                                 fullWidth
                                 className={styles.inputField}
                                 error={!!errors.nav}
@@ -132,7 +133,7 @@ const CustomModal: React.FC<Props> = ({
                                 type="number"
                                 value={formData.quantity}
                                 onChange={(e) => handleInputChange("quantity", e.target.value)}
-                                InputProps={{inputProps: {min: 0, step: 0.01}}}
+                                InputProps={{inputProps: {min: 0, step: 0.01}, style: {color: 'white'}}}
                                 fullWidth
                                 className={styles.inputField}
                                 error={!!errors.quantity}
@@ -150,6 +151,7 @@ const CustomModal: React.FC<Props> = ({
                                 value={formData.description}
                                 onChange={(e) => handleInputChange("description", e.target.value)}
                                 fullWidth
+                                InputProps={{style: {color: 'white'}}}
                                 className={styles.inputField}
                                 error={!!errors.description}
                                 helperText={errors.description}
@@ -161,7 +163,7 @@ const CustomModal: React.FC<Props> = ({
                                 type="number"
                                 value={formData.amount}
                                 onChange={(e) => handleInputChange("amount", e.target.value)}
-                                InputProps={{inputProps: {min: 0, step: 0.01}}}
+                                InputProps={{inputProps: {min: 0, step: 0.01}, style: {color: 'white'}}}
                                 fullWidth
                                 className={styles.inputField}
                                 error={!!errors.amount}
@@ -176,7 +178,7 @@ const CustomModal: React.FC<Props> = ({
                                         type="number"
                                         value={formData.quantity}
                                         onChange={(e) => handleInputChange("quantity", e.target.value)}
-                                        InputProps={{inputProps: {min: 0, step: 0.01}}}
+                                        InputProps={{inputProps: {min: 0, step: 0.01}, style: {color: 'white'}}}
                                         fullWidth
                                         className={styles.inputField}
                                         error={!!errors.quantity}
