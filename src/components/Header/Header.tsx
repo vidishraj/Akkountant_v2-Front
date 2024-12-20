@@ -26,13 +26,13 @@ import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
 import {auth} from "../FirebaseConfig.tsx"
 import Menu from '@mui/material/Menu';
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {getAuth, signOut} from "firebase/auth";
 import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
-import { fetchOptedBanksPassword } from '../../services/transactionService.ts';
+import { fetchOptedBanks, fetchOptedBanksPassword } from '../../services/transactionService.ts';
 import { useMessage } from '../../contexts/MessageContext.tsx';
 
 const Header = () => {
@@ -43,6 +43,7 @@ const Header = () => {
     const [isDialogOpen, setDialogOpen]= useState<boolean>(false);
     const [isBankDialogOpen, setBankDialogOpen]= useState<boolean>(false);
     const [bankPasswords, setBankPasswords]=useState<{[key:string]:string}>({});
+    const [optedBanks, setOptedBanks]= useState<string[]>([]);
     const {setPayload} = useMessage();
 
     const handleBankDialogOpen = ()=>{
@@ -59,6 +60,24 @@ const Header = () => {
         setDialogOpen(false);
     }
 
+    useEffect(()=>{
+        const fetchBanks=async()=>{
+            try{
+                const banks= await fetchOptedBanks();
+                setOptedBanks(banks);
+                console.log("Fetched opted banks:", banks);
+            }
+            catch(err){
+                console.log("Error fetching opted banks",err);
+                setPayload({
+                    type:"error",
+                    message: "Failed to fetch opted banks. Please try again!"
+                })
+            }
+        }
+        fetchBanks();
+    },[selectedBanks]);
+    
     const handleBankToggle = (bank: string) => {
         setSelectedBanks((prevSelected) => {
           const isSelected = prevSelected.includes(bank);
@@ -282,8 +301,27 @@ const Header = () => {
                             <LockResetIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
                             primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
+
+                        {/* Show fetched opted banks */}
+                        {optedBanks.length>0 && (
+                            <Box sx={{ mt: 2, pl: 4 }}>
+                            <Typography variant="subtitle2" sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
+                                Fetched Opted Banks:
+                            </Typography>
+                            <List>
+                                {optedBanks.map((bank, index) => (
+                                    <ListItem key={index} sx={{ padding: 0 }}>
+                                        <Typography sx={{ color: "#FAFAFA" }}>
+                                            {bank}
+                                        </Typography>
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </Box>
+                        )}
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                     </List>
+                    
                 </Box>
             </Drawer>
             

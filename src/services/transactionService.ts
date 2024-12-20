@@ -67,7 +67,7 @@ export async function fetchOptedBanksPassword(
 /**
  * Fetch opted banks for the user.
  */
-export async function fetchOptedBanks(clearCache = false): Promise<any> {
+export async function fetchOptedBanks(clearCache = false): Promise<string[]> {
     const options = clearCache ? withCacheCleared() : {};
     return queueRequest(() => axios.get('/fetchOptedBanks', options).then((res) => res.data));
 }
