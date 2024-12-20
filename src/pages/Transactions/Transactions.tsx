@@ -28,7 +28,8 @@ const Transactions = () => {
     const {state, dispatch} = useFilterContext();
     const {state: fileState, dispatch: fileDispatch} = useFileFilterContext();
     const {transactionModeSelection, setTransactionMode, setOptedBanks, user} = useUser();
-    const [drawerState, setDrawerState] = useState<boolean>(false)
+    const [drawerState, setDrawerState] = useState<boolean>(false);
+    
     const refreshTransactions = () => {
         const requestBody = {
             Page: state.page + 1,

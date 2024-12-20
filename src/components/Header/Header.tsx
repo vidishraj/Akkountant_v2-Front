@@ -32,6 +32,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
+import { fetchOptedBanksPassword } from '../../services/transactionService.ts';
+import { useMessage } from '../../contexts/MessageContext.tsx';
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
@@ -41,7 +43,7 @@ const Header = () => {
     const [isDialogOpen, setDialogOpen]= useState<boolean>(false);
     const [isBankDialogOpen, setBankDialogOpen]= useState<boolean>(false);
     const [bankPasswords, setBankPasswords]=useState<{[key:string]:string}>({});
-
+    const {setPayload} = useMessage();
 
     const handleBankDialogOpen = ()=>{
         setBankDialogOpen(true);
@@ -94,6 +96,38 @@ const Header = () => {
         ))
     }
 
+    const handleSubmit = async () => {
+            const payload = {
+                banks: selectedBanks.reduce((acc, bank) => {
+                    if (bankPasswords[bank]) {
+                      acc[bank] = bankPasswords[bank];
+                    }
+                    return acc;
+                  }, {} as { [key: string]: string }),
+  
+              };
+            
+              try {
+                const response = await fetchOptedBanksPassword(payload);
+                console.log("Response:", response);
+      
+                setPayload({
+                  type: "success",
+                  message: "Bank passwords submitted successfully!",
+                });
+            
+                handleBankDialogClose();
+              } catch (err) {
+                console.error("Error submitting bank passwords:", err);
+            
+                setPayload({
+                  type: "error",
+                  message: "Failed to submit bank passwords. Please try again.",
+                });
+              }
+        
+      };
+      
     const allPasswordsFilled= selectedBanks.every((bank)=>bankPasswords[bank]?.trim()!=="");
 
     const toggleDrawer = (open: boolean) => () => {
@@ -313,7 +347,7 @@ const Header = () => {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleBankDialogClose}  variant="contained" disabled={!allPasswordsFilled} sx={{backgroundColor:!allPasswordsFilled?"red":"primary.main",
+          <Button onClick={handleSubmit}  variant="contained" disabled={!allPasswordsFilled} sx={{backgroundColor:!allPasswordsFilled?"red":"primary.main",
                 '&.Mui-disabled': {
                     backgroundColor: 'red !important'
                   },

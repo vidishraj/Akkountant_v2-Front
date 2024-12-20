@@ -6,6 +6,7 @@ import {
     TransactionResponse,
     FileDetailsResponse,
     GoogleStatusResponse,
+    OptedBankPasswordsRequestBody,
 } from '../utils/interfaces.ts';
 
 /**
@@ -48,6 +49,20 @@ export async function fetchFileDetails(
         axios.post('/getFileDetails', body, options).then((res) => res.data)
     );
 }
+
+/**
+ * Post opted banks along with their respective password
+ */
+export async function fetchOptedBanksPassword(
+    body: OptedBankPasswordsRequestBody,
+    clearCache = false
+): Promise<FileDetailsResponse> {
+    const options = clearCache ? withCacheCleared() : {};
+    return queueRequest(() =>
+        axios.post('/setOptedBanks', body, options).then((res) => res.data)
+    );
+}
+
 
 /**
  * Fetch opted banks for the user.

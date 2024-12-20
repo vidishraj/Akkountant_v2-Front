@@ -178,3 +178,9 @@ export interface GlobalSummaryInterface {
 export interface SecuritiesRead {
     [key: string]: boolean;
 }
+
+export interface OptedBankPasswordsRequestBody {
+    banks: {
+      [key: string]: string; 
+    };
+  }
