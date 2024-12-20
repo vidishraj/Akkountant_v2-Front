@@ -1,0 +1,10 @@
+{
+    "banks": {
+      "HDFC": "password123",
+      "SBI": "securePass456",
+      "ICICI": "bankPass789",
+      "Axis": "mySecret321",
+      "PNB": "safeBankKey654"
+    }
+  }
+  
