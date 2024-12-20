@@ -90,7 +90,7 @@ const Header = () => {
           setBankPasswords((prevPasswords) => {
             const updatedPasswords = { ...prevPasswords };
             if (!isSelected) {
-              // Initialize password for newly selected bank
+              // Initialize password (empty placeholder) for newly selected bank till password is set within handleSelectedBankPassword()
               updatedPasswords[bank] = "";
             } else {
               // Remove password for deselected bank
@@ -304,8 +304,8 @@ const Header = () => {
 
                         {/* Show fetched opted banks */}
                         {optedBanks.length>0 && (
-                            <Box sx={{ mt: 2, pl: 4 }}>
-                            <Typography variant="subtitle2" sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
+                            <Box sx={{ mt: 15,pl:2}}>
+                            <Typography   sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
                                 Fetched Opted Banks:
                             </Typography>
                             <List>
