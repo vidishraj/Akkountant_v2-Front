@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useReducer} from "react";
-import {FileDetails} from "../services/transactionService.ts";
+import {FileDetails} from "../utils/interfaces.ts";
 
 export interface SortType {
     sortBy: string;

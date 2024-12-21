@@ -78,6 +78,11 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 gold: cardType2 === "gold",
             },
         });
+        window.scrollTo({
+            top: 500,
+            behavior: 'smooth', // For smooth scrolling
+        });
+
     };
     const handleFileUpload = async (selectedFile: File, serviceType: string) => {
         return uploadFile(selectedFile, {serviceType});

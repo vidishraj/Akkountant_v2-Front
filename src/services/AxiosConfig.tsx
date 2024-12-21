@@ -3,7 +3,8 @@ import {auth} from '../components/FirebaseConfig';
 import {onAuthStateChanged} from 'firebase/auth';
 import {setupCache} from 'axios-cache-interceptor';
 
-const instance = Axios.create({baseURL: 'http://127.0.0.1:8000'});
+const baseUrl = import.meta.env.VITE_APP_BACKEND_URL;
+const instance = Axios.create({baseURL: baseUrl});
 const axios = setupCache(instance, {
     debug: console.log,
 });

@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Drawer, TablePagination} from "@mui/material";
+import {Drawer, TablePagination, useMediaQuery} from "@mui/material";
 import BasicCard from "../../components/BasicCard.tsx";
 import TransactionCard from "../../components/TransactionCardComponent/TransactionCard.tsx";
 import TransactionFilters from "../../components/TransactionFilterComponent/TransactionFilters.tsx";
@@ -32,6 +32,8 @@ const Transactions = () => {
     const {transactionModeSelection, setTransactionMode, setOptedBanks, user} = useUser();
     const [drawerState, setDrawerState] = useState<boolean>(false)
     const {setPayload} = useMessage()
+    // Use Media Query to detect screen width
+    const isMobile = useMediaQuery("(max-width:1000px)");
     const refreshTransactions = () => {
         const requestBody = {
             Page: state.page + 1,
@@ -103,7 +105,7 @@ const Transactions = () => {
                 fileDispatch({type: "SET_FILE_DETAILS", payload: result.results});
                 fileDispatch({type: "SET_FILE_COUNT", payload: result.total_count});
             })
-            .catch((error) => {
+            .catch(() => {
                 setPayload({
                     type: 'error',
                     message: "Failed to fetch file details. Please try again!"
@@ -122,7 +124,7 @@ const Transactions = () => {
     useEffect(() => {
         fetchOptedBanks()
             .then((response) => setOptedBanks(response))
-            .catch((error) => {
+            .catch(() => {
                 setPayload({
                     type: 'error',
                     message: "Failed to fetch opted banks. Please try again!"
@@ -149,7 +151,10 @@ const Transactions = () => {
     const renderTransactionMode = () => (
         <>
             <div className={style.transactionFilters}>
-                <TransactionFilters apply={refreshTransactions}/>
+                <TransactionFilters isMobile={isMobile} setDrawerState={() => {
+                    setDrawerState(true)
+                }}
+                                    apply={refreshTransactions}/>
                 <TransactionSummary refreshTransactions={refreshTransactions}/>
             </div>
             <div className={style.transactionCards}>
@@ -194,7 +199,9 @@ const Transactions = () => {
     const renderFileMode = () => (
         <>
             <div className={style.transactionFilters}>
-                <FileFilterCompact apply={refreshFileDetails}/>
+                <FileFilterCompact isMobile={isMobile} setDrawerState={() => {
+                    setDrawerState(true)
+                }} apply={refreshFileDetails}/>
                 <FileSummary/>
             </div>
             <div className={style.transactionCards}>
@@ -281,25 +288,23 @@ const Transactions = () => {
 
     return (
         <div className={style.transactionContainer}>
-            <Drawer
-                anchor="left"
-                open={false}
-                className={style.drawerState}
-                onClose={() => setDrawerState(false)}
-            >
+            {isMobile ? <Drawer
+                    anchor="left"
+                    open={drawerState}
+                    className={style.drawerState}
+                    onClose={() => setDrawerState(false)}
+                >
+                    <BasicCard className={style.summaryCard}>
+                        <CalendarComponent/>
+                        <GoogleComponent/>
+                        <FieldSelector setTransactionMode={setTransactionMode}/>
+                    </BasicCard>
+                </Drawer> :
                 <BasicCard className={style.summaryCard}>
                     <CalendarComponent/>
                     <GoogleComponent/>
                     <FieldSelector setTransactionMode={setTransactionMode}/>
-                </BasicCard>
-            </Drawer>
-            <div>
-                <BasicCard className={style.summaryCard}>
-                    <CalendarComponent/>
-                    <GoogleComponent/>
-                    <FieldSelector setTransactionMode={setTransactionMode}/>
-                </BasicCard>
-            </div>
+                </BasicCard>}
             <BasicCard className={style.transactionListContainer}>
                 {transactionModeSelection ? renderTransactionMode() : renderFileMode()}
             </BasicCard>

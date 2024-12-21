@@ -15,7 +15,7 @@ import axios from "../../services/AxiosConfig.tsx";
 interface FileUploadProps {
     open: boolean;
     onClose: () => void;
-    cardType: string;
+    cardType: string | undefined;
     onUpload: (file: File) => Promise<void>;
 }
 

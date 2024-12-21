@@ -1,12 +1,12 @@
 .investmentsParentContainer {
   display: flex;
-  height: 100%;
+  //height: 100%;
   width: 100%;
   flex-wrap: nowrap;
   background-color: #121c24 !important;
 }
 
-@media screen and (max-width: 450px) {
+@media screen and (max-width: 1100px) {
   .investmentsParentContainer {
     flex-direction: column;
   }
@@ -18,11 +18,18 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  //max-height: 100vh;
+  overflow-y: auto;
   gap: 10%;
   background-color: #121c24 !important;
   border-right: 1px solid #FAFAFA !important;
 }
 
+@media screen and (max-width: 450px) {
+  .dashboard {
+    border-right: none !important;
+  }
+}
 
 .cardContainer {
   display: flex;
@@ -30,33 +37,44 @@
   padding: 10px 5px 5px 10px;
   gap: 10px;
   width: 100%;
+  overflow-y: auto;
+  justify-content: center;
   //height: max-content;
+}
+
+@media screen and (max-width: 450px) {
+  .cardContainer {
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+
+  }
 }
 
 .stockContainer {
   background-color: #121c24 !important;
-  height: 200px;
-  width: 300px;
+  height: 190px;
+  max-width: 250px;
   border: 1px solid white !important;
 }
 
 .mfContainer {
   background-color: #121c24 !important;
-  height: 200px;
-  width: 300px;
+  height: 190px;
+  max-width: 250px;
   border: 1px solid white !important;
 }
 
 .npsContainer {
   background-color: #121c24 !important;
-  height: 200px;
-  width: 300px;
+  height: 190px;
+  max-width: 250px;
   border: 1px solid white !important;
 }
 
 .epfContainer {
   background-color: #121c24 !important;
-  height: 200px;
-  width: 300px;
+  height: 190px;
+  max-width: 250px;
   border: 1px solid white !important;
 }

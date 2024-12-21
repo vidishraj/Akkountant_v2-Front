@@ -1,13 +1,28 @@
 .container {
   display: flex;
+  flex-wrap: wrap; /* Allow wrapping */
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-evenly;
   background-color: #121c24;
   padding: 10px 20px;
   border-radius: 8px;
   margin-bottom: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   gap: 10px;
+}
+
+.group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap; /* Prevent individual items in the group from wrapping */
+}
+
+.group.single {
+  flex: 1; /* Make the first group take more space */
+}
+
+.group.double {
+  //flex: 2; /* Adjust based on your preferred spacing */
 }
 
 .input,
@@ -22,5 +37,5 @@
 }
 
 .input {
-  flex: 1;
+  flex: 1; /* Allow the search input to grow */
 }

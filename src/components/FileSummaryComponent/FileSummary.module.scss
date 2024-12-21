@@ -5,22 +5,37 @@
   border-radius: 8px;
   align-items: center;
   justify-content: space-evenly;
-}
+  @media screen and (max-width: 1000px) {
+    overflow-x: auto;
+    gap: 20px;
+  }
 
-.bank {
-  display: flex;
-  flex-direction: column-reverse;
+  .bank {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 5px;
+    border-right: 0.5px solid white;
+    flex-direction: column-reverse;
+  }
+
 }
 
 .subtitle {
   font-size: 14px;
   color: #FAFAFA;
   font-weight: 600;
+  @media(max-width: 520px) {
+    font-size: 12px !important;
+  }
 }
 
 .bankFileCount {
   font-size: 14px;
   color: #607AFB; /* Green for emphasis */
   font-weight: 700;
+  @media(max-width: 520px) {
+    font-size: 12px !important;
+  }
 }
 

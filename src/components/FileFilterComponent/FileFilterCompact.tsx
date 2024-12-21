@@ -3,8 +3,14 @@ import {debounce} from "lodash";
 import {useFileFilterContext} from "../../contexts/FileFilterContext.tsx";
 import {useUser} from "../../contexts/GlobalContext.tsx";
 import styles from "./FileFilterCompact.module.scss";
+import {IconButton} from "@mui/material";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
 
-const FileFilterCompact = ({apply}: { apply: () => void }) => {
+const FileFilterCompact = ({apply, isMobile, setDrawerState}: {
+    apply: () => void,
+    isMobile: boolean,
+    setDrawerState: any
+}) => {
     const {state, dispatch} = useFileFilterContext();
     const {fileName, startDate, endDate, bank} = state;
     const {optedBanks} = useUser();
@@ -22,62 +28,73 @@ const FileFilterCompact = ({apply}: { apply: () => void }) => {
     }, [debouncedFetchData]);
     return (
         <div className={styles.container}>
-            <input
-                type="text"
-                placeholder="File Name"
-                value={fileName}
-                onChange={(e) =>
-                    dispatch({
-                        type: "SET_FILE_NAME",
-                        payload: e.target.value,
-                    })
+            <div className={`${styles.group} ${styles.single}`}>
+                {
+                    isMobile &&
+                    <IconButton style={{border: '0.4px solid white'}} onClick={setDrawerState}> <DragHandleIcon
+                        style={{color: 'white'}}/></IconButton>
                 }
-                className={styles.input}
-            />
+                <input
+                    type="text"
+                    placeholder="File Name"
+                    value={fileName}
+                    onChange={(e) =>
+                        dispatch({
+                            type: "SET_FILE_NAME",
+                            payload: e.target.value,
+                        })
+                    }
+                    className={styles.input}
+                />
+            </div>
 
-            <input
-                type="date"
-                value={startDate}
-                onChange={(e) =>
-                    dispatch({
-                        type: "SET_START_DATE",
-                        payload: e.target.value,
-                    })
-                }
-                className={styles.dateInput}
-            />
-
-            <input
-                type="date"
-                value={endDate}
-                onChange={(e) =>
-                    dispatch({
-                        type: "SET_END_DATE",
-                        payload: e.target.value,
-                    })
-                }
-                className={styles.dateInput}
-            />
-
-            <select
-                value={bank}
-                onChange={(e) =>
-                    dispatch({
-                        type: "SET_BANK",
-                        payload: e.target.value,
-                    })
-                }
-                className={styles.select}
-            >
-                <option value="" disabled>
-                    Bank
-                </option>
-                {optedBanks.map((option, idx) => (
-                    <option key={idx} value={option}>
-                        {option.replace("_", " ")}
+            <div className={`${styles.group} ${styles.single}`}>
+                <select
+                    value={bank}
+                    onChange={(e) =>
+                        dispatch({
+                            type: "SET_BANK",
+                            payload: e.target.value,
+                        })
+                    }
+                    className={styles.select}
+                >
+                    <option value="" disabled>
+                        Bank
                     </option>
-                ))}
-            </select>
+                    {optedBanks.map((option, idx) => (
+                        <option key={idx} value={option}>
+                            {option.replace("_", " ")}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <div className={`${styles.group} ${styles.double}`}>
+                <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) =>
+                        dispatch({
+                            type: "SET_START_DATE",
+                            payload: e.target.value,
+                        })
+                    }
+                    className={styles.dateInput}
+                />
+
+                <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) =>
+                        dispatch({
+                            type: "SET_END_DATE",
+                            payload: e.target.value,
+                        })
+                    }
+                    className={styles.dateInput}
+                />
+
+            </div>
         </div>
     );
 };

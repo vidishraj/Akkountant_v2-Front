@@ -1,5 +1,5 @@
-import {useEffect, useState} from "react";
-import {Card, Typography, Grid, CardContent, Divider, Button} from "@mui/material";
+import {ReactNode, useEffect, useState} from "react";
+import {Card, Typography, Grid, CardContent, Divider, Button, useMediaQuery} from "@mui/material";
 import CircleIcon from "@mui/icons-material/Circle";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import style from "./MSNHome.module.scss";
@@ -14,6 +14,7 @@ import {useMessage} from "../../contexts/MessageContext.tsx";
 const MSNSummary = () => {
     const [summary, setSummary] = useState<any | undefined>(undefined); // Set appropriate type later if possible
     const {state, getServiceType} = useMSNContext();
+    const isMobile = useMediaQuery("(max-width:1000px)");
     const {setPayload} = useMessage();
     const [depositModal, setDepositModal] = useState<boolean>(false);
     const [ratesModal, setRatesModal] = useState<boolean>(false);
@@ -78,10 +79,102 @@ const MSNSummary = () => {
         }
     }, [state]);
 
+    const renderSummaryItem = (label: string, value: number | string | ReactNode, color?: string) => (
+        <Grid item xs={12} sm={4} alignItems="center" justifyContent="center" flexDirection="column" display={'flex'}>
+            <Typography variant="subtitle1" className={style.label}>
+                {label}
+            </Typography>
+            <Typography
+                className={style.dValue}
+                variant="body1"
+                style={color ? {color} : undefined}
+            >
+                {value}
+            </Typography>
+        </Grid>
+    );
+
     return (
-        <Card className={style.assetCard}>
-            <CardContent className={style.innerCard}>
-                {summary && (
+        <Card className={style.assetCard} sx={isMobile ? {
+            padding: {xs: '0rem', sm: '1.5rem'},
+            borderRadius: 2,
+            boxShadow: 3,
+            overflowY: 'auto',
+            minHeight: "fit-content"
+        } : {}}>
+            <CardContent className={isMobile ? '' : style.innerCard}>
+                {summary && isMobile ? (<>
+                    <Grid container spacing={2} alignItems="center"
+                          justifyContent="space-between">
+                        <Grid item xs={12}>
+                            <Typography variant="h6" className={style.header} textAlign="center">
+                                Total Asset Value
+                            </Typography>
+                            <Typography
+                                variant="h5"
+                                className={style.value}
+                                textAlign="center"
+                                sx={{fontSize: {xs: '1.25rem', sm: '1.5rem'}}}
+                            >
+                                &#8377;{Number(summary.totalValue).toLocaleString('en-IN', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            })}
+                            </Typography>
+                        </Grid>
+                    </Grid><Divider sx={{borderColor: "#ccc", borderWidth: 1, my: 2}}/>
+
+                    {/* Details Section */}
+                    <Grid container spacing={2} alignItems="center" justifyContent="space-evenly" flexWrap={'nowrap'}>
+                        {
+                            renderSummaryItem(
+                                "Current", Number(summary.totalValue).toLocaleString('en-IN', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                })
+                            )}
+                        {renderSummaryItem(
+                            "Change", Number(summary.changeAmount).toLocaleString('en-IN', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            })
+                        )}
+                        {renderSummaryItem(
+                            "% Change", Number(summary.changePercent).toLocaleString('en-IN', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            })
+                        )}
+                    </Grid>
+                    <Grid container spacing={2} alignItems="center" justifyContent="space-evenly" flexWrap={'nowrap'}
+                          marginTop={(state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks) ? '' : 1}>
+                        {state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
+                            renderSummaryItem(
+                                "Market Status", <CircleIcon
+                                    style={{color: summary.marketStatus ? "green" : "maroon"}}
+                                />
+                            ) : state.selectedCard.ppf && <Button
+                            startIcon={<FormatListBulletedIcon/>}
+                            onClick={() => setDepositModal(true)}
+                            className={style.depositsButton}
+                        >
+                            Deposits
+                        </Button>}
+                        {state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ? renderSummaryItem(
+                                "Securities Count", summary.count
+                            ) :
+                            <Button
+                                startIcon={<PercentIcon/>}
+                                onClick={() => {
+                                    setRate()
+                                    setRatesModal(true)
+                                }}
+                                className={style.rateButton}
+                            >
+                                Rates
+                            </Button>}
+                    </Grid>
+                </>) : summary && (
                     <>
                         {/* Total Asset Value Section */}
                         <Grid className={style.totalValueGrid}>

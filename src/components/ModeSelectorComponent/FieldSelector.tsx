@@ -12,6 +12,7 @@ const FieldSelector = ({setTransactionMode}: { setTransactionMode: any }) => {
             backgroundColor: 'inherit',
             display: 'flex',
             alignItems: 'center',
+            width: '100%',
             justifyContent: 'space-evenly'
         }}>
         <IconButton style={{backgroundColor: !transactionModeSelection ? '#3d404a' : '#607AFB',}}

@@ -25,3 +25,19 @@
 .input {
   flex: 1;
 }
+
+.group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap; /* Prevent individual items in the group from wrapping */
+}
+
+.group.single {
+  flex: 1; /* Make the first group take more space */
+}
+
+.group.double {
+  flex: 2; /* Adjust based on your preferred spacing */
+}

@@ -5,6 +5,9 @@
   background-color: #121C24 !important;
   padding: 16px 8px;
   border-top: 0.1px solid #E5E8EB;
+  @media(max-width: 520px) {
+    gap: 5px;
+  }
 }
 
 .bankIcon {
@@ -25,17 +28,24 @@
   min-width: 70%;
   text-align: left;
 
+
   &__fileName {
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+    @media(max-width: 520px) {
+      font-size: 0.85rem !important;
+    }
   }
 
   &__info {
     color: #FAFAFA;
     font-size: 0.85rem;
     margin-top: 2px;
+    @media(max-width: 520px) {
+      font-size: 0.8rem !important;
+    }
   }
 }
 

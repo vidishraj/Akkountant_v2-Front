@@ -43,9 +43,11 @@ body {
 }
 
 .content {
-    flex: 1; /* Fills remaining space */
-    padding: 10px; /* Optional padding for the App content */
-    /*max-height: 75%;*/
+    /*flex: 1; !* Fills remaining space *!*/
+    /*padding: 10px; !* Optional padding for the App content *!*/
+    /*max-height: 75%;*/;
+    height: 100%;
+    overflow-y: auto;
 }
 
 .footer {

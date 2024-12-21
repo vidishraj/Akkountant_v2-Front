@@ -25,116 +25,123 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
     return (
         <Box className={styles.summaryContainer}>
             {/* Credit */}
-            <Box className={styles.credit}>
-                <Typography variant="subtitle1" className={styles.subtitle}>
-                    Credit
-                </Typography>
-                <Typography variant="subtitle1" className={styles.creditAmount}>
-                    ₹{credit ? Math.abs(credit).toFixed(2) : 0}
-                </Typography>
-            </Box>
+            <Box className={styles.summaryBox}>
+                <Box className={styles.credit}>
+                    <Typography variant="subtitle1" className={styles.subtitle}>
+                        Credit
+                    </Typography>
+                    <Typography variant="subtitle1" className={styles.creditAmount}>
+                        ₹{credit ? Math.abs(credit).toFixed(2) : 0}
+                    </Typography>
+                </Box>
 
-            {/* Debit */}
-            <Box className={styles.debit}>
-                <Typography variant="subtitle1" className={styles.subtitle}>
-                    Debit
-                </Typography>
-                <Typography variant="subtitle1" className={styles.debitAmount}>
-                    ₹{debit ? Math.abs(debit).toFixed(2) : 0}
-                </Typography>
-            </Box>
+                {/* Debit */}
+                <Box className={styles.debit}>
+                    <Typography variant="subtitle1" className={styles.subtitle}>
+                        Debit
+                    </Typography>
+                    <Typography variant="subtitle1" className={styles.debitAmount}>
+                        ₹{debit ? Math.abs(debit).toFixed(2) : 0}
+                    </Typography>
+                </Box>
 
-            {/* Net */}
-            <Box className={styles.net}>
-                <Typography variant="subtitle1" className={styles.subtitle}>
-                    Net
-                </Typography>
-                <Typography
-                    variant="subtitle1"
-                    className={`${styles.netAmount} ${
-                        net >= 0 ? styles.netPositive : styles.netNegative
-                    }`}
-                >
-                    ₹{net ? parseFloat(String(net)).toFixed(2) : 0}
-                </Typography>
+                {/* Net */}
+                <Box className={styles.net}>
+                    <Typography variant="subtitle1" className={styles.subtitle}>
+                        Net
+                    </Typography>
+                    <Typography
+                        variant="subtitle1"
+                        className={`${styles.netAmount} ${
+                            net >= 0 ? styles.netPositive : styles.netNegative
+                        }`}
+                    >
+                        ₹{net ? parseFloat(String(net)).toFixed(2) : 0}
+                    </Typography>
+                </Box>
             </Box>
+            {/* Action Buttons */}
             <Box className={styles.actionButtons}>
                 <Button
                     className={styles.FileUploadButton}
                     variant="contained"
                     onClick={(e) => {
                         e.stopPropagation();
-                        refreshTransactions()
+                        refreshTransactions();
                     }}
                 >
                     <RefreshIcon style={{color: "black"}}/>
                 </Button>
-                <Button className={styles.reconnectButton} onClick={() => {
-                    setDateModalState(true)
-                }}>
-                    {!googleSwitch ? "Trigger Mail Check" : "Trigger Statement Check"}
+                <Button
+                    className={styles.reconnectButton}
+                    style={{border: '0.2px solid white'}}
+                    onClick={() => {
+                        setDateModalState(true);
+                    }}
+                >
+                    {!googleSwitch ? "Mail Check" : "Statement Check"}
                 </Button>
-                <CustomIconSwitch setChecked={() => {
-                    setGoogleSwitch(!googleSwitch)
-                }}/>
-                <DateModal title={!googleSwitch ? "Trigger Mail Check" : "Trigger Statement Check"}
-                           isOpen={dateModalState} onSubmit={(dates) => {
-                    setDateModalState(false);
-                    if (!googleSwitch) {
-                        triggerEmailCheck(dates.to, dates.from, false).then(r => {
-                            if (r.status === 200) {
-                                const successCount = r.data.Message.read;
-                                const errors = r.data.Message.conflicts;
+                <CustomIconSwitch
+                    setChecked={() => {
+                        setGoogleSwitch(!googleSwitch);
+                    }}
+                />
+                <DateModal
+                    title={!googleSwitch ? "Trigger Mail Check" : "Trigger Statement Check"}
+                    isOpen={dateModalState}
+                    onSubmit={(dates) => {
+                        setDateModalState(false);
+                        if (!googleSwitch) {
+                            triggerEmailCheck(dates.to, dates.from, false).then((r) => {
+                                if (r.status === 200) {
+                                    const successCount = r.data.Message.read;
+                                    const errors = r.data.Message.conflicts;
+                                    setPayload({
+                                        type: "success",
+                                        message: `${successCount} emails read successfully. ${errors} errors`,
+                                    });
+                                    refreshTransactions();
+                                }
+                            }).catch(() => {
                                 setPayload({
-                                    type: 'success',
-                                    message: `${successCount} emails read successfully. ${errors} errors`
-                                })
-                                refreshTransactions()
-                            }
-                        }).catch(() => {
-                            setPayload({
-                                type: 'error',
-                                message: "Error while reading emails."
-                            })
-                        });
-                        setPayload({
-                            type: 'success',
-                            message: "Email reading started"
-                        })
-                    } else {
-                        triggerStatementCheck(dates.to, dates.from, false).then(r => {
-                            if (r.status === 200) {
-                                const successCount = r.data.Message.read;
-                                const errors = r.data.Message.conflicts;
+                                    type: "error",
+                                    message: "Error while reading emails.",
+                                });
+                            });
+                        } else {
+                            triggerStatementCheck(dates.to, dates.from, false).then((r) => {
+                                if (r.status === 200) {
+                                    const successCount = r.data.Message.read;
+                                    const errors = r.data.Message.conflicts;
+                                    setPayload({
+                                        type: "success",
+                                        message: `${successCount} transactions read successfully. ${errors} integrity errors`,
+                                    });
+                                    refreshTransactions();
+                                }
+                            }).catch(() => {
                                 setPayload({
-                                    type: 'success',
-                                    message: `${successCount} transactions read successfully. ${errors} integrity errors`
-                                })
-                                refreshTransactions()
-                            }
-                        }).catch(() => {
-                            setPayload({
-                                type: 'error',
-                                message: "Error while reading statements."
-                            })
+                                    type: "error",
+                                    message: "Error while reading statements.",
+                                });
+                            });
+                        }
+                    }}
+                    onCancel={() => {
+                        setDateModalState(false);
+                    }}
+                />
+                <ClearFilterButton
+                    apply={() => {
+                        dispatch({
+                            type: "RESET_FILTERS",
                         });
-                        setPayload({
-                            type: 'success',
-                            message: "Statement reading started"
-                        })
-                    }
-                }} onCancel={() => {
-                    setDateModalState(false);
-                }}/>
-                <ClearFilterButton apply={() => {
-                    dispatch({
-                        type: "RESET_FILTERS"
-                    })
-                }}/>
+                    }}
+                />
             </Box>
-
         </Box>
     );
+
 };
 
 export default TransactionSummary;
