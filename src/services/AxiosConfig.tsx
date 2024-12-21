@@ -3,7 +3,7 @@ import {auth} from '../components/FirebaseConfig';
 import {onAuthStateChanged} from 'firebase/auth';
 import {setupCache} from 'axios-cache-interceptor';
 
-const instance = Axios.create();
+const instance = Axios.create({baseURL: '/api/'});
 const axios = setupCache(instance, {
     debug: console.log,
 });
