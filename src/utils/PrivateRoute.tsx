@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { auth } from '../components/FirebaseConfig.tsx';
-import { onAuthStateChanged } from 'firebase/auth';
+import {useEffect, useState} from 'react';
+import {Navigate, useLocation} from 'react-router-dom';
+import {auth} from '../components/FirebaseConfig.tsx';
+import {onAuthStateChanged} from 'firebase/auth';
 
 const PrivateRoute = (props: any) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -15,13 +15,13 @@ const PrivateRoute = (props: any) => {
         return () => unsubscribe();
     }, []);
 
-   //app will pause till firebase checks and populates user
+    //app will pause till firebase checks and populates user
     if (isAuthenticated === null) {
         return null;
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        return <Navigate to="/login" state={{from: location}} replace/>;
     }
 
     return props.children;

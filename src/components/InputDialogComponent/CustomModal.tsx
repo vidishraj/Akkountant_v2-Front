@@ -18,7 +18,7 @@ type Props = {
     open: boolean;
     onCancel: () => void;
     onSubmit: (formData: FormDataType) => void;
-    cardType: "mf" | "gold" | string;
+    cardType: "mf" | "gold" | string | undefined;
     maxNav?: number;
 };
 

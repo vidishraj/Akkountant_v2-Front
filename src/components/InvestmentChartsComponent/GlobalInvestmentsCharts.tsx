@@ -4,7 +4,7 @@ import styles from './InvestmentCharts.module.scss';
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import {useEffect, useState} from "react";
 import Slider, {Settings} from "react-slick";
-import './dotsStyle.css'
+import './dotsStyle.css';
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
@@ -18,6 +18,19 @@ const GlobalInvestmentsCharts = () => {
     const [pieChartSeries, setPieChartSeries] = useState<any>([{data: []}]);
     const msnContextKeys = ["mf", "stocks", "nps"];
     const epgContextKeys = ["ppf", "epf", "gold"];
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+
+    // Responsive logic
+    useEffect(() => {
+        const updateIsMobile = () => {
+            setIsMobile(window.innerWidth <= 900);
+        };
+
+        updateIsMobile();
+        window.addEventListener('resize', updateIsMobile);
+
+        return () => window.removeEventListener('resize', updateIsMobile);
+    }, []);
 
     useEffect(() => {
         const order: any = [];
@@ -65,19 +78,16 @@ const GlobalInvestmentsCharts = () => {
         slidesToShow: 1,
         slidesToScroll: 1,
         adaptiveHeight: true,
-        centerMode: true,
-        arrows: true,
+        centerMode: false, // Disable center mode for mobile
+        arrows: !isMobile,    // Disable arrows for mobile
     };
 
     return (
         <Slider {...sliderSettings} className={styles.carousel}>
             {/* BarChart Slide */}
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: 'blue',
-            }}>
+            <div
+                className={styles.innerBox}
+            >
                 <BarChart
                     className={styles.barChart}
                     xAxis={[{scaleType: 'band', data: barChartOrder}]}
@@ -87,7 +97,7 @@ const GlobalInvestmentsCharts = () => {
                             labelStyle: {fill: '#FAFAFA'},
                         },
                     }}
-                    width={500}
+                    width={isMobile ? 340 : 500}
                     sx={{
                         "& .MuiChartsAxis-tickContainer .MuiChartsAxis-tickLabel": {fontFamily: "Roboto"},
                         "& .MuiChartsAxis-bottom .MuiChartsAxis-tickLabel": {fill: "#FAFAFA"},
@@ -95,16 +105,22 @@ const GlobalInvestmentsCharts = () => {
                         "& .MuiChartsAxis-left .MuiChartsAxis-line": {stroke: "#FAFAFA", strokeWidth: 1},
                         "& .MuiChartsAxis-left .MuiChartsAxis-tickLabel": {fill: "#FAFAFA"},
                     }}
-                    height={300}
+                    height={isMobile ? 300 : 300}
                 />
             </div>
+            {/*</div>*/
+            }
 
-            {/* PieChart Slide */}
-            <div>
+            {/* PieChart Slide */
+            }
+            <div
+                className={styles.innerBox}
+            >
                 <PieChart
                     series={pieChartSeries}
-                    width={400}
-                    height={200}
+                    width={isMobile ? 300 : 350}
+                    height={isMobile ? 300 : 300}
+                    legend={{direction: 'column', position: {vertical: 'bottom', horizontal: 'right'}}}
                     slotProps={{
                         legend: {
                             labelStyle: {fill: '#FAFAFA'},

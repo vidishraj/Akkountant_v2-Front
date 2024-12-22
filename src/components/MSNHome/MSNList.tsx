@@ -26,14 +26,14 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                 let {buyCode, info} = stock;
                 let previousClose = info.lastPrice;
                 if (state.selectedCard.stocks || state.selectedCard.mf) {
-                    if (state.selectedCard.mf) {
+                    if (state.selectedCard.mf && info.schemeType) {
                         buyCode = info.schemeType
                     }
                     lastPrice = info.lastPrice;
                     pChange = info.pChange;
                     buyPrice = stock.buyPrice
                     buyQuant = stock.buyQuant;
-                } else if (state.selectedCard.nps && stock.info.lastWeek) {
+                } else if (state.selectedCard.nps && stock.info.lastWeek && info.name) {
                     buyCode = info.name
                     lastPrice = Number(stock.info.nav);
                     previousClose = Number(stock.info.lastWeek);

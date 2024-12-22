@@ -41,12 +41,16 @@ interface ListContext {
     mf: MSNListResponse[];
     stocks: MSNListResponse[];
     nps: MSNListResponse[];
+
+    [key: string]: any;
 }
 
 interface TransactionContext {
     mf: [];
     stocks: [];
     nps: [];
+
+    [key: string]: any;
 }
 
 interface MSNLoader {
@@ -62,6 +66,8 @@ interface LoadingState {
     epf: MSNLoader;
     ppf: MSNLoader;
     gold: MSNLoader;
+
+    [key: string]: any;
 }
 
 // Define the shape of the state
@@ -79,8 +85,8 @@ type MSNAction =
     | { type: 'OpenStockFileUpload'; payload: boolean }
     | { type: 'CardSelector'; payload: SelectedCard }
     | { type: 'ResetCardSelector' }
-    | { type: 'MSNSummarySetter'; payload: SummaryContext }
-    | { type: 'MSNTransactionSetter'; payload: TransactionContext }
+    | { type: 'MSNSummarySetter'; payload: any }
+    | { type: 'MSNTransactionSetter'; payload: any }
     | { type: 'MSNListSetter'; payload: ListContext }
     | { type: 'MSNLoaderSetter'; payload: any };
 
@@ -179,9 +185,9 @@ interface MSNContextType {
     deleteComplete: () => void;
     AllInfoForEpf: (serviceType: string, clearCache: boolean) => void;
     getServiceType: () => string;
-    getContextKey: () => string;
+    getContextKey: () => any;
     fetchTransactions: (serviceType: string, clearCache: boolean) => void;
-    calculateSummary: (summary: GlobalSummaryInterface, read: SecuritiesRead) => [SecuritiesRead, GlobalSummaryInterface];
+    calculateSummary: (summary: GlobalSummaryInterface, read: SecuritiesRead) => any;
     globalInvestmentRefresh: () => void;
 
 }

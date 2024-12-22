@@ -1,7 +1,8 @@
 .carousel {
-  min-height: 350px;
+  min-height: fit-content;
   border-top: 1px solid #FAFAFA;
-  padding-top: 20px;
+  padding: 20px;
+  width: 100%;
 }
 
 .MuiChartsAxis-bottom {
@@ -11,4 +12,8 @@
 .slick-dots li.slick-active button:before {
   // your code here
   color: #FAFAFA !important;
+}
+
+.innerBox {
+  display: flex !important;
 }

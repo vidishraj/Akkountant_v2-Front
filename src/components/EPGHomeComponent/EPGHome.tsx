@@ -76,7 +76,7 @@ const EPGHome = () => {
                 </div>
             )}
 
-            <div className={style.listBackButton} style={{minWidth: "320px", width: "100%"}}>
+            <div className={style.listBackButton} style={{minWidth: "320px"}}>
                 <Box
                     className={style.scrollContainer}
                     style={{
@@ -138,70 +138,70 @@ const EPGHome = () => {
                                     )}
                                 </CardContent>
                             </Card>
-                        {listState.map((item, index) => (
-                            <Card key={index} className={style.stockCard}>
-                                <CardContent className={style.cardContent}>
-                                    <Typography variant="body2" className={style.date}>
-                                        {formatDateString(item.date)}
-                                    </Typography>
-                                    {!state.selectedCard.ppf && (
-                                        <Typography variant="body2" className={style.description}>
-                                            {item.description}
+                            {listState.map((item, index) => (
+                                <Card key={index} className={style.stockCard}>
+                                    <CardContent className={style.cardContent}>
+                                        <Typography variant="body2" className={style.date}>
+                                            {formatDateString(item.date)}
                                         </Typography>
-                                    )}
-                                    {state.selectedCard.gold ? (
-                                        <div className={style.basicFlex}>
-                                            <Typography variant="body2" className={style.amount}>
-                                                ₹{Number(item.amount).toLocaleString('en-IN', {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
+                                        {!state.selectedCard.ppf && (
+                                            <Typography variant="body2" className={style.description}>
+                                                {item.description}
                                             </Typography>
-                                            <Typography variant="body2" className={style.interest}>
-                                                ₹{Number(item.interest).toLocaleString('en-IN', {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
-                                            </Typography>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <Typography
-                                                variant="body2"
-                                                className={style.amount}
-                                                style={{width: "25%"}}
-                                            >
-                                                ₹{Number(item.amount).toLocaleString('en-IN', {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
-                                            </Typography>
-                                            <Typography
-                                                variant="body2"
-                                                className={style.interest}
-                                                style={{width: "25%"}}
-                                            >
-                                                ₹{Number(item.interest).toLocaleString('en-IN', {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
-                                            </Typography>
-                                        </>
-                                    )}
-                                    {state.selectedCard.gold && (
-                                        <div className={style.basicFlex}>
-                                            <Typography variant="body2" className={style.quantity}>
-                                                {item.quantity}g
-                                            </Typography>
-                                            <Typography variant="body2" className={style.goldType}>
-                                                {item.goldType} carat
-                                            </Typography>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                        )}
+                                        {state.selectedCard.gold ? (
+                                            <div className={style.basicFlex}>
+                                                <Typography variant="body2" className={style.amount}>
+                                                    ₹{Number(item.amount).toLocaleString('en-IN', {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                })}
+                                                </Typography>
+                                                <Typography variant="body2" className={style.interest}>
+                                                    ₹{Number(item.interest).toLocaleString('en-IN', {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                })}
+                                                </Typography>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Typography
+                                                    variant="body2"
+                                                    className={style.amount}
+                                                    style={{width: "25%"}}
+                                                >
+                                                    ₹{Number(item.amount).toLocaleString('en-IN', {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                })}
+                                                </Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    className={style.interest}
+                                                    style={{width: "25%"}}
+                                                >
+                                                    ₹{Number(item.interest).toLocaleString('en-IN', {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                })}
+                                                </Typography>
+                                            </>
+                                        )}
+                                        {state.selectedCard.gold && (
+                                            <div className={style.basicFlex}>
+                                                <Typography variant="body2" className={style.quantity}>
+                                                    {item.quantity}g
+                                                </Typography>
+                                                <Typography variant="body2" className={style.goldType}>
+                                                    {item.goldType} carat
+                                                </Typography>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
 
-                        ))}
+                            ))}
                         </>) : <>
                         <div style={{textAlign: 'center'}}> No data! <br/>
                             Upload statement or Add instrument!

@@ -18,12 +18,11 @@ const MSNHome = () => {
     const {
         state,
         dispatch,
-        fetchAndSetSummary,
         fetchAndSetUserSecurities,
         fetchAndSetSearchItems,
         deleteComplete, getServiceType, getContextKey
     } = useMSNContext();
-    const [searchItems, setSearchItems] = useState<[]>([]);
+    const [searchItems, setSearchItems] = useState<MSNListResponse[]>([]);
     const [detailState, setDetailState] = useState<MSNListResponse | undefined>(undefined);
     const [summaryState, setSummaryState] = useState<MSNSummaryResponse | undefined>(undefined);
     const [listState, setListState] = useState<MSNListResponse[] | undefined>(undefined);
@@ -93,7 +92,7 @@ const MSNHome = () => {
     const renderDetails = () =>
         showDetails && detailState ? (
 
-            <div style={{minWidth: '320px', width: "100%"}} className={style.listBackButton}>
+            <div style={{minWidth: '320px'}} className={style.listBackButton}>
                 <div style={{flexBasis: '70%'}}>
                     <MSNDetails isLoading={false} details={detailState}/>
                     {/* Back Button */}
@@ -107,7 +106,7 @@ const MSNHome = () => {
                 </Button>
             </div>
         ) : (
-            <div style={{minWidth: '320px', width: "100%"}} className={style.listBackButton}>
+            <div style={{minWidth: '320px'}} className={style.listBackButton}>
                 <MSNList
                     isLoading={state.loadingState[getContextKey()].list}
                     list={listState || []}
@@ -142,7 +141,9 @@ const MSNHome = () => {
                         <MSNSummary isLoading={false}/>
                     </div>
                     {/*<Divider sx={{borderColor: "#E5E8EB", borderWidth: 0.5, width: "100%"}}/>*/}
-                    {renderDetails()}
+                    <div style={{width: '100%', height: '100%'}}>
+                        {renderDetails()}
+                    </div>
                 </>
             ) : null}
             <ObjectDetailsDialog

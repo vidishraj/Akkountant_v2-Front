@@ -25,7 +25,6 @@
 
 .innerSummary {
   padding: 0px 50px;
-  max-height: 200px;
 }
 
 .innerCard {
@@ -72,6 +71,7 @@
 .label {
   color: #7a7d85;
   font-weight: bold;
+  text-wrap: nowrap;
 }
 
 .status {
@@ -164,6 +164,7 @@ previousBox {
   flex-direction: column;
   justify-content: space-evenly;
   height: 100%;
+  width: 100%;
 }
 
 .backButton {

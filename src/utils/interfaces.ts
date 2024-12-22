@@ -93,7 +93,7 @@ export interface MSNSummaryResponse {
     totalValue: number; // Represents Decimal, mapped to number
     currentValue: number; // Represents Decimal, mapped to number
     changePercent: number; // Represents Decimal, mapped to number
-    changeAmount: number; // Represents Decimal, mapped to number
+    changeAmount: number | string; // Represents Decimal, mapped to number
     count: number; // Represents Integer, must be greater than 0
     marketStatus: boolean; // Represents Boolean
 }
@@ -116,7 +116,9 @@ export interface MSNRateResponse {
     lastWeek?: string;
     sixMonthsAgo?: string;
     schemeType?: string;
-    name?: string
+    name?: string;
+
+    [key: string]: any;
 }
 
 export interface MSNListResponse {
@@ -131,6 +133,7 @@ export interface MSNListResponse {
     stockCode?: string;
     name?: string;
     schemeName?: string;
+    id?: string
 }
 
 
