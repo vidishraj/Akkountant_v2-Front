@@ -347,12 +347,19 @@ const Header = () => {
                 gap: 1,
             }}>
               {banks.map((bank) => (
-                <>
+                <Box key={bank} sx={{
+                  display:"flex",
+                  alignItems:"center",
+                  justifyContent:"space-between",
+                  gap:1,
+                  color:"#FAFAFA",
+                  margin:0
+                }}>
                 <FormControlLabel
                   key={bank}
                   sx={{
                     display:"flex",
-                    flexWrap:"wrap",
+                    alignItems:"center",
                     color:"#FAFAFA",
                     margin:0
                   }}
@@ -377,12 +384,14 @@ const Header = () => {
                         backgroundColor: "#1E2A36",
                         borderRadius: 1,
                         fontSize:"0.5rem",
+                        marginLeft:"2rem",
+                        width:"250px",
                         input: { color: "#FAFAFA" },
 
                         }}
                     />
                     )}
-                </>
+                </Box>
               ))}
             </FormGroup>
           </FormControl>
@@ -390,7 +399,8 @@ const Header = () => {
         <DialogActions>
           <Button onClick={handleSubmit}  variant="contained" disabled={!allPasswordsFilled} sx={{backgroundColor:!allPasswordsFilled?"red":"primary.main",
                 '&.Mui-disabled': {
-                    backgroundColor: 'red !important'
+                    backgroundColor:  "#1E2A36 !important",
+                    color:"grey !important"
                   },
           }}>
             Done
