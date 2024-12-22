@@ -286,7 +286,9 @@ const Header = () => {
                     <Divider/>
                     <List>
 
-                        <ListItem sx={{ padding: 0, alignItems: "center" }} onClick={handleBankDialogOpen}>
+                        <ListItem sx={{ padding: "1rem 0", alignItems: "center", cursor:"pointer","&:hover":{
+                            backgroundColor:"rgb(50, 62, 74)"
+                        } }} onClick={handleBankDialogOpen}>
                             <AssuredWorkloadIcon
                                 style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
@@ -297,13 +299,14 @@ const Header = () => {
                             </Typography>
                         </ListItem>
 
-                        <ListItem sx={{padding: 0, marginTop: "1rem"}} onClick={handleDialogOpen}>
+                        <ListItem sx={{padding: "1rem 0", cursor:"pointer","&:hover":{
+                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={handleDialogOpen}>
                             <LockResetIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
                             primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
 
                         {/* Show fetched opted banks */}
-                        {optedBanks.length>0 && (
+                        {Array.isArray(optedBanks) && optedBanks.length>0 && (
                             <Box sx={{ mt: 15,pl:2}}>
                             <Typography   sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
                                 Fetched Opted Banks:
