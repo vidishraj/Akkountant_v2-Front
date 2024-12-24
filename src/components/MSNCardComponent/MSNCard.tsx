@@ -88,8 +88,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
         return uploadFile(selectedFile, {serviceType});
     };
     const [openFileUpload, setOpenFileUpload] = useState<boolean>(false);
-    const getServiceType = () => (cardType === "mf" ? "Mutual_Funds" : cardType === "stocks" ? "Stocks" : "NPS");
-
+    
     const renderFileUploadSection = () => (
         <div onClick={(e) => e.stopPropagation()}>
             <Button
@@ -107,7 +106,8 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 onClose={() => setOpenFileUpload(false)}
                 cardType={cardType2 || cardType}
                 onUpload={(selectedFile) => {
-                    return handleFileUpload(selectedFile, getServiceType()).then((response) => {
+                    const service = cardType === "stocks" ? "Stocks" : cardType === "nps" ? "NPS" : "EPF";
+                    return handleFileUpload(selectedFile, service).then((response) => {
                         return response;
                     }).catch((err) => {
                         return err;
