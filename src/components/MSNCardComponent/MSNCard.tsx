@@ -88,7 +88,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
         return uploadFile(selectedFile, {serviceType});
     };
     const [openFileUpload, setOpenFileUpload] = useState<boolean>(false);
-    
+
     const renderFileUploadSection = () => (
         <div onClick={(e) => e.stopPropagation()}>
             <Button
@@ -128,11 +128,26 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                             "Stocks" : "NPS";
                         fetchAndSetSummary(serviceType, true);
                     } else if (cardType2) {
+                        console.log("HELLO")
                         const serviceType = cardType2 === "gold" ? "Gold" : cardType2 === "epf" ? "EPF" : "PF";
                         AllInfoForEpf(serviceType, true);
                     }
                 }}
-            > <CustomModal title={`Buy ${cardType2}`} open={buyModal} onCancel={() => {
+            >
+                <RefreshIcon style={{color: "black"}}/>
+            </Button>
+        </div>
+    );
+    const renderAddButton = () => (
+        <div onClick={(e) => e.stopPropagation()}>
+            <Button
+                className={moduleStyle.FileUploadButton}
+                variant="contained"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setBuyModal(true)
+                }}
+            ><CustomModal title={`Buy ${cardType2}`} open={buyModal} onCancel={() => {
                 setBuyModal(false)
             }} onSubmit={(formData) => {
                 let requestBody: InsertEPGRequest = {} as InsertEPGRequest;
@@ -160,20 +175,6 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 })
                 setBuyModal(false)
             }} cardType={cardType2}/>
-                <RefreshIcon style={{color: "black"}}/>
-            </Button>
-        </div>
-    );
-    const renderAddButton = () => (
-        <div onClick={(e) => e.stopPropagation()}>
-            <Button
-                className={moduleStyle.FileUploadButton}
-                variant="contained"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setBuyModal(true)
-                }}
-            >
                 <AddIcon style={{color: "black"}}/>
             </Button>
         </div>
