@@ -22,7 +22,7 @@ interface FileUploadProps {
 const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload, cardType}) => {
     const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
     const [uploading, setUploading] = useState(false);
-    const {fetchAndSetSummary, getServiceType} = useMSNContext()
+    const {fetchAndSetSummary} = useMSNContext()
     const [isDragging, setIsDragging] = useState(false)
     const inputRef: any = useRef()
     const {setPayload} = useMessage()
@@ -80,8 +80,8 @@ const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload, c
                         type: 'success',
                         message: `File Read successfully. Bought ${bought} Sold ${sold}`
                     })
-                    fetchAndSetSummary(getServiceType(), true)
                     const service = cardType === "stocks" ? "Stocks" : cardType === "nps" ? "NPS" : "EPF";
+                    fetchAndSetSummary(service, true)
                     axios.storage.remove(`fetchUserSecurities-{\\"serviceType\\":\\"${service}\\"}`)
                 }).catch(() => {
                     setPayload({
@@ -94,7 +94,7 @@ const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload, c
                     setSelectedFile(undefined);
                     onClose();
                 });
-            } catch (error: any) {
+            } catch {
                 onClose()
             }
         }
