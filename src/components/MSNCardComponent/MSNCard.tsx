@@ -167,10 +167,14 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                     };
                 }
                 insertEPG(cardType2 === "gold" ? "Gold" : "PF", requestBody).then((response) => {
-
                     setPayload({
                         type: 'success',
                         message: response.data.Message,
+                    })
+                }).catch(() => {
+                    setPayload({
+                        type: 'error',
+                        message: "Error inserting",
                     })
                 })
                 setBuyModal(false)

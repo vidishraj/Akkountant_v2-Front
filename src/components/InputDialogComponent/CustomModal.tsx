@@ -90,7 +90,10 @@ const CustomModal: React.FC<Props> = ({
     return (
         <Dialog
             open={open}
-            onClose={onCancel}
+            onClose={(e: any) => {
+                e.stopPropagation();
+                onCancel()
+            }}
             fullWidth
             maxWidth="sm"
             className={styles.dialog}
@@ -206,7 +209,11 @@ const CustomModal: React.FC<Props> = ({
             <Box className={styles.dialogActions}>
                 <Button
                     variant="outlined"
-                    onClick={onCancel}
+                    onClick={(e) => {
+
+                        e.stopPropagation();
+                        onCancel()
+                    }}
                     className={styles.cancelButton}
                 >
                     Cancel
@@ -214,7 +221,10 @@ const CustomModal: React.FC<Props> = ({
                 <Button
                     variant="contained"
                     color="primary"
-                    onClick={handleFormSubmit}
+                    onClick={(e: any) => {
+                        e.stopPropagation();
+                        handleFormSubmit();
+                    }}
                     className={styles.submitButton}
                 >
                     Submit
