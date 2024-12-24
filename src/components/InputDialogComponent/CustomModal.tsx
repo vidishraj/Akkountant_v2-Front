@@ -188,9 +188,11 @@ const CustomModal: React.FC<Props> = ({
                                         helperText={errors.quantity}
                                     />
 
-                                    <FormControl fullWidth className={styles.inputField}>
+                                    <FormControl
+                                        fullWidth className={styles.inputField}>
                                         <InputLabel id="gold-carat-label">Gold Carat</InputLabel>
                                         <Select
+                                            inputProps={{sx: {color: 'white'}}}
                                             labelId="gold-carat-label"
                                             value={formData.goldCarat}
                                             onChange={(e) => handleInputChange("goldCarat", e.target.value)}
