@@ -32,24 +32,24 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
-import { fetchOptedBanks, fetchOptedBanksPassword } from '../../services/transactionService.ts';
-import { useMessage } from '../../contexts/MessageContext.tsx';
+import {fetchOptedBanks, fetchOptedBanksPassword} from '../../services/transactionService.ts';
+import {useMessage} from '../../contexts/MessageContext.tsx';
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false); // State for the sidebar
-    const [selectedBanks, setSelectedBanks]= useState<string[]>([]);
-    const banks= ["Millenia_Credit", "HDFC_DEBIT","ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
-    const [isDialogOpen, setDialogOpen]= useState<boolean>(false);
-    const [isBankDialogOpen, setBankDialogOpen]= useState<boolean>(false);
-    const [bankPasswords, setBankPasswords]=useState<{[key:string]:string}>({});
-    const [optedBanks, setOptedBanks]= useState<string[]>([]);
+    const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
+    const banks = ["Millenia_Credit", "HDFC_DEBIT", "ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
+    const [isBankDialogOpen, setBankDialogOpen] = useState<boolean>(false);
+    const [bankPasswords, setBankPasswords] = useState<{ [key: string]: string }>({});
+    const [optedBanks, setOptedBanks] = useState<string[]>([]);
     const {setPayload} = useMessage();
 
-    const handleBankDialogOpen = ()=>{
+    const handleBankDialogOpen = () => {
         setBankDialogOpen(true);
     }
-    const handleBankDialogClose =()=>{
+    const handleBankDialogClose = () => {
         setBankDialogOpen(false);
     }
 
@@ -60,94 +60,95 @@ const Header = () => {
         setDialogOpen(false);
     }
 
-    useEffect(()=>{
-        const fetchBanks=async()=>{
-            try{
-                const banks= await fetchOptedBanks();
-                setOptedBanks(banks);
+    useEffect(() => {
+        const fetchBanks = async () => {
+            try {
+                const banks = await fetchOptedBanks();
+                if (Array.isArray(banks)) {
+                    setOptedBanks(banks);
+                }
                 console.log("Fetched opted banks:", banks);
-            }
-            catch(err){
-                console.log("Error fetching opted banks",err);
+            } catch (err) {
+                console.log("Error fetching opted banks", err);
                 setPayload({
-                    type:"error",
+                    type: "error",
                     message: "Failed to fetch opted banks. Please try again!"
                 })
             }
         }
         fetchBanks();
-    },[selectedBanks]);
-    
+    }, [selectedBanks]);
+
     const handleBankToggle = (bank: string) => {
         setSelectedBanks((prevSelected) => {
-          const isSelected = prevSelected.includes(bank);
-      
-          const updatedBanks = isSelected
-            ? prevSelected.filter((b) => b !== bank)
-            : [...prevSelected, bank];
+            const isSelected = prevSelected.includes(bank);
 
-          // Update bankPasswords based on updated selection
-          setBankPasswords((prevPasswords) => {
-            const updatedPasswords = { ...prevPasswords };
-            if (!isSelected) {
-              // Initialize password (empty placeholder) for newly selected bank till password is set within handleSelectedBankPassword()
-              updatedPasswords[bank] = "";
-            } else {
-              // Remove password for deselected bank
-              delete updatedPasswords[bank];
-            }
-            return updatedPasswords;
-          });
-      
-          return updatedBanks;
+            const updatedBanks = isSelected
+                ? prevSelected.filter((b) => b !== bank)
+                : [...prevSelected, bank];
+
+            // Update bankPasswords based on updated selection
+            setBankPasswords((prevPasswords) => {
+                const updatedPasswords = {...prevPasswords};
+                if (!isSelected) {
+                    // Initialize password (empty placeholder) for newly selected bank till password is set within handleSelectedBankPassword()
+                    updatedPasswords[bank] = "";
+                } else {
+                    // Remove password for deselected bank
+                    delete updatedPasswords[bank];
+                }
+                return updatedPasswords;
+            });
+
+            return updatedBanks;
         });
-      };
-      
+    };
+
     console.log(selectedBanks);
     console.log(bankPasswords);
 
-    const handleSelectedBankPassword=(bank:string, password:string)=>{
-        setBankPasswords((prev)=>(
+    const handleSelectedBankPassword = (bank: string, password: string) => {
+        setBankPasswords((prev) => (
             {
                 ...prev,
-                [bank]:password,
+                [bank]: password,
             }
         ))
     }
 
     const handleSubmit = async () => {
-            const payload = {
-                banks: selectedBanks.reduce((acc, bank) => {
-                    if (bankPasswords[bank]) {
-                      acc[bank] = bankPasswords[bank];
-                    }
-                    return acc;
-                  }, {} as { [key: string]: string }),
-  
-              };
-            
-              try {
-                const response = await fetchOptedBanksPassword(payload);
-                console.log("Response:", response);
-      
-                setPayload({
-                  type: "success",
-                  message: "Bank passwords submitted successfully!",
-                });
-            
-                handleBankDialogClose();
-              } catch (err) {
-                console.error("Error submitting bank passwords:", err);
-            
-                setPayload({
-                  type: "error",
-                  message: "Failed to submit bank passwords. Please try again.",
-                });
-              }
-        
-      };
-      
-    const allPasswordsFilled= selectedBanks.every((bank)=>bankPasswords[bank]?.trim()!=="");
+        const payload = {
+            banks: selectedBanks.reduce((acc, bank) => {
+                if (bankPasswords[bank]) {
+                    acc[bank] = bankPasswords[bank];
+                }
+                return acc;
+            }, {} as { [key: string]: string }),
+
+        };
+
+        try {
+            const response = await fetchOptedBanksPassword(payload);
+            console.log("Response:", response);
+
+            setPayload({
+                type: "success",
+                message: "Bank passwords submitted successfully!",
+            });
+
+            handleBankDialogClose();
+        } catch (err) {
+            console.error("Error submitting bank passwords:", err);
+
+            setPayload({
+                type: "error",
+                message: "Failed to submit bank passwords. Please try again.",
+            });
+        }
+
+    };
+
+    const allPasswordsFilled = selectedBanks.every((bank) => bankPasswords[bank]?.trim() !== "");
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
@@ -191,7 +192,7 @@ const Header = () => {
                 <Toolbar sx={{justifyContent: 'space-between'}}>
                     <Box display="flex" alignItems="center" gap={5}>
                         <Typography variant="h6" sx={{fontWeight: 'bold'}}>
-                           <Link style={{color: "#FAFAFA", fontWeight:"700"}} to={'/home'}>Akkountant</Link>
+                            <Link style={{color: "#FAFAFA", fontWeight: "700"}} to={'/home'}>Akkountant</Link>
                         </Typography>
                         <Box>
                             <Button sx={{mx: 1}}>
@@ -286,12 +287,12 @@ const Header = () => {
                     <Divider/>
                     <List>
 
-                        <ListItem sx={{ padding: 0, alignItems: "center" }} onClick={handleBankDialogOpen}>
+                        <ListItem sx={{padding: 0, alignItems: "center"}} onClick={handleBankDialogOpen}>
                             <AssuredWorkloadIcon
                                 style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
                             <Typography
-                                sx={{ color: "white", cursor: "pointer" }}
+                                sx={{color: "white", cursor: "pointer"}}
                             >
                                 Select Banks
                             </Typography>
@@ -303,97 +304,98 @@ const Header = () => {
                         </ListItem>
 
                         {/* Show fetched opted banks */}
-                        {optedBanks.length>0 && (
-                            <Box sx={{ mt: 15,pl:2}}>
-                            <Typography   sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
-                                Fetched Opted Banks:
-                            </Typography>
-                            <List>
-                                {optedBanks.map((bank, index) => (
-                                    <ListItem key={index} sx={{ padding: 0 }}>
-                                        <Typography sx={{ color: "#FAFAFA" }}>
-                                            {bank}
-                                        </Typography>
-                                    </ListItem>
-                                ))}
-                            </List>
-                        </Box>
+                        {optedBanks.length > 0 && (
+                            <Box sx={{mt: 15, pl: 2}}>
+                                <Typography sx={{color: "#FAFAFA", fontWeight: "bold"}}>
+                                    Fetched Opted Banks:
+                                </Typography>
+                                <List>
+                                    {optedBanks.map((bank, index) => (
+                                        <ListItem key={index} sx={{padding: 0}}>
+                                            <Typography sx={{color: "#FAFAFA"}}>
+                                                {bank}
+                                            </Typography>
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            </Box>
                         )}
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                     </List>
-                    
+
                 </Box>
             </Drawer>
-            
-{/* Opt banks dialog */}
 
-        <Dialog open={isBankDialogOpen} onClose={handleBankDialogClose} fullWidth PaperProps={{
-        sx: {
-            backgroundColor: "#121C24",
-            color: "#FAFAFA",
-            borderRadius: 2,
-            padding: 3,
-        },
-    }} >
-        <DialogTitle>Select Banks</DialogTitle>
-        <DialogContent>
-          <FormControl component="fieldset">
-            <FormGroup sx={{
-                display: "flex",
-                flexDirection: "column", 
-                gap: 1,
+            {/* Opt banks dialog */}
+
+            <Dialog open={isBankDialogOpen} onClose={handleBankDialogClose} fullWidth PaperProps={{
+                sx: {
+                    backgroundColor: "#121C24",
+                    color: "#FAFAFA",
+                    borderRadius: 2,
+                    padding: 3,
+                },
             }}>
-              {banks.map((bank) => (
-                <>
-                <FormControlLabel
-                  key={bank}
-                  sx={{
-                    display:"flex",
-                    flexWrap:"wrap",
-                    color:"#FAFAFA",
-                    margin:0
-                  }}
-                  control={
-                    <Checkbox
-                      checked={selectedBanks.includes(bank)}
-                      onChange={() => handleBankToggle(bank)}
-                      sx={{ color: "#FAFAFA" }}
-                    />
-                  }
-                  label={bank}
-                />
-                    {selectedBanks.includes(bank) && (
-                    <TextField
-                        value={bankPasswords[bank] || ""}
-                        onChange={(e) => handleSelectedBankPassword(bank, e.target.value)}
-                        placeholder="Enter password *"
-                        type="password"
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                        backgroundColor: "#1E2A36",
-                        borderRadius: 1,
-                        fontSize:"0.5rem",
-                        input: { color: "#FAFAFA" },
+                <DialogTitle>Select Banks</DialogTitle>
+                <DialogContent>
+                    <FormControl component="fieldset">
+                        <FormGroup sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 1,
+                        }}>
+                            {banks.map((bank) => (
+                                <>
+                                    <FormControlLabel
+                                        key={bank}
+                                        sx={{
+                                            display: "flex",
+                                            flexWrap: "wrap",
+                                            color: "#FAFAFA",
+                                            margin: 0
+                                        }}
+                                        control={
+                                            <Checkbox
+                                                checked={selectedBanks.includes(bank)}
+                                                onChange={() => handleBankToggle(bank)}
+                                                sx={{color: "#FAFAFA"}}
+                                            />
+                                        }
+                                        label={bank}
+                                    />
+                                    {selectedBanks.includes(bank) && (
+                                        <TextField
+                                            value={bankPasswords[bank] || ""}
+                                            onChange={(e) => handleSelectedBankPassword(bank, e.target.value)}
+                                            placeholder="Enter password *"
+                                            type="password"
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{
+                                                backgroundColor: "#1E2A36",
+                                                borderRadius: 1,
+                                                fontSize: "0.5rem",
+                                                input: {color: "#FAFAFA"},
 
-                        }}
-                    />
-                    )}
-                </>
-              ))}
-            </FormGroup>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleSubmit}  variant="contained" disabled={!allPasswordsFilled} sx={{backgroundColor:!allPasswordsFilled?"red":"primary.main",
-                '&.Mui-disabled': {
-                    backgroundColor: 'red !important'
-                  },
-          }}>
-            Done
-          </Button>
-        </DialogActions>
-      </Dialog>
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            ))}
+                        </FormGroup>
+                    </FormControl>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleSubmit} variant="contained" disabled={!allPasswordsFilled} sx={{
+                        backgroundColor: !allPasswordsFilled ? "red" : "primary.main",
+                        '&.Mui-disabled': {
+                            backgroundColor: 'red !important'
+                        },
+                    }}>
+                        Done
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 };
