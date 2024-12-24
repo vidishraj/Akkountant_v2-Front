@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
+import styles from './Header.module.scss';
 import {auth} from "../FirebaseConfig.tsx"
 import Menu from '@mui/material/Menu';
 import {useEffect, useState} from "react";
@@ -76,7 +77,9 @@ const Header = () => {
                 })
             }
         }
-        fetchBanks();
+        if (auth.currentUser) {
+            fetchBanks();
+        }
     }, [selectedBanks]);
 
     const handleBankToggle = (bank: string) => {
@@ -188,29 +191,27 @@ const Header = () => {
     return (
         <>
             {/* Main Header */}
-            <AppBar position="static" sx={{backgroundColor: 'inherit'}}>
+            <AppBar position="static" sx={{backgroundColor: 'inherit', borderBottom: '0.7px solid white'}}>
                 <Toolbar sx={{justifyContent: 'space-between'}}>
-                    <Box display="flex" alignItems="center" gap={5}>
-                        <Typography variant="h6" sx={{fontWeight: 'bold'}}>
+                    <Box className={styles.linkContainer}>
+                        <Typography sx={{fontWeight: 'bold'}} className={styles.icon}>
                             <Link style={{color: "#FAFAFA", fontWeight: "700"}} to={'/home'}>Akkountant</Link>
                         </Typography>
-                        <Box>
-                            <Button sx={{mx: 1}}>
-                                <Link style={{color: "#FAFAFA"}} to={'/home'}>
-                                    Home
-                                </Link>
-                            </Button>
-                            <Button sx={{mx: 1}}>
-                                <Link style={{color: "#FAFAFA"}} to={'/transactions'}>
-                                    Transactions
-                                </Link>
-                            </Button>
-                            <Button sx={{mx: 1}}>
-                                <Link style={{color: "#FAFAFA"}} to={'/investments'}>
-                                    Investments
-                                </Link>
-                            </Button>
-                        </Box>
+                        {/*<Button sx={{mx: 1}}>*/}
+                        {/*    <Link style={{color: "#FAFAFA"}} to={'/home'}>*/}
+                        {/*        Home*/}
+                        {/*    </Link>*/}
+                        {/*</Button>*/}
+                        <Button sx={{mx: 1}} className={styles.links}>
+                            <Link style={{color: "#FAFAFA"}} to={'/transactions'}>
+                                Transactions
+                            </Link>
+                        </Button>
+                        <Button sx={{mx: 1}} className={styles.links}>
+                            <Link style={{color: "#FAFAFA"}} to={'/investments'}>
+                                Investments
+                            </Link>
+                        </Button>
                     </Box>
                     <Box display="flex" alignItems="center">
                         <IconButton onClick={handleOpenUserMenu}>
