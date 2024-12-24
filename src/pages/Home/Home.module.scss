@@ -1,41 +1,37 @@
 
 .homeContainer {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    height: 100%;
-    width: 100%; 
-    align-items: center; 
-    margin:0;
-    gap:0;
-    flex-wrap: wrap;
-
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+  width: 100%;
+  margin: 0;
+  gap: 0;
+  @media (max-width: 900px) {
+    flex-direction: column;
+  }
 }
 
 .investmentsContainer,
 .transactionsContainer {
-    display: flex;
-    justify-content: center; 
-    align-items: center; 
-    flex: 1;
-    margin-top:-2rem;
-    border: 1px solid white;
-    transform: scale(0.6);
-    transform-origin: center; 
-    box-sizing: border-box;
-    flex-direction: column;
-    cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  margin-top: -2rem;
+  border: 1px solid white;
+  transform: scale(0.6);
+  transform-origin: center;
+  box-sizing: border-box;
+  flex-direction: column;
+  cursor: pointer;
 }
 
-@media (max-width: 900px) {
-    .homeContainer {
-        // flex-direction: column; 
-        flex-wrap: wrap;
-    }
-}
-.investmentsTag, 
+
+.investmentsTag,
 .transactionsTag {
-    font-size: 1.5rem; 
-    font-weight: bold;  
+  font-size: 1.5rem;
+  font-weight: bold;
 }
 
