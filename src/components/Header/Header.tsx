@@ -35,6 +35,8 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
 import {fetchOptedBanks, fetchOptedBanksPassword} from '../../services/transactionService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
+import JobsDialog from '../JobsDialog/JobsDialog.tsx';
+import WorkHistoryIcon from '@mui/icons-material/WorkHistory';
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
@@ -45,6 +47,7 @@ const Header = () => {
     const [isBankDialogOpen, setBankDialogOpen] = useState<boolean>(false);
     const [bankPasswords, setBankPasswords] = useState<{ [key: string]: string }>({});
     const [optedBanks, setOptedBanks] = useState<string[]>([]);
+    const [isJobsDialogOpen, setJobsDialogOpen]=useState<boolean>(false);
     const {setPayload} = useMessage();
 
     const handleBankDialogOpen = () => {
@@ -59,6 +62,12 @@ const Header = () => {
     }
     const handleDialogClose = () => {
         setDialogOpen(false);
+    }
+    const handleJobsDialogOpen =()=>{
+        setJobsDialogOpen(true);
+    }
+    const handleJobsDialogClose = () =>{
+        setJobsDialogOpen(false);
     }
 
     useEffect(() => {
@@ -302,6 +311,12 @@ const Header = () => {
                             primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
 
+                        <ListItem sx={{padding: "1rem 0", cursor:"pointer","&:hover":{
+                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={handleJobsDialogOpen}>
+                            <WorkHistoryIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
+                            primary="Jobs" sx={{color: "white", cursor: "pointer"}}/>
+                        </ListItem>
+
                         {/* Show fetched opted banks */}
                         {Array.isArray(optedBanks) && optedBanks.length>0 && (
                             <Box sx={{ mt: 15,pl:2}}>
@@ -320,6 +335,7 @@ const Header = () => {
                         </Box>
                         )}
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
+                        <JobsDialog open={isJobsDialogOpen} onClose={handleJobsDialogClose}/>
                     </List>
 
                 </Box>
