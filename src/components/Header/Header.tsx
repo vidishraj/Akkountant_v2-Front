@@ -197,11 +197,6 @@ const Header = () => {
                         <Typography sx={{fontWeight: 'bold'}} className={styles.icon}>
                             <Link style={{color: "#FAFAFA", fontWeight: "700"}} to={'/home'}>Akkountant</Link>
                         </Typography>
-                        {/*<Button sx={{mx: 1}}>*/}
-                        {/*    <Link style={{color: "#FAFAFA"}} to={'/home'}>*/}
-                        {/*        Home*/}
-                        {/*    </Link>*/}
-                        {/*</Button>*/}
                         <Button sx={{mx: 1}} className={styles.links}>
                             <Link style={{color: "#FAFAFA"}} to={'/transactions'}>
                                 Transactions
@@ -317,7 +312,7 @@ const Header = () => {
                                 {optedBanks.map((bank, index) => (
                                     <ListItem key={index} sx={{ padding: 0 }}>
                                         <Typography sx={{ color: "#FAFAFA" }}>
-                                            {bank}
+                                            {bank.replace(/_/g," ")}
                                         </Typography>
                                     </ListItem>
                                 ))}
