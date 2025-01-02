@@ -288,7 +288,9 @@ const Header = () => {
                     <Divider/>
                     <List>
 
-                        <ListItem sx={{padding: 0, alignItems: "center"}} onClick={handleBankDialogOpen}>
+                        <ListItem sx={{ padding: "1rem 0", alignItems: "center", cursor:"pointer","&:hover":{
+                            backgroundColor:"rgb(50, 62, 74)"
+                        } }} onClick={handleBankDialogOpen}>
                             <AssuredWorkloadIcon
                                 style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
@@ -299,27 +301,28 @@ const Header = () => {
                             </Typography>
                         </ListItem>
 
-                        <ListItem sx={{padding: 0, marginTop: "1rem"}} onClick={handleDialogOpen}>
+                        <ListItem sx={{padding: "1rem 0", cursor:"pointer","&:hover":{
+                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={handleDialogOpen}>
                             <LockResetIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
                             primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
 
                         {/* Show fetched opted banks */}
-                        {optedBanks.length > 0 && (
-                            <Box sx={{mt: 15, pl: 2}}>
-                                <Typography sx={{color: "#FAFAFA", fontWeight: "bold"}}>
-                                    Fetched Opted Banks:
-                                </Typography>
-                                <List>
-                                    {optedBanks.map((bank, index) => (
-                                        <ListItem key={index} sx={{padding: 0}}>
-                                            <Typography sx={{color: "#FAFAFA"}}>
-                                                {bank}
-                                            </Typography>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </Box>
+                        {Array.isArray(optedBanks) && optedBanks.length>0 && (
+                            <Box sx={{ mt: 15,pl:2}}>
+                            <Typography   sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
+                                Fetched Opted Banks:
+                            </Typography>
+                            <List>
+                                {optedBanks.map((bank, index) => (
+                                    <ListItem key={index} sx={{ padding: 0 }}>
+                                        <Typography sx={{ color: "#FAFAFA" }}>
+                                            {bank}
+                                        </Typography>
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </Box>
                         )}
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                     </List>
@@ -329,74 +332,83 @@ const Header = () => {
 
             {/* Opt banks dialog */}
 
-            <Dialog open={isBankDialogOpen} onClose={handleBankDialogClose} fullWidth PaperProps={{
-                sx: {
-                    backgroundColor: "#121C24",
-                    color: "#FAFAFA",
-                    borderRadius: 2,
-                    padding: 3,
-                },
+        <Dialog open={isBankDialogOpen} onClose={handleBankDialogClose} fullWidth PaperProps={{
+        sx: {
+            backgroundColor: "#121C24",
+            color: "#FAFAFA",
+            borderRadius: 2,
+            padding: 3,
+        },
+    }} >
+        <DialogTitle>Select Banks</DialogTitle>
+        <DialogContent>
+          <FormControl component="fieldset">
+            <FormGroup sx={{
+                display: "flex",
+                flexDirection: "column", 
+                gap: 1,
             }}>
-                <DialogTitle>Select Banks</DialogTitle>
-                <DialogContent>
-                    <FormControl component="fieldset">
-                        <FormGroup sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 1,
-                        }}>
-                            {banks.map((bank) => (
-                                <>
-                                    <FormControlLabel
-                                        key={bank}
-                                        sx={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            color: "#FAFAFA",
-                                            margin: 0
-                                        }}
-                                        control={
-                                            <Checkbox
-                                                checked={selectedBanks.includes(bank)}
-                                                onChange={() => handleBankToggle(bank)}
-                                                sx={{color: "#FAFAFA"}}
-                                            />
-                                        }
-                                        label={bank}
-                                    />
-                                    {selectedBanks.includes(bank) && (
-                                        <TextField
-                                            value={bankPasswords[bank] || ""}
-                                            onChange={(e) => handleSelectedBankPassword(bank, e.target.value)}
-                                            placeholder="Enter password *"
-                                            type="password"
-                                            size="small"
-                                            variant="outlined"
-                                            sx={{
-                                                backgroundColor: "#1E2A36",
-                                                borderRadius: 1,
-                                                fontSize: "0.5rem",
-                                                input: {color: "#FAFAFA"},
+              {banks.map((bank) => (
+                <Box key={bank} sx={{
+                  display:"flex",
+                  alignItems:"center",
+                  justifyContent:"space-between",
+                  gap:1,
+                  color:"#FAFAFA",
+                  margin:0
+                }}>
+                <FormControlLabel
+                  key={bank}
+                  sx={{
+                    display:"flex",
+                    alignItems:"center",
+                    color:"#FAFAFA",
+                    margin:0
+                  }}
+                  control={
+                    <Checkbox
+                      checked={selectedBanks.includes(bank)}
+                      onChange={() => handleBankToggle(bank)}
+                      sx={{ color: "#FAFAFA" }}
+                    />
+                  }
+                  label={bank}
+                />
+                    {selectedBanks.includes(bank) && (
+                    <TextField
+                        value={bankPasswords[bank] || ""}
+                        onChange={(e) => handleSelectedBankPassword(bank, e.target.value)}
+                        placeholder="Enter password *"
+                        type="password"
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                        backgroundColor: "#1E2A36",
+                        borderRadius: 1,
+                        fontSize:"0.5rem",
+                        marginLeft:"2rem",
+                        width:"250px",
+                        input: { color: "#FAFAFA" },
 
-                                            }}
-                                        />
-                                    )}
-                                </>
-                            ))}
-                        </FormGroup>
-                    </FormControl>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleSubmit} variant="contained" disabled={!allPasswordsFilled} sx={{
-                        backgroundColor: !allPasswordsFilled ? "red" : "primary.main",
-                        '&.Mui-disabled': {
-                            backgroundColor: 'red !important'
-                        },
-                    }}>
-                        Done
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                        }}
+                    />
+                    )}
+                </Box>
+              ))}
+            </FormGroup>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSubmit}  variant="contained" disabled={!allPasswordsFilled} sx={{backgroundColor:!allPasswordsFilled?"red":"primary.main",
+                '&.Mui-disabled': {
+                    backgroundColor:  "#1E2A36 !important",
+                    color:"grey !important"
+                  },
+          }}>
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
         </>
     );
 };
