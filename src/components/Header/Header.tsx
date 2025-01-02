@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
 // import MenuIcon from '@mui/icons-material/Menu';
+import styles from './Header.module.scss';
 import {auth} from "../FirebaseConfig.tsx"
 import Menu from '@mui/material/Menu';
 import {useEffect, useState} from "react";
@@ -32,24 +33,24 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
-import { fetchOptedBanks, fetchOptedBanksPassword } from '../../services/transactionService.ts';
-import { useMessage } from '../../contexts/MessageContext.tsx';
+import {fetchOptedBanks, fetchOptedBanksPassword} from '../../services/transactionService.ts';
+import {useMessage} from '../../contexts/MessageContext.tsx';
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false); // State for the sidebar
-    const [selectedBanks, setSelectedBanks]= useState<string[]>([]);
-    const banks= ["Millenia_Credit", "HDFC_DEBIT","ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
-    const [isDialogOpen, setDialogOpen]= useState<boolean>(false);
-    const [isBankDialogOpen, setBankDialogOpen]= useState<boolean>(false);
-    const [bankPasswords, setBankPasswords]=useState<{[key:string]:string}>({});
-    const [optedBanks, setOptedBanks]= useState<string[]>([]);
+    const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
+    const banks = ["Millenia_Credit", "HDFC_DEBIT", "ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"]
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
+    const [isBankDialogOpen, setBankDialogOpen] = useState<boolean>(false);
+    const [bankPasswords, setBankPasswords] = useState<{ [key: string]: string }>({});
+    const [optedBanks, setOptedBanks] = useState<string[]>([]);
     const {setPayload} = useMessage();
 
-    const handleBankDialogOpen = ()=>{
+    const handleBankDialogOpen = () => {
         setBankDialogOpen(true);
     }
-    const handleBankDialogClose =()=>{
+    const handleBankDialogClose = () => {
         setBankDialogOpen(false);
     }
 
@@ -60,94 +61,97 @@ const Header = () => {
         setDialogOpen(false);
     }
 
-    useEffect(()=>{
-        const fetchBanks=async()=>{
-            try{
-                const banks= await fetchOptedBanks();
-                setOptedBanks(banks);
+    useEffect(() => {
+        const fetchBanks = async () => {
+            try {
+                const banks = await fetchOptedBanks();
+                if (Array.isArray(banks)) {
+                    setOptedBanks(banks);
+                }
                 console.log("Fetched opted banks:", banks);
-            }
-            catch(err){
-                console.log("Error fetching opted banks",err);
+            } catch (err) {
+                console.log("Error fetching opted banks", err);
                 setPayload({
-                    type:"error",
+                    type: "error",
                     message: "Failed to fetch opted banks. Please try again!"
                 })
             }
         }
-        fetchBanks();
-    },[selectedBanks]);
-    
+        if (auth.currentUser) {
+            fetchBanks();
+        }
+    }, [selectedBanks]);
+
     const handleBankToggle = (bank: string) => {
         setSelectedBanks((prevSelected) => {
-          const isSelected = prevSelected.includes(bank);
-      
-          const updatedBanks = isSelected
-            ? prevSelected.filter((b) => b !== bank)
-            : [...prevSelected, bank];
+            const isSelected = prevSelected.includes(bank);
 
-          // Update bankPasswords based on updated selection
-          setBankPasswords((prevPasswords) => {
-            const updatedPasswords = { ...prevPasswords };
-            if (!isSelected) {
-              // Initialize password (empty placeholder) for newly selected bank till password is set within handleSelectedBankPassword()
-              updatedPasswords[bank] = "";
-            } else {
-              // Remove password for deselected bank
-              delete updatedPasswords[bank];
-            }
-            return updatedPasswords;
-          });
-      
-          return updatedBanks;
+            const updatedBanks = isSelected
+                ? prevSelected.filter((b) => b !== bank)
+                : [...prevSelected, bank];
+
+            // Update bankPasswords based on updated selection
+            setBankPasswords((prevPasswords) => {
+                const updatedPasswords = {...prevPasswords};
+                if (!isSelected) {
+                    // Initialize password (empty placeholder) for newly selected bank till password is set within handleSelectedBankPassword()
+                    updatedPasswords[bank] = "";
+                } else {
+                    // Remove password for deselected bank
+                    delete updatedPasswords[bank];
+                }
+                return updatedPasswords;
+            });
+
+            return updatedBanks;
         });
-      };
-      
+    };
+
     console.log(selectedBanks);
     console.log(bankPasswords);
 
-    const handleSelectedBankPassword=(bank:string, password:string)=>{
-        setBankPasswords((prev)=>(
+    const handleSelectedBankPassword = (bank: string, password: string) => {
+        setBankPasswords((prev) => (
             {
                 ...prev,
-                [bank]:password,
+                [bank]: password,
             }
         ))
     }
 
     const handleSubmit = async () => {
-            const payload = {
-                banks: selectedBanks.reduce((acc, bank) => {
-                    if (bankPasswords[bank]) {
-                      acc[bank] = bankPasswords[bank];
-                    }
-                    return acc;
-                  }, {} as { [key: string]: string }),
-  
-              };
-            
-              try {
-                const response = await fetchOptedBanksPassword(payload);
-                console.log("Response:", response);
-      
-                setPayload({
-                  type: "success",
-                  message: "Bank passwords submitted successfully!",
-                });
-            
-                handleBankDialogClose();
-              } catch (err) {
-                console.error("Error submitting bank passwords:", err);
-            
-                setPayload({
-                  type: "error",
-                  message: "Failed to submit bank passwords. Please try again.",
-                });
-              }
-        
-      };
-      
-    const allPasswordsFilled= selectedBanks.every((bank)=>bankPasswords[bank]?.trim()!=="");
+        const payload = {
+            banks: selectedBanks.reduce((acc, bank) => {
+                if (bankPasswords[bank]) {
+                    acc[bank] = bankPasswords[bank];
+                }
+                return acc;
+            }, {} as { [key: string]: string }),
+
+        };
+
+        try {
+            const response = await fetchOptedBanksPassword(payload);
+            console.log("Response:", response);
+
+            setPayload({
+                type: "success",
+                message: "Bank passwords submitted successfully!",
+            });
+
+            handleBankDialogClose();
+        } catch (err) {
+            console.error("Error submitting bank passwords:", err);
+
+            setPayload({
+                type: "error",
+                message: "Failed to submit bank passwords. Please try again.",
+            });
+        }
+
+    };
+
+    const allPasswordsFilled = selectedBanks.every((bank) => bankPasswords[bank]?.trim() !== "");
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
@@ -187,29 +191,27 @@ const Header = () => {
     return (
         <>
             {/* Main Header */}
-            <AppBar position="static" sx={{backgroundColor: 'inherit'}}>
+            <AppBar position="static" sx={{backgroundColor: 'inherit', borderBottom: '0.7px solid white'}}>
                 <Toolbar sx={{justifyContent: 'space-between'}}>
-                    <Box display="flex" alignItems="center" gap={5}>
-                        <Typography variant="h6" sx={{fontWeight: 'bold'}}>
-                           <Link style={{color: "#FAFAFA", fontWeight:"700"}} to={'/home'}>Akkountant</Link>
+                    <Box className={styles.linkContainer}>
+                        <Typography sx={{fontWeight: 'bold'}} className={styles.icon}>
+                            <Link style={{color: "#FAFAFA", fontWeight: "700"}} to={'/home'}>Akkountant</Link>
                         </Typography>
-                        <Box>
-                            <Button sx={{mx: 1}}>
-                                <Link style={{color: "#FAFAFA"}} to={'/home'}>
-                                    Home
-                                </Link>
-                            </Button>
-                            <Button sx={{mx: 1}}>
-                                <Link style={{color: "#FAFAFA"}} to={'/transactions'}>
-                                    Transactions
-                                </Link>
-                            </Button>
-                            <Button sx={{mx: 1}}>
-                                <Link style={{color: "#FAFAFA"}} to={'/investments'}>
-                                    Investments
-                                </Link>
-                            </Button>
-                        </Box>
+                        {/*<Button sx={{mx: 1}}>*/}
+                        {/*    <Link style={{color: "#FAFAFA"}} to={'/home'}>*/}
+                        {/*        Home*/}
+                        {/*    </Link>*/}
+                        {/*</Button>*/}
+                        <Button sx={{mx: 1}} className={styles.links}>
+                            <Link style={{color: "#FAFAFA"}} to={'/transactions'}>
+                                Transactions
+                            </Link>
+                        </Button>
+                        <Button sx={{mx: 1}} className={styles.links}>
+                            <Link style={{color: "#FAFAFA"}} to={'/investments'}>
+                                Investments
+                            </Link>
+                        </Button>
                     </Box>
                     <Box display="flex" alignItems="center">
                         <IconButton onClick={handleOpenUserMenu}>
@@ -293,7 +295,7 @@ const Header = () => {
                                 style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
                             <Typography
-                                sx={{ color: "white", cursor: "pointer" }}
+                                sx={{color: "white", cursor: "pointer"}}
                             >
                                 Select Banks
                             </Typography>
@@ -324,11 +326,11 @@ const Header = () => {
                         )}
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                     </List>
-                    
+
                 </Box>
             </Drawer>
-            
-{/* Opt banks dialog */}
+
+            {/* Opt banks dialog */}
 
         <Dialog open={isBankDialogOpen} onClose={handleBankDialogClose} fullWidth PaperProps={{
         sx: {

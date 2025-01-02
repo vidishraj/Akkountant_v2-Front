@@ -123,7 +123,11 @@ const Transactions = () => {
 
     useEffect(() => {
         fetchOptedBanks()
-            .then((response) => setOptedBanks(response))
+            .then((response) => {
+                if (Array.isArray(response)) {
+                    setOptedBanks(response)
+                }
+            })
             .catch(() => {
                 setPayload({
                     type: 'error',

@@ -88,7 +88,6 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
         return uploadFile(selectedFile, {serviceType});
     };
     const [openFileUpload, setOpenFileUpload] = useState<boolean>(false);
-    const getServiceType = () => (cardType === "mf" ? "Mutual_Funds" : cardType === "stocks" ? "Stocks" : "NPS");
 
     const renderFileUploadSection = () => (
         <div onClick={(e) => e.stopPropagation()}>
@@ -107,7 +106,8 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 onClose={() => setOpenFileUpload(false)}
                 cardType={cardType2 || cardType}
                 onUpload={(selectedFile) => {
-                    return handleFileUpload(selectedFile, getServiceType()).then((response) => {
+                    const service = cardType === "stocks" ? "Stocks" : cardType === "nps" ? "NPS" : "EPF";
+                    return handleFileUpload(selectedFile, service).then((response) => {
                         return response;
                     }).catch((err) => {
                         return err;
@@ -128,6 +128,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                             "Stocks" : "NPS";
                         fetchAndSetSummary(serviceType, true);
                     } else if (cardType2) {
+                        console.log("HELLO")
                         const serviceType = cardType2 === "gold" ? "Gold" : cardType2 === "epf" ? "EPF" : "PF";
                         AllInfoForEpf(serviceType, true);
                     }
@@ -146,7 +147,38 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                     e.stopPropagation();
                     setBuyModal(true)
                 }}
-            >
+            ><CustomModal title={`Buy ${cardType2}`} open={buyModal} onCancel={() => {
+                setBuyModal(false)
+            }} onSubmit={(formData) => {
+                let requestBody: InsertEPGRequest = {} as InsertEPGRequest;
+                if (cardType2 === "gold") {
+                    requestBody = {
+                        date: formData.date,
+                        amount: parseFloat(formData.amount),
+                        description: formData.description,
+                        quantity: parseFloat(formData.quantity),
+                        goldType: formData.goldCarat.substring(0, 3)
+                    };
+                } else if (cardType2 === "ppf") {
+                    requestBody = {
+                        date: formData.date,
+                        description: formData.description,
+                        amount: parseFloat(formData.amount),
+                    };
+                }
+                insertEPG(cardType2 === "gold" ? "Gold" : "PF", requestBody).then((response) => {
+                    setPayload({
+                        type: 'success',
+                        message: response.data.Message,
+                    })
+                }).catch(() => {
+                    setPayload({
+                        type: 'error',
+                        message: "Error inserting",
+                    })
+                })
+                setBuyModal(false)
+            }} cardType={cardType2}/>
                 <AddIcon style={{color: "black"}}/>
             </Button>
         </div>
@@ -201,34 +233,6 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 {(cardType2 === "ppf" || cardType2 === "gold") && renderAddButton()}
             </div>
             <div className={moduleStyle.summary}>{renderSummary()}</div>
-            <CustomModal title={`Buy ${cardType2}`} open={buyModal} onCancel={() => {
-                setBuyModal(false)
-            }} onSubmit={(formData) => {
-                let requestBody: InsertEPGRequest = {} as InsertEPGRequest;
-                if (cardType2 === "gold") {
-                    requestBody = {
-                        date: formData.date,
-                        amount: parseFloat(formData.amount),
-                        description: formData.description,
-                        quantity: parseFloat(formData.quantity),
-                        goldType: formData.goldCarat.substring(0, 3)
-                    };
-                } else if (cardType2 === "ppf") {
-                    requestBody = {
-                        date: formData.date,
-                        description: formData.description,
-                        amount: parseFloat(formData.amount),
-                    };
-                }
-                insertEPG(cardType2 === "gold" ? "Gold" : "PF", requestBody).then((response) => {
-
-                    setPayload({
-                        type: 'success',
-                        message: response.data.Message,
-                    })
-                })
-                setBuyModal(false)
-            }} cardType={cardType2}/>
         </BasicCard>
     );
 };
