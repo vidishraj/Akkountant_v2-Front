@@ -187,3 +187,12 @@ export interface OptedBankPasswordsRequestBody {
       [key: string]: string; 
     };
   }
+
+  export interface JobResponseBody {
+    Name: string;
+    result: string;
+    status: string;
+    dueTime: string;
+    executionTime: string | null;
+  }
+  

@@ -7,7 +7,9 @@ import {
     FileDetailsResponse,
     GoogleStatusResponse,
     OptedBankPasswordsRequestBody,
+    JobResponseBody,
 } from '../utils/interfaces.ts';
+
 
 /**
  * Helper to clear cache by adding the `cache-control: no-cache` header.
@@ -70,6 +72,12 @@ export async function fetchOptedBanksPassword(
 export async function fetchOptedBanks(clearCache = false): Promise<string[]> {
     const options = clearCache ? withCacheCleared() : {};
     return queueRequest(() => axios.get('/fetchOptedBanks', options).then((res) => res.data));
+}
+
+//Fetch jobs table
+export async function fetchJobsTable(clearCache = false): Promise<JobResponseBody> {
+    const options = clearCache ? withCacheCleared() : {};
+    return queueRequest(() => axios.get('/getJobsTable', options).then((res) => res.data));
 }
 
 /**
@@ -158,3 +166,4 @@ export async function deleteFile(fileId: string): Promise<any> {
         params: {fileId: fileId},
     }).then((res) => res));
 }
+

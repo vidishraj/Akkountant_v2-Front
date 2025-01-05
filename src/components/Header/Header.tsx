@@ -318,21 +318,21 @@ const Header = () => {
                         </ListItem>
 
                         {/* Show fetched opted banks */}
-                        {Array.isArray(optedBanks) && optedBanks.length>0 && (
-                            <Box sx={{ mt: 15,pl:2}}>
-                            <Typography   sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
-                                Fetched Opted Banks:
-                            </Typography>
-                            <List>
-                                {optedBanks.map((bank, index) => (
-                                    <ListItem key={index} sx={{ padding: 0 }}>
-                                        <Typography sx={{ color: "#FAFAFA" }}>
+                        {Array.isArray(optedBanks) && optedBanks.length > 0 && (
+                            <Box sx={{mt: 15, pl: 2}}>
+                                <Typography sx={{color: "#FAFAFA", fontWeight: "bold"}}>
+                                    Fetched Opted Banks:
+                                </Typography>
+                                <List>
+                                    {optedBanks.map((bank, index) => (
+                                        <ListItem key={index} sx={{padding: 0}}>
+                                            <Typography sx={{color: "#FAFAFA"}}>
                                             {bank.replace(/_/g," ")}
-                                        </Typography>
-                                    </ListItem>
-                                ))}
-                            </List>
-                        </Box>
+                                            </Typography>
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            </Box>
                         )}
                         <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
                         <JobsDialog open={isJobsDialogOpen} onClose={handleJobsDialogClose}/>
