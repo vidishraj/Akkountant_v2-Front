@@ -11,20 +11,19 @@ import {
 } from "@mui/material";
 import {auth} from "../FirebaseConfig.tsx";
 import {updatePassword} from "firebase/auth";
-import { JobResponseBody } from '../../utils/interfaces.ts';
-import {fetchJobsTable} from '../../services/transactionService.ts';
+import { Job, JobsResponse } from '../../utils/interfaces.ts';
+import {fetchJobsTable} from '../../services/investmentService.ts';
 import { useMessage } from '../../contexts/MessageContext.tsx';
 
 interface JobsDialogProps {
     open: boolean,
     onClose: () => void
 }
-export type JobResponseBodyArray = JobResponseBody[]
 
 const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const [newPassword, setNewPassword] = useState("");
-    
-    const [jobsTable, setJobsTable]= useState<JobResponseBodyArray>([]);
+    const [results, setResults]= useState<Job[]>([]);
+    const [jobs, setJobs]= useState<Record<string,string>>({});
     const {setPayload} = useMessage();
 
     const handlePasswordChange = async () => {
@@ -38,13 +37,12 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     useEffect(() => {
         const fetchJobs = async () => {
           try {
-            const jobsData = await fetchJobsTable();
-            if (Array.isArray(jobsData)) {
-              setJobsTable(jobsData);
-            }
+            const jobsData = await fetchJobsTable(1); 
+            setJobs(jobsData.jobs); 
+            setResults(jobsData.results);
             console.log("Fetched jobs:", jobsData);
           } catch (err) {
-            console.log("Error fetching jobs", err);
+            console.error("Error fetching jobs", err);
             setPayload({
               type: "error",
               message: "Failed to fetch jobs. Please try again!",
@@ -68,13 +66,26 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 <Typography variant="inherit">Set jobs</Typography>
             </DialogTitle>
             <DialogContent>
-            {jobsTable.map((job, index) => (
-                <div key={index}>
-                <h3>{job.Name}</h3>
-                <p>Status: {job.status}</p>
-                <p>Result: {job.result}</p>
-                </div>
-            ))}
+            <div>Cards</div>
+            <div>
+                {results.map((job) => (
+                    <div key={job.id}>
+                    <h3>{job.name}</h3>
+                    <p>Status: {job.status}</p>
+                    <p>Execution Time: {job.executionTime || "N/A"}</p>
+                    <p>Due Time: {job.dueTime || "N/A"}</p>
+                    </div>
+                ))}
+            </div>
+            <div>Jobs dropdown</div>
+            <ul>
+                {Object.values(jobs).map((value) => (
+                    <li key={value}>
+                    {value}
+                    </li>
+                ))}
+            </ul>
+
             </DialogContent>
             <DialogActions>
                 <Button

@@ -8,6 +8,8 @@ import {
     GoogleStatusResponse,
     OptedBankPasswordsRequestBody,
     JobResponseBody,
+    JobsTableResponseBody,
+    JobItemResponseBody,
 } from '../utils/interfaces.ts';
 
 
@@ -72,12 +74,6 @@ export async function fetchOptedBanksPassword(
 export async function fetchOptedBanks(clearCache = false): Promise<string[]> {
     const options = clearCache ? withCacheCleared() : {};
     return queueRequest(() => axios.get('/fetchOptedBanks', options).then((res) => res.data));
-}
-
-//Fetch jobs table
-export async function fetchJobsTable(clearCache = false): Promise<JobResponseBody> {
-    const options = clearCache ? withCacheCleared() : {};
-    return queueRequest(() => axios.get('/getJobsTable', options).then((res) => res.data));
 }
 
 /**

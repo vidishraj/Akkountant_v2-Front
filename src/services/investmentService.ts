@@ -4,6 +4,7 @@ import {
     FileUploadParams,
     FileUploadResponse,
     InsertEPGRequest,
+    JobsResponse,
     MSNListResponse,
     MSNRateResponse,
     MSNSummaryResponse,
@@ -211,3 +212,19 @@ export async function fetchSecurityTransactions(
 
     return queueRequest(() => axios.get('fetchSecurityTransactions', options));
 }
+
+export async function fetchJobsTable(
+    page: number,
+    clearCache = false
+): Promise<JobsResponse> {
+    const options = withRequestId(
+        'fetchJobsTable',
+        clearCache
+            ? withCacheCleared({ params: { page } })
+            : { params: { page } }
+    );
+
+    const response= await queueRequest(() => axios.get('/getsJobs', options));
+    return response.data;
+}
+
