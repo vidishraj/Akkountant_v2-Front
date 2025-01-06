@@ -3,12 +3,13 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    Typography, Card, Box, TablePagination, useMediaQuery, Button,
+    Typography, Card, Box, TablePagination, useMediaQuery, Button, IconButton,
 } from "@mui/material";
 import {Job} from '../../utils/interfaces.ts';
 import {fetchJobsTable, startJob} from '../../services/investmentService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CloseIcon from '@mui/icons-material/Close';
 import styles from "../TransactionCardComponent/TransactionCard.module.scss";
 import style from "../../pages/Transactions/Transaction.module.scss";
 import filterStyles from '../TransactionFilterComponent/TransactionFilter.module.scss'
@@ -79,8 +80,11 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 width: '100%',
             },
         }}>
-            <DialogTitle align={'center'}>
+            <DialogTitle align={'center'} display={'flex'} alignItems={'centre'} justifyContent={'space-between'}>
                 <Typography variant="inherit">Jobs Dashboard</Typography>
+                <IconButton onClick={onClose}>
+                    <CloseIcon style={{color: 'white'}}/>
+                </IconButton>
             </DialogTitle>
             <DialogContent>
                 <div style={{display: "flex", alignItems: "center", justifyContent: "space-evenly", flexWrap: 'wrap'}}>
