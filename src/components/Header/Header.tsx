@@ -35,6 +35,8 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
 import {fetchOptedBanks, fetchOptedBanksPassword} from '../../services/transactionService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
+import JobsDialog from '../JobsDialog/JobsDialog.tsx';
+import WorkHistoryIcon from '@mui/icons-material/WorkHistory';
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState(null);
@@ -45,20 +47,11 @@ const Header = () => {
     const [isBankDialogOpen, setBankDialogOpen] = useState<boolean>(false);
     const [bankPasswords, setBankPasswords] = useState<{ [key: string]: string }>({});
     const [optedBanks, setOptedBanks] = useState<string[]>([]);
+    const [isJobsDialogOpen, setJobsDialogOpen]=useState<boolean>(false);
     const {setPayload} = useMessage();
 
-    const handleBankDialogOpen = () => {
-        setBankDialogOpen(true);
-    }
     const handleBankDialogClose = () => {
         setBankDialogOpen(false);
-    }
-
-    const handleDialogOpen = () => {
-        setDialogOpen(true);
-    }
-    const handleDialogClose = () => {
-        setDialogOpen(false);
     }
 
     useEffect(() => {
@@ -68,9 +61,7 @@ const Header = () => {
                 if (Array.isArray(banks)) {
                     setOptedBanks(banks);
                 }
-                console.log("Fetched opted banks:", banks);
             } catch (err) {
-                console.log("Error fetching opted banks", err);
                 setPayload({
                     type: "error",
                     message: "Failed to fetch opted banks. Please try again!"
@@ -107,9 +98,6 @@ const Header = () => {
         });
     };
 
-    console.log(selectedBanks);
-    console.log(bankPasswords);
-
     const handleSelectedBankPassword = (bank: string, password: string) => {
         setBankPasswords((prev) => (
             {
@@ -132,7 +120,6 @@ const Header = () => {
 
         try {
             const response = await fetchOptedBanksPassword(payload);
-            console.log("Response:", response);
 
             setPayload({
                 type: "success",
@@ -197,11 +184,6 @@ const Header = () => {
                         <Typography sx={{fontWeight: 'bold'}} className={styles.icon}>
                             <Link style={{color: "#FAFAFA", fontWeight: "700"}} to={'/home'}>Akkountant</Link>
                         </Typography>
-                        {/*<Button sx={{mx: 1}}>*/}
-                        {/*    <Link style={{color: "#FAFAFA"}} to={'/home'}>*/}
-                        {/*        Home*/}
-                        {/*    </Link>*/}
-                        {/*</Button>*/}
                         <Button sx={{mx: 1}} className={styles.links}>
                             <Link style={{color: "#FAFAFA"}} to={'/transactions'}>
                                 Transactions
@@ -290,7 +272,7 @@ const Header = () => {
 
                         <ListItem sx={{ padding: "1rem 0", alignItems: "center", cursor:"pointer","&:hover":{
                             backgroundColor:"rgb(50, 62, 74)"
-                        } }} onClick={handleBankDialogOpen}>
+                        } }} onClick={()=>setBankDialogOpen(true)}>
                             <AssuredWorkloadIcon
                                 style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
@@ -302,29 +284,36 @@ const Header = () => {
                         </ListItem>
 
                         <ListItem sx={{padding: "1rem 0", cursor:"pointer","&:hover":{
-                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={handleDialogOpen}>
+                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={()=>setDialogOpen(true)}>
                             <LockResetIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
                             primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
 
+                        <ListItem sx={{padding: "1rem 0", cursor:"pointer","&:hover":{
+                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={()=>setJobsDialogOpen(true)}>
+                            <WorkHistoryIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
+                            primary="Jobs" sx={{color: "white", cursor: "pointer"}}/>
+                        </ListItem>
+
                         {/* Show fetched opted banks */}
-                        {Array.isArray(optedBanks) && optedBanks.length>0 && (
-                            <Box sx={{ mt: 15,pl:2}}>
-                            <Typography   sx={{ color: "#FAFAFA", fontWeight: "bold" }}>
-                                Fetched Opted Banks:
-                            </Typography>
-                            <List>
-                                {optedBanks.map((bank, index) => (
-                                    <ListItem key={index} sx={{ padding: 0 }}>
-                                        <Typography sx={{ color: "#FAFAFA" }}>
-                                            {bank}
-                                        </Typography>
-                                    </ListItem>
-                                ))}
-                            </List>
-                        </Box>
+                        {Array.isArray(optedBanks) && optedBanks.length > 0 && (
+                            <Box sx={{mt: 15, pl: 2}}>
+                                <Typography sx={{color: "#FAFAFA", fontWeight: "bold"}}>
+                                    Fetched Opted Banks:
+                                </Typography>
+                                <List>
+                                    {optedBanks.map((bank, index) => (
+                                        <ListItem key={index} sx={{padding: 0}}>
+                                            <Typography sx={{color: "#FAFAFA"}}>
+                                            {bank.replace(/_/g," ")}
+                                            </Typography>
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            </Box>
                         )}
-                        <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
+                        <ChangepasswordDialog open={isDialogOpen} onClose={() => setDialogOpen(false)}/>
+                        <JobsDialog open={isJobsDialogOpen} onClose={()=>setJobsDialogOpen(false)}/>
                     </List>
 
                 </Box>

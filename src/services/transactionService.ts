@@ -7,7 +7,11 @@ import {
     FileDetailsResponse,
     GoogleStatusResponse,
     OptedBankPasswordsRequestBody,
+    JobResponseBody,
+    JobsTableResponseBody,
+    JobItemResponseBody,
 } from '../utils/interfaces.ts';
+
 
 /**
  * Helper to clear cache by adding the `cache-control: no-cache` header.
@@ -158,3 +162,4 @@ export async function deleteFile(fileId: string): Promise<any> {
         params: {fileId: fileId},
     }).then((res) => res));
 }
+
