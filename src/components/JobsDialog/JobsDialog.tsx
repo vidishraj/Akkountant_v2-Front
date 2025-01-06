@@ -44,10 +44,6 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
       }
 
       const handleJobSubmit = async () =>{
-        if(!selectedJob){
-           alert("Please select a job before submitting");
-           return; 
-        }
         try{
             const response = await startJob(selectedJob);
         }catch (err) {
@@ -86,7 +82,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
            <button onClick={handleJobSubmit} disabled={!selectedJob}>Start job</button>
            </div>
 
-            <div>Older jobs <button onClick={handleRefresh}><RefreshIcon/></button></div>
+            <div>Older jobs<button onClick={handleRefresh}><RefreshIcon/></button></div>
             <div>
                 {results.map((job) => (
                     <div key={job.id}>
