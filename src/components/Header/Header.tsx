@@ -26,25 +26,43 @@ import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.t
 import {fetchOptedBanks} from '../../services/transactionService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
 import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
-
+import SavingsIcon from '@mui/icons-material/Savings';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WorkHistoryIcon from '@mui/icons-material/WorkHistory';
 import OptBanksDialog from "../OptBanksDialogComponent/OptBanksDialog.tsx";
+import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
+import {getFileTimeStamps} from "../../services/investmentService.ts";
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState<any>(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false);
     const [isDialogOpen, setDialogOpen] = useState(false);
     const [isBankDialogOpen, setBankDialogOpen] = useState(false);
-    const [optedBanks, setOptedBanks] = useState<string[]>([]);
+    const [optedBanks, setOptedBanks] = useState<any>({});
+    const [fileStamps, setFileStamps] = useState<any>({});
     const {setPayload} = useMessage();
     const navigate = useNavigate();
 
     const [isJobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
+    const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
+    const [optedBanksDialog, setOptedBanksDialog] = useState<boolean>(false);
     useEffect(() => {
         if (auth.currentUser) {
             fetchOptedBanks()
-                .then((data) => Array.isArray(data) && setOptedBanks(data))
+                .then((data) => {
+                    if (Array.isArray(data)) {
+                        const obj: any = {}
+                        data.forEach((bank, index) => (
+                            obj[`Bank ${index + 1}`] = bank.replace(/_/g, " ")
+                        ))
+                        setOptedBanks(obj);
+                    }
+                })
                 .catch(() => setPayload({type: "error", message: "Failed to fetch opted banks. Please try again!"}));
+            getFileTimeStamps().then((res) => {
+                setFileStamps(res)
+            }).catch(() => setPayload({type: "error", message: "Failed to fetch file stamps. Please try again!"}));
+
         }
     }, [auth.currentUser]);
 
@@ -140,21 +158,29 @@ const Header = () => {
                             <WorkHistoryIcon style={{marginRight: "0.5rem"}}/><ListItemText
                             primary="Jobs" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
-                        {optedBanks.length > 0 && (
-                            <Box sx={{mt: 15, pl: 2}}>
-                                <Typography sx={{fontWeight: "bold"}}>Opted Banks</Typography>
-                                <List>
-                                    {optedBanks.map((bank, index) => (
-                                        <ListItem key={index} sx={{padding: 0}}>
-                                            <Typography>{bank.replace(/_/g, " ")}</Typography>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </Box>
-                        )}
+                        <ListItem sx={{
+                            cursor: "pointer", "&:hover": {
+                                backgroundColor: "rgb(50, 62, 74)"
+                            }
+                        }} onClick={() => setOptedBanksDialog(true)}>
+                            <SavingsIcon style={{marginRight: "0.5rem"}}/><ListItemText
+                            primary="OptedBanks" sx={{color: "white", cursor: "pointer"}}/>
+                        </ListItem>
+                        <ListItem sx={{
+                            cursor: "pointer", "&:hover": {
+                                backgroundColor: "rgb(50, 62, 74)"
+                            }
+                        }} onClick={() => setTimeStampsDialog(true)}>
+                            <AccessTimeIcon style={{marginRight: "0.5rem"}}/><ListItemText
+                            primary="File Timestamps" sx={{color: "white", cursor: "pointer"}}/>
+                        </ListItem>
                         <ChangepasswordDialog open={isDialogOpen} onClose={() => setDialogOpen(false)}/>
                         <JobsDialog open={isJobsDialogOpen} onClose={() => setJobsDialogOpen(false)}/>
                         <OptBanksDialog isBankDialogOpen={isBankDialogOpen} setBankDialogOpen={setBankDialogOpen}/>
+                        <ObjectDetailsDialog open={optedBanksDialog} onClose={() => setOptedBanksDialog(false)}
+                                             title="Opted Banks" data={optedBanks}/>
+                        <ObjectDetailsDialog open={isTimeStampDialogOpen} onClose={() => setTimeStampsDialog(false)}
+                                             title="File Timestamps" data={fileStamps}/>
                     </List>
                 </Box>
             </Drawer>
