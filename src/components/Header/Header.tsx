@@ -61,26 +61,24 @@ const Header = () => {
         setDialogOpen(false);
     }
 
-    useEffect(() => {
-        const fetchBanks = async () => {
-            try {
-                const banks = await fetchOptedBanks();
-                if (Array.isArray(banks)) {
-                    setOptedBanks(banks);
-                }
-                console.log("Fetched opted banks:", banks);
-            } catch (err) {
-                console.log("Error fetching opted banks", err);
-                setPayload({
-                    type: "error",
-                    message: "Failed to fetch opted banks. Please try again!"
-                })
+    function fetchBanks() {
+        fetchOptedBanks().then((data: string[]) => {
+            if (Array.isArray(data)) {
+                setOptedBanks(data);
             }
-        }
+        }).catch(() => {
+            setPayload({
+                type: "error",
+                message: "Failed to fetch opted banks. Please try again!"
+            })
+        })
+    }
+
+    useEffect(() => {
         if (auth.currentUser) {
             fetchBanks();
         }
-    }, [selectedBanks]);
+    }, [auth.currentUser]);
 
     const handleBankToggle = (bank: string) => {
         setSelectedBanks((prevSelected) => {
