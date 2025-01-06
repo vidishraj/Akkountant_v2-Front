@@ -77,7 +77,6 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 borderRadius: 2,
                 // padding: 3,
                 width: '100%',
-                overflow: 'scroll'
             },
         }}>
             <DialogTitle align={'center'}>
@@ -117,7 +116,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     </Button>
                 </div>
 
-                <div className={style.transactionCards} style={{minHeight: isMobile ? '400px' : '620px'}}>
+                <div className={style.transactionCards} style={{minHeight: isMobile ? '400px' : '550px'}}>
                     {results.map((job) => (
                         <Card className={styles.card}>
                             <Box className={styles.description} style={{minWidth: '30%', textAlign: 'center'}}>
@@ -138,7 +137,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                             </Box>
                             <Box className={styles.amount}
                                  style={{
-                                     justifyContent: 'unset',
+                                     justifyContent: isMobile ? 'unset' : 'center',
                                      overflowX: 'auto',
                                      color: '#FAFAFA',
                                      textAlign: 'center',
@@ -146,7 +145,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                  }}>
                                 <Typography
                                 >
-                                    ₹{job.Result}
+                                    {job.Result ? job.Result : "JOB PENDING"}
                                 </Typography>
                             </Box>
                         </Card>
