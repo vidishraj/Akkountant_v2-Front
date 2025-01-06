@@ -236,3 +236,17 @@ export async function startJob(
     );
     return response;
 }
+
+export async function getFileTimeStamps(
+    clearCache = false
+): Promise<JobsResponse> {
+    const options = withRequestId(
+        'getFileTimeStamps',
+        clearCache
+            ? withCacheCleared()
+            : {}
+    );
+
+    const response = await queueRequest(() => axios.get('/fetchTimeStamps', options));
+    return response.data;
+}
