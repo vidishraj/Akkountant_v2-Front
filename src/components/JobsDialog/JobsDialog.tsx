@@ -91,7 +91,6 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             </div>
 
            <div>
-           <label>Jobs dropdown</label>
            <select value={selectedJob} onChange={handleJobSelection}>
             <option value="" disabled>Select a job</option>
             {Object.entries(jobs).map(([key, value]) => (
@@ -100,7 +99,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 </option>
                 ))}
            </select>
-           <button onClick={handleJobSubmit} disabled={!selectedJob}>Submit</button>
+           <button onClick={handleJobSubmit} disabled={!selectedJob}>Start job</button>
            </div>
 
             </DialogContent>
