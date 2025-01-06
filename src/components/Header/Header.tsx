@@ -11,15 +11,6 @@ import {
     List,
     ListItem,
     Drawer,
-    DialogTitle,
-    DialogContent,
-    Dialog,
-    FormControl,
-    Checkbox,
-    FormGroup,
-    TextField,
-    DialogActions,
-    FormControlLabel,
     ListItemText
 } from '@mui/material';
 import {Link, useNavigate} from 'react-router-dom';
@@ -32,22 +23,20 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
-import {fetchOptedBanks, fetchOptedBanksPassword} from '../../services/transactionService.ts';
+import {fetchOptedBanks} from '../../services/transactionService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
 import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
 
 import WorkHistoryIcon from '@mui/icons-material/WorkHistory';
+import OptBanksDialog from "../OptBanksDialogComponent/OptBanksDialog.tsx";
 
 const Header = () => {
     const [anchorElUser, setAnchorElUser] = useState<any>(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false);
-    const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
     const [isDialogOpen, setDialogOpen] = useState(false);
     const [isBankDialogOpen, setBankDialogOpen] = useState(false);
-    const [bankPasswords, setBankPasswords] = useState<{ [key: string]: string }>({});
     const [optedBanks, setOptedBanks] = useState<string[]>([]);
     const {setPayload} = useMessage();
-    const banks = ["Millenia_Credit", "HDFC_DEBIT", "ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"];
     const navigate = useNavigate();
 
     const [isJobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
@@ -59,22 +48,6 @@ const Header = () => {
         }
     }, [auth.currentUser]);
 
-    const handleSubmit = async () => {
-        const payload = {
-            banks: selectedBanks.reduce((acc: any, bank) => {
-                if (bankPasswords[bank]) acc[bank] = bankPasswords[bank];
-                return acc;
-            }, {}),
-        };
-
-        try {
-            await fetchOptedBanksPassword(payload);
-            setPayload({type: "success", message: "Bank passwords submitted successfully!"});
-            setBankDialogOpen(false);
-        } catch {
-            setPayload({type: "error", message: "Failed to submit bank passwords. Please try again."});
-        }
-    };
 
     return (
         <>
@@ -181,63 +154,12 @@ const Header = () => {
                         )}
                         <ChangepasswordDialog open={isDialogOpen} onClose={() => setDialogOpen(false)}/>
                         <JobsDialog open={isJobsDialogOpen} onClose={() => setJobsDialogOpen(false)}/>
+                        <OptBanksDialog isBankDialogOpen={isBankDialogOpen} setBankDialogOpen={setBankDialogOpen}/>
                     </List>
                 </Box>
             </Drawer>
 
-            <Dialog
-                open={isBankDialogOpen}
-                onClose={() => setBankDialogOpen(false)}
-                fullWidth
-                PaperProps={{
-                    sx: {backgroundColor: "#121C24", color: "#FAFAFA", borderRadius: 2, padding: 3},
-                }}
-            >
-                <DialogTitle>Select Banks</DialogTitle>
-                <DialogContent>
-                    <FormControl component="fieldset">
-                        <FormGroup>
-                            {banks.map((bank) => (
-                                <Box key={bank} sx={{display: "flex", alignItems: "center", mb: 1}}>
-                                    <FormControlLabel
-                                        control={
-                                            <Checkbox
-                                                checked={selectedBanks.includes(bank)}
-                                                onChange={() => setSelectedBanks((prev) =>
-                                                    prev.includes(bank)
-                                                        ? prev.filter((b) => b !== bank)
-                                                        : [...prev, bank]
-                                                )}
-                                            />
-                                        }
-                                        label={bank.replace(/_/g, " ")}
-                                    />
-                                    {selectedBanks.includes(bank) && (
-                                        <TextField
-                                            fullWidth
-                                            size="small"
-                                            placeholder="Enter Password"
-                                            value={bankPasswords[bank] || ""}
-                                            onChange={(e) =>
-                                                setBankPasswords((prev) => ({
-                                                    ...prev,
-                                                    [bank]: e.target.value,
-                                                }))
-                                            }
-                                        />
-                                    )}
-                                </Box>
-                            ))}
-                        </FormGroup>
-                    </FormControl>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setBankDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} disabled={!selectedBanks.length}>
-                        Submit
-                    </Button>
-                </DialogActions>
-            </Dialog>
+
         </>
     );
 };
