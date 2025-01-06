@@ -50,24 +50,8 @@ const Header = () => {
     const [isJobsDialogOpen, setJobsDialogOpen]=useState<boolean>(false);
     const {setPayload} = useMessage();
 
-    const handleBankDialogOpen = () => {
-        setBankDialogOpen(true);
-    }
     const handleBankDialogClose = () => {
         setBankDialogOpen(false);
-    }
-
-    const handleDialogOpen = () => {
-        setDialogOpen(true);
-    }
-    const handleDialogClose = () => {
-        setDialogOpen(false);
-    }
-    const handleJobsDialogOpen =()=>{
-        setJobsDialogOpen(true);
-    }
-    const handleJobsDialogClose = () =>{
-        setJobsDialogOpen(false);
     }
 
     useEffect(() => {
@@ -288,7 +272,7 @@ const Header = () => {
 
                         <ListItem sx={{ padding: "1rem 0", alignItems: "center", cursor:"pointer","&:hover":{
                             backgroundColor:"rgb(50, 62, 74)"
-                        } }} onClick={handleBankDialogOpen}>
+                        } }} onClick={()=>setBankDialogOpen(true)}>
                             <AssuredWorkloadIcon
                                 style={{verticalAlign: "middle", marginRight: "0.5rem"}}
                             />
@@ -300,13 +284,13 @@ const Header = () => {
                         </ListItem>
 
                         <ListItem sx={{padding: "1rem 0", cursor:"pointer","&:hover":{
-                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={handleDialogOpen}>
+                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={()=>setDialogOpen(true)}>
                             <LockResetIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
                             primary="Change Password" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
 
                         <ListItem sx={{padding: "1rem 0", cursor:"pointer","&:hover":{
-                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={handleJobsDialogOpen}>
+                            backgroundColor:"rgb(50, 62, 74)"}}} onClick={()=>setJobsDialogOpen(true)}>
                             <WorkHistoryIcon style={{verticalAlign: "middle", marginRight: "0.5rem"}}/><ListItemText
                             primary="Jobs" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
@@ -328,8 +312,8 @@ const Header = () => {
                                 </List>
                             </Box>
                         )}
-                        <ChangepasswordDialog open={isDialogOpen} onClose={handleDialogClose}/>
-                        <JobsDialog open={isJobsDialogOpen} onClose={handleJobsDialogClose}/>
+                        <ChangepasswordDialog open={isDialogOpen} onClose={() => setDialogOpen(false)}/>
+                        <JobsDialog open={isJobsDialogOpen} onClose={()=>setJobsDialogOpen(false)}/>
                     </List>
 
                 </Box>

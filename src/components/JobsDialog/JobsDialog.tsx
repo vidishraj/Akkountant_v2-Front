@@ -3,16 +3,10 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions,
-    Button,
-    TextField,
-    Box,
     Typography,
 } from "@mui/material";
-import {auth} from "../FirebaseConfig.tsx";
-import {updatePassword} from "firebase/auth";
-import { Job, JobsResponse } from '../../utils/interfaces.ts';
-import {fetchJobsTable, setJob, startJob} from '../../services/investmentService.ts';
+import { Job } from '../../utils/interfaces.ts';
+import {fetchJobsTable, startJob} from '../../services/investmentService.ts';
 import { useMessage } from '../../contexts/MessageContext.tsx';
 
 interface JobsDialogProps {
