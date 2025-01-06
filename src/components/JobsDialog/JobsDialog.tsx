@@ -8,6 +8,7 @@ import {
 import { Job } from '../../utils/interfaces.ts';
 import {fetchJobsTable, startJob} from '../../services/investmentService.ts';
 import { useMessage } from '../../contexts/MessageContext.tsx';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 interface JobsDialogProps {
     open: boolean,
@@ -57,6 +58,9 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             });
           }
       }
+      const handleRefresh = () =>{
+
+      }
     return (
         <Dialog open={open} onClose={onClose} fullWidth PaperProps={{
             sx: {
@@ -67,22 +71,10 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             },
         }}>
             <DialogTitle>
-                <Typography variant="inherit">Set jobs</Typography>
+                <Typography variant="inherit">Jobs Dashboard</Typography>
             </DialogTitle>
             <DialogContent>
-            <div>Cards</div>
             <div>
-                {results.map((job) => (
-                    <div key={job.id}>
-                    <h3>{job.name}</h3>
-                    <p>Status: {job.status}</p>
-                    <p>Execution Time: {job.executionTime || "N/A"}</p>
-                    <p>Due Time: {job.dueTime || "N/A"}</p>
-                    </div>
-                ))}
-            </div>
-
-           <div>
            <select value={selectedJob} onChange={handleJobSelection}>
             <option value="" disabled>Select a job</option>
             {Object.entries(jobs).map(([key, value]) => (
@@ -93,6 +85,18 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
            </select>
            <button onClick={handleJobSubmit} disabled={!selectedJob}>Start job</button>
            </div>
+
+            <div>Older jobs <button onClick={handleRefresh}><RefreshIcon/></button></div>
+            <div>
+                {results.map((job) => (
+                    <div key={job.id}>
+                    <h3>{job.name}</h3>
+                    <p>Status: {job.status}</p>
+                    <p>Execution Time: {job.executionTime || "N/A"}</p>
+                    <p>Due Time: {job.dueTime || "N/A"}</p>
+                    </div>
+                ))}
+            </div>
 
             </DialogContent>
         </Dialog>
