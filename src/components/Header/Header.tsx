@@ -39,7 +39,7 @@ import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
 import WorkHistoryIcon from '@mui/icons-material/WorkHistory';
 
 const Header = () => {
-    const [anchorElUser, setAnchorElUser] = useState(null);
+    const [anchorElUser, setAnchorElUser] = useState<any>(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false);
     const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
     const [isDialogOpen, setDialogOpen] = useState(false);
@@ -61,7 +61,7 @@ const Header = () => {
 
     const handleSubmit = async () => {
         const payload = {
-            banks: selectedBanks.reduce((acc, bank) => {
+            banks: selectedBanks.reduce((acc: any, bank) => {
                 if (bankPasswords[bank]) acc[bank] = bankPasswords[bank];
                 return acc;
             }, {}),
