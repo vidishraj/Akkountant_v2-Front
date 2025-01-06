@@ -228,3 +228,16 @@ export async function fetchJobsTable(
     return response.data;
 }
 
+export async function startJob(
+    jobId: string,
+    clearCache = false
+  ): Promise<string> {
+    const options = clearCache
+      ? withCacheCleared({ params: { jobId } })
+      : { params: { jobId } };
+  
+    const response = await queueRequest(() =>
+      axios.get('/startJob', options)
+    );
+    return response.data;
+  }

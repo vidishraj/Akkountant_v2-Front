@@ -12,7 +12,7 @@ import {
 import {auth} from "../FirebaseConfig.tsx";
 import {updatePassword} from "firebase/auth";
 import { Job, JobsResponse } from '../../utils/interfaces.ts';
-import {fetchJobsTable} from '../../services/investmentService.ts';
+import {fetchJobsTable, setJob, startJob} from '../../services/investmentService.ts';
 import { useMessage } from '../../contexts/MessageContext.tsx';
 
 interface JobsDialogProps {
@@ -43,17 +43,27 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
         };
     
         fetchJobs();
-      }, []);
+    }, []);
 
       const handleJobSelection = (e) =>{
         setSelectedJob(e.target.value);
       }
 
-      const handleJobSubmit = () =>{
+      const handleJobSubmit = async () =>{
         if(!selectedJob){
            alert("Please select a job before submitting");
            return; 
         }
+        try{
+            const response = await startJob(selectedJob);
+            console.log("Job selected",response);
+        }catch (err) {
+            console.error("Error submitting selected job", err);
+            setPayload({
+              type: "error",
+              message: "Failed to submit job. Please try again!",
+            });
+          }
       }
     return (
         <Dialog open={open} onClose={onClose} fullWidth PaperProps={{
@@ -84,10 +94,10 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
            <label>Jobs dropdown</label>
            <select value={selectedJob} onChange={handleJobSelection}>
             <option value="" disabled>Select a job</option>
-            {Object.values(jobs).map((value) => (
-                    <option key={value}>
+            {Object.entries(jobs).map(([key, value]) => (
+                <option key={key} value={key}>
                     {value}
-                    </option>
+                </option>
                 ))}
            </select>
            <button onClick={handleJobSubmit} disabled={!selectedJob}>Submit</button>
