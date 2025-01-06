@@ -184,6 +184,20 @@ export interface SecuritiesRead {
 
 export interface OptedBankPasswordsRequestBody {
     banks: {
-      [key: string]: string; 
+        [key: string]: string;
     };
-  }
+}
+
+export interface Job {
+    DueTime: string;
+    Failures: number;
+    Result: string;
+    Status: string;
+    Title: string;
+}
+
+export interface JobsResponse {
+    results: Job[];
+    page: number;
+    jobs: Record<string, string>;
+}
