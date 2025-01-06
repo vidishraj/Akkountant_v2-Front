@@ -21,18 +21,10 @@ interface JobsDialogProps {
 }
 
 const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
-    const [newPassword, setNewPassword] = useState("");
     const [results, setResults]= useState<Job[]>([]);
     const [jobs, setJobs]= useState<Record<string,string>>({});
+    const [selectedJob, setSelectedJob]=useState<string>("");
     const {setPayload} = useMessage();
-
-    const handlePasswordChange = async () => {
-        const user = auth.currentUser;
-        if (user) {
-            await updatePassword(user, newPassword);
-            onClose();
-        }
-    }
 
     useEffect(() => {
         const fetchJobs = async () => {
@@ -52,7 +44,17 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     
         fetchJobs();
       }, []);
-      
+
+      const handleJobSelection = (e) =>{
+        setSelectedJob(e.target.value);
+      }
+
+      const handleJobSubmit = () =>{
+        if(!selectedJob){
+           alert("Please select a job before submitting");
+           return; 
+        }
+      }
     return (
         <Dialog open={open} onClose={onClose} fullWidth PaperProps={{
             sx: {
@@ -77,32 +79,21 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     </div>
                 ))}
             </div>
-            <div>Jobs dropdown</div>
-            <ul>
-                {Object.values(jobs).map((value) => (
-                    <li key={value}>
+
+           <div>
+           <label>Jobs dropdown</label>
+           <select value={selectedJob} onChange={handleJobSelection}>
+            <option value="" disabled>Select a job</option>
+            {Object.values(jobs).map((value) => (
+                    <option key={value}>
                     {value}
-                    </li>
+                    </option>
                 ))}
-            </ul>
+           </select>
+           <button onClick={handleJobSubmit} disabled={!selectedJob}>Submit</button>
+           </div>
 
             </DialogContent>
-            <DialogActions>
-                <Button
-                    onClick={onClose}
-                    color="error"
-                    variant="text"
-                >
-                    Cancel
-                </Button>
-                <Button
-                    onClick={handlePasswordChange}
-                    color="primary"
-                    variant="text"
-                >
-                    Submit
-                </Button>
-            </DialogActions>
         </Dialog>
     )
 }
