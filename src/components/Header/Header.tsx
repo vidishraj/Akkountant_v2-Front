@@ -77,9 +77,7 @@ const Header = () => {
                 if (Array.isArray(banks)) {
                     setOptedBanks(banks);
                 }
-                console.log("Fetched opted banks:", banks);
             } catch (err) {
-                console.log("Error fetching opted banks", err);
                 setPayload({
                     type: "error",
                     message: "Failed to fetch opted banks. Please try again!"
@@ -116,9 +114,6 @@ const Header = () => {
         });
     };
 
-    console.log(selectedBanks);
-    console.log(bankPasswords);
-
     const handleSelectedBankPassword = (bank: string, password: string) => {
         setBankPasswords((prev) => (
             {
@@ -141,7 +136,6 @@ const Header = () => {
 
         try {
             const response = await fetchOptedBanksPassword(payload);
-            console.log("Response:", response);
 
             setPayload({
                 type: "success",

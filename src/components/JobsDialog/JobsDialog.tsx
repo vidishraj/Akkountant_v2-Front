@@ -32,7 +32,6 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             const jobsData = await fetchJobsTable(1); 
             setJobs(jobsData.jobs); 
             setResults(jobsData.results);
-            console.log("Fetched jobs:", jobsData);
           } catch (err) {
             console.error("Error fetching jobs", err);
             setPayload({
@@ -56,7 +55,6 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
         }
         try{
             const response = await startJob(selectedJob);
-            console.log("Job selected",response);
         }catch (err) {
             console.error("Error submitting selected job", err);
             setPayload({
