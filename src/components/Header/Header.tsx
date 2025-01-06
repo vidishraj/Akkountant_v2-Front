@@ -169,7 +169,7 @@ const Header = () => {
                         </ListItem>
                         {optedBanks.length > 0 && (
                             <Box sx={{mt: 15, pl: 2}}>
-                                <Typography sx={{fontWeight: "bold"}}>Fetched Opted Banks:</Typography>
+                                <Typography sx={{fontWeight: "bold"}}>Opted Banks</Typography>
                                 <List>
                                     {optedBanks.map((bank, index) => (
                                         <ListItem key={index} sx={{padding: 0}}>
