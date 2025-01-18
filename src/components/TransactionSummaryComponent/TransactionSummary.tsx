@@ -31,7 +31,10 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                         Credit
                     </Typography>
                     <Typography variant="subtitle1" className={styles.creditAmount}>
-                        ₹{credit ? Math.abs(credit).toFixed(2) : 0}
+                        ₹{credit ? Math.abs(credit).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    }) : 0}
                     </Typography>
                 </Box>
 
@@ -41,7 +44,10 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                         Debit
                     </Typography>
                     <Typography variant="subtitle1" className={styles.debitAmount}>
-                        ₹{debit ? Math.abs(debit).toFixed(2) : 0}
+                        ₹{debit ? Math.abs(debit).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    }) : 0}
                     </Typography>
                 </Box>
 
@@ -56,7 +62,10 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                             net >= 0 ? styles.netPositive : styles.netNegative
                         }`}
                     >
-                        ₹{net ? parseFloat(String(net)).toFixed(2) : 0}
+                        ₹{net ? parseFloat(String(net)).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    }) : 0}
                     </Typography>
                 </Box>
             </Box>
