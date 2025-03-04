@@ -14,7 +14,7 @@ import loginAnimation from '../assets/loginAnimation.json';
 import loginAnimation2 from '../assets/loginAnimation2.json';
 import {useUser} from '../contexts/GlobalContext';
 import {auth} from '../components/FirebaseConfig.tsx';
-import SignupDialog from '../components/Signup';
+// import SignupDialog from '../components/Signup';
 import {useAuth} from '../contexts/AuthContext';
 
 const Container = styled(Box)(({theme}) => ({
@@ -99,7 +99,7 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [openSignup, setOpenSignup] = useState(false);
+    // const [openSignup, setOpenSignup] = useState(false);
     const {setUser} = useUser();
     const navigate = useNavigate();
     const {currentUser} = useAuth();
@@ -122,13 +122,13 @@ const Login = () => {
         }
     };
 
-    const handleOpenSignup = () => {
-        setOpenSignup(true);
-    };
-
-    const handleCloseSignup = () => {
-        setOpenSignup(false);
-    };
+    // const handleOpenSignup = () => {
+    //     setOpenSignup(true);
+    // };
+    //
+    // const handleCloseSignup = () => {
+    //     setOpenSignup(false);
+    // };
     useEffect(() => {
         if (currentUser) {
             setUser(currentUser);
