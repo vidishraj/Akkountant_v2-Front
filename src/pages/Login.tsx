@@ -171,22 +171,22 @@ const Login = () => {
                         {loading ? <CircularProgress size={24}/> : 'Login'}
                     </Button>
                 </form>
-                <Button
-                    variant="text"
-                    color="secondary"
-                    fullWidth
-                    onClick={handleOpenSignup}
-                    style={{marginTop: '8px'}}
-                >
-                    Don’t have an account? Sign Up
-                </Button>
+                {/*<Button*/}
+                {/*    variant="text"*/}
+                {/*    color="secondary"*/}
+                {/*    fullWidth*/}
+                {/*    onClick={handleOpenSignup}*/}
+                {/*    style={{marginTop: '8px'}}*/}
+                {/*>*/}
+                {/*    Don’t have an account? Sign Up*/}
+                {/*</Button>*/}
             </LoginBox>
             <LottieContainers>
                 <Lottie animationData={loginAnimation2}
                 />
             </LottieContainers>
         </Container>
-        <SignupDialog open={openSignup} onClose={handleCloseSignup}/>
+        {/*<SignupDialog open={openSignup} onClose={handleCloseSignup}/>*/}
     </>)
 }
 
