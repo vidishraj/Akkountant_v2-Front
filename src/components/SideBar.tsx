@@ -4,6 +4,7 @@ import {Link, useNavigate} from 'react-router-dom';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import PaidIcon from '@mui/icons-material/Paid';
 import LogoutIcon from '@mui/icons-material/Logout';
+import WorkIcon from '@mui/icons-material/Work';
 import {getAuth, signOut} from 'firebase/auth';
 import HomeIcon from '@mui/icons-material/Home';
 
@@ -45,6 +46,9 @@ const SideBar = () => {
                     </MenuItem>
                     <MenuItem icon={<PaidIcon/>} component={<Link to="/investments"/>}>
                         Investments
+                    </MenuItem>
+                    <MenuItem icon={<WorkIcon/>} component={<Link to="/jobs"/>}>
+                        Jobs
                     </MenuItem>
                     <MenuItem icon={<LogoutIcon/>} onClick={logOut} component={<Link to="/"/>}>
                         Log Out

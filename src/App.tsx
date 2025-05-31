@@ -6,6 +6,7 @@ import Home from "./pages/Home/Home.tsx";
 import Transactions from "./pages/Transactions/Transactions.tsx";
 import PrivateRoute from "./utils/PrivateRoute.tsx";
 import Investments from './pages/Investments/Investments.tsx';
+import Jobs from './pages/Jobs/Jobs.tsx';
 import {useLoading} from "./contexts/LoadingContext.tsx";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {useEffect} from "react";
@@ -50,6 +51,7 @@ function App() {
                     <Route path="/home" element={<PrivateRoute><Home/></PrivateRoute>}/>
                     <Route path="/transactions" element={<PrivateRoute><Transactions/></PrivateRoute>}/>
                     <Route path="/investments" element={<PrivateRoute><Investments/></PrivateRoute>}/>
+                    <Route path="/jobs" element={<PrivateRoute><Jobs/></PrivateRoute>}/>
                 </>
             }
         </Routes>

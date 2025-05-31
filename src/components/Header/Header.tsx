@@ -81,6 +81,9 @@ const Header = () => {
                         <Button sx={{mx: 1}} className={styles.links}>
                             <Link style={{color: "#FAFAFA"}} to={'/investments'}>Investments</Link>
                         </Button>
+                        <Button sx={{mx: 1}} className={styles.links}>
+                            <Link style={{color: "#FAFAFA"}} to={'/jobs'}>Jobs</Link>
+                        </Button>
                     </Box>
                     <Box display="flex" alignItems="center">
                         <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)}>

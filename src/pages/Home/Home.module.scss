@@ -1,4 +1,3 @@
-
 .homeContainer {
   display: flex;
   flex-direction: row;
@@ -14,7 +13,8 @@
 }
 
 .investmentsContainer,
-.transactionsContainer {
+.transactionsContainer,
+.jobsContainer {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -28,9 +28,9 @@
   cursor: pointer;
 }
 
-
 .investmentsTag,
-.transactionsTag {
+.transactionsTag,
+.jobsTag {
   font-size: 1.5rem;
   font-weight: bold;
 }
