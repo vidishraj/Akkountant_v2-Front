@@ -14,7 +14,7 @@ import {
  * @param options - The existing request options to modify.
  * @returns The modified request options with cache bypass.
  */
-function withCacheCleared(options: Record<string, any> = {}): Record<string, any> {
+export function withCacheCleared(options: Record<string, any> = {}): Record<string, any> {
     return {
         ...options,
         params: {

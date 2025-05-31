@@ -1,5 +1,6 @@
 import axios from './AxiosConfig.tsx';
-import { queueRequest } from './AxiosQueueManager.tsx';
+import {queueRequest} from './AxiosQueueManager.tsx';
+import {withCacheCleared} from "./transactionService.ts";
 
 // Types
 export interface JobData {
@@ -31,6 +32,7 @@ export interface JobUpdate {
     value: string;
 }
 
+
 /**
  * Helper to add request ID for tracking or cache invalidation.
  */
@@ -42,15 +44,29 @@ function withRequestId(endpoint: string, options: Record<string, any> = {}): Rec
 }
 
 /**
+ * Process emails
+ */
+export async function processEmails(dateTo: string, dateFrom: string,
+                                    clearCache = false): Promise<JobsResponse> {
+    const options = withRequestId('api/jobs', clearCache ? withCacheCleared() : {
+        params: {},
+    });
+    const response = await queueRequest(() =>
+        axios.post(`processJobEmails?dateFrom=${dateFrom}&dateTo=${dateTo}`, options)
+    );
+    return response.data;
+}
+
+/**
  * Fetches jobs with pagination
  */
-export async function fetchJobs(page: number, limit: number): Promise<JobsResponse> {
-    const options = withRequestId('api/jobs', {
-        params: { page, limit }
+export async function fetchJobs(page: number, limit: number,
+                                clearCache = false): Promise<JobsResponse> {
+    const options = withRequestId('api/jobs', clearCache ? withCacheCleared() : {
+        params: {page, limit},
     });
-
-    const response = await queueRequest(() => 
-        axios.get('job-applications', options)
+    const response = await queueRequest(() =>
+        axios.get('jobApplications', options)
     );
     return response.data;
 }
@@ -61,7 +77,7 @@ export async function fetchJobs(page: number, limit: number): Promise<JobsRespon
 export async function updateJobs(updates: JobUpdate[]): Promise<void> {
     const options = withRequestId('api/jobs/update', {});
 
-    await queueRequest(() => 
-        axios.post('/api/jobs/update', { updates }, options)
+    await queueRequest(() =>
+        axios.post('jobUpdate', {updates}, options)
     );
 } 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
     Box,
     Table,
@@ -26,8 +26,10 @@ import SaveIcon from '@mui/icons-material/Save';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloseIcon from '@mui/icons-material/Close';
 import style from './Jobs.module.scss';
-import { useMessage } from '../../contexts/MessageContext';
-import { JobData, fetchJobs, updateJobs } from '../../services/jobService';
+import {useMessage} from '../../contexts/MessageContext';
+import {JobData, fetchJobs, updateJobs, processEmails} from '../../services/jobService';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import DateModal from "../../components/DateModalComponent.tsx";
 
 // Verdict mapping constants
 const VERDICT_TO_DISPLAY = {
@@ -48,13 +50,13 @@ interface TextModalProps {
     text: string;
 }
 
-const TextModal: React.FC<TextModalProps> = ({ open, onClose, text }) => {
+const TextModal: React.FC<TextModalProps> = ({open, onClose, text}) => {
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
     return (
-        <Dialog 
-            open={open} 
+        <Dialog
+            open={open}
             onClose={onClose}
             fullScreen={fullScreen}
             PaperProps={{
@@ -70,13 +72,13 @@ const TextModal: React.FC<TextModalProps> = ({ open, onClose, text }) => {
                 Job Description
                 <IconButton
                     onClick={onClose}
-                    sx={{ position: 'absolute', right: 8, top: 8, color: '#FAFAFA' }}
+                    sx={{position: 'absolute', right: 8, top: 8, color: '#FAFAFA'}}
                 >
-                    <CloseIcon />
+                    <CloseIcon/>
                 </IconButton>
             </DialogTitle>
             <DialogContent className={style.modalContent}>
-                <Typography style={{ whiteSpace: 'pre-wrap' }}>
+                <Typography style={{whiteSpace: 'pre-wrap'}}>
                     {text}
                 </Typography>
             </DialogContent>
@@ -89,20 +91,74 @@ const TextModal: React.FC<TextModalProps> = ({ open, onClose, text }) => {
     );
 };
 
+interface DescriptionCellProps {
+    text: string;
+    onExpand: () => void;
+}
+
+const DescriptionCell: React.FC<DescriptionCellProps> = ({text, onExpand}) => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+    // Determine max width based on viewport
+    const getMaxWidth = () => {
+        if (isMobile) return '120px';
+        if (isTablet) return '200px';
+        return '300px';
+    };
+
+    // Clean text for preview (remove extra whitespace and newlines)
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+
+    return (
+        <Box
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                maxWidth: getMaxWidth(),
+                width: '100%'
+            }}
+        >
+            <Typography
+                variant="body2"
+                sx={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                    minWidth: 0 // Important for ellipsis to work in flex container
+                }}
+                title={cleanText} // Show full text on hover
+            >
+                {cleanText}
+            </Typography>
+            <IconButton
+                onClick={onExpand}
+                className={style.expandButton}
+                size="small"
+                sx={{flexShrink: 0}}
+            >
+                <ExpandMoreIcon fontSize="small"/>
+            </IconButton>
+        </Box>
+    );
+};
+
 const Jobs = () => {
     const [jobs, setJobs] = useState<JobData[]>([]);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalCount, setTotalCount] = useState(0);
+    const [dateModalState, setDateModalState] = useState(false);
     const [editedCells, setEditedCells] = useState<Record<string, any>>({});
     const [selectedText, setSelectedText] = useState<string | null>(null);
-    const { setPayload } = useMessage();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const {setPayload} = useMessage();
 
-    const fetchJobsData = async () => {
+    const fetchJobsData = async (cache: boolean) => {
         try {
-            const data = await fetchJobs(page + 1, rowsPerPage);
+            const data = await fetchJobs(page + 1, rowsPerPage, cache);
             setJobs(data.items);
             setTotalCount(data.pagination.total);
         } catch (error) {
@@ -114,7 +170,7 @@ const Jobs = () => {
     };
 
     useEffect(() => {
-        fetchJobsData();
+        fetchJobsData(true);
     }, [page, rowsPerPage]);
 
     const handleCellEdit = (jobId: string, field: string, value: string) => {
@@ -142,7 +198,7 @@ const Jobs = () => {
                 message: 'Changes saved successfully!'
             });
             setEditedCells({});
-            fetchJobsData();
+            fetchJobsData(true);
         } catch (error) {
             setPayload({
                 type: 'error',
@@ -163,18 +219,52 @@ const Jobs = () => {
     return (
         <Box className={style.jobsContainer}>
             <Box className={style.actionsContainer}>
-                <IconButton 
-                    onClick={fetchJobsData}
+                <DateModal
+                    title={"Job Email Search"}
+                    isOpen={dateModalState}
+                    onSubmit={(dates) => {
+                        // setDateModalState(false);
+                        if (dates !== undefined) {
+                            processEmails(dates.from, dates.to).then(() => {
+                                setPayload({
+                                    type: "success",
+                                    message: "Jobs read successfully.",
+                                });
+                                fetchJobsData(true);
+                            }).catch(() => {
+                                setPayload({
+                                    type: "error",
+                                    message: "Error while looking for job emails.",
+                                });
+                            }).finally(() => {
+                                setDateModalState(false);
+                            });
+                        }
+                        return;
+                    }
+                    }
+                    onCancel={() => {
+                        setDateModalState(false);
+                    }}
+                />
+                <IconButton
+                    onClick={() => setDateModalState(true)}
                     className={style.actionButton}
                 >
-                    <RefreshIcon />
+                    <CalendarMonthIcon/>
                 </IconButton>
-                <IconButton 
+                <IconButton
+                    onClick={() => fetchJobsData(true)}
+                    className={style.actionButton}
+                >
+                    <RefreshIcon/>
+                </IconButton>
+                <IconButton
                     onClick={handleSave}
                     disabled={Object.keys(editedCells).length === 0}
                     className={style.actionButton}
                 >
-                    <SaveIcon />
+                    <SaveIcon/>
                 </IconButton>
             </Box>
             <Box className={style.tableWrapper}>
@@ -210,16 +300,14 @@ const Jobs = () => {
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <IconButton
-                                            onClick={() => setSelectedText(job.email_body)}
-                                            className={style.expandButton}
-                                        >
-                                            <ExpandMoreIcon />
-                                        </IconButton>
+                                        <DescriptionCell
+                                            text={job.email_body}
+                                            onExpand={() => setSelectedText(job.email_body)}
+                                        />
                                     </TableCell>
                                     <TableCell className={style.editableCell}>
                                         <Select
-                                            value={editedCells[`${job.id}-verdict`] 
+                                            value={editedCells[`${job.id}-verdict`]
                                                 ? getVerdictDisplay(editedCells[`${job.id}-verdict`])
                                                 : getVerdictDisplay(job.verdict)}
                                             onChange={(e) => handleVerdictChange(job.id, e.target.value)}
@@ -261,4 +349,4 @@ const Jobs = () => {
     );
 };
 
-export default Jobs; 
+export default Jobs;
