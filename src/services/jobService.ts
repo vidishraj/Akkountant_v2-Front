@@ -66,7 +66,7 @@ export async function fetchJobs(page: number, limit: number,
         params: {page, limit},
     });
     const response = await queueRequest(() =>
-        axios.get('jobApplications', options)
+        axios.get(`jobApplications?page=${page}&per_page=${limit}`, options)
     );
     return response.data;
 }
