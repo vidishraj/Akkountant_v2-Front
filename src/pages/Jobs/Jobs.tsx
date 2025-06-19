@@ -223,7 +223,11 @@ const Jobs = () => {
                     title={"Job Email Search"}
                     isOpen={dateModalState}
                     onSubmit={(dates) => {
-                        // setDateModalState(false);
+                        setDateModalState(false);
+                        setPayload({
+                            type: "warning",
+                            message: "Jobs being read in the background.",
+                        });
                         if (dates !== undefined) {
                             processEmails(dates.from, dates.to).then(() => {
                                 setPayload({
@@ -236,9 +240,7 @@ const Jobs = () => {
                                     type: "error",
                                     message: "Error while looking for job emails.",
                                 });
-                            }).finally(() => {
-                                setDateModalState(false);
-                            });
+                            })
                         }
                         return;
                     }
