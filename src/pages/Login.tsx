@@ -11,7 +11,6 @@ import {
 import {styled} from '@mui/system';
 import Lottie from 'lottie-react';
 import loginAnimation from '../assets/loginAnimation.json';
-import loginAnimation2 from '../assets/loginAnimation2.json';
 import {useUser} from '../contexts/GlobalContext';
 import {auth} from '../components/FirebaseConfig.tsx';
 // import SignupDialog from '../components/Signup';

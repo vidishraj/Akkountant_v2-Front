@@ -1,4 +1,4 @@
-import { Box, Button, Container, Typography, Paper, useTheme, useMediaQuery } from '@mui/material';
+import { Box, Button, Container, Typography, Paper } from '@mui/material';
 import { styled } from '@mui/system';
 import { useNavigate } from 'react-router-dom';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -48,7 +48,7 @@ const FeatureCard = styled(Paper)(({ theme }) => ({
   },
 }));
 
-const StyledButton = styled(Button)(({ theme }) => ({
+const StyledButton = styled(Button)(({}) => ({
   borderRadius: '50px',
   padding: '14px 36px',
   fontSize: '1.2rem',
@@ -81,9 +81,7 @@ const IconWrapper = styled(Box)(({ theme }) => ({
 
 const Hero = () => {
   const navigate = useNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
+  
   const handleLearnMore = () => {
     window.location.href = 'https://docs.vidish.space/search/?q=akkountant';
   };
