@@ -10,6 +10,7 @@ import Jobs from './pages/Jobs/Jobs.tsx';
 import {useLoading} from "./contexts/LoadingContext.tsx";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {useEffect} from "react";
+import Hero from './pages/Hero/Hero.tsx';
 
 function App() {
 
@@ -46,7 +47,7 @@ function App() {
         <Routes>
             {
                 loading ? <>Loading.....</> : <>
-                    <Route path="*" element={<Login/>}/>
+                    <Route path="/" element={<Hero />} />
                     <Route path="/login" element={<Login/>}/>
                     <Route path="/home" element={<PrivateRoute><Home/></PrivateRoute>}/>
                     <Route path="/transactions" element={<PrivateRoute><Transactions/></PrivateRoute>}/>

@@ -21,7 +21,8 @@ const PrivateRoute = (props: any) => {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{from: location}} replace/>;
+        const returnUrl = encodeURIComponent(location.pathname + location.search);
+        return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
     }
 
     return props.children;

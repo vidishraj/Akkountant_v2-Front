@@ -34,9 +34,9 @@ import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
 import {getFileTimeStamps} from "../../services/investmentService.ts";
 
 const Header = () => {
-    const [anchorElUser, setAnchorElUser] = useState<any>(null);
+    const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
     const [isDrawerOpen, setDrawerOpen] = useState(false);
-    const [isDialogOpen, setDialogOpen] = useState(false);
+    const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
     const [isBankDialogOpen, setBankDialogOpen] = useState(false);
     const [optedBanks, setOptedBanks] = useState<any>({});
     const [fileStamps, setFileStamps] = useState<any>({});
@@ -73,22 +73,39 @@ const Header = () => {
                 <Toolbar sx={{justifyContent: 'space-between'}}>
                     <Box className={styles.linkContainer}>
                         <Typography sx={{fontWeight: 'bold'}} className={styles.icon}>
-                            <Link style={{color: "#FAFAFA", fontWeight: "700"}} to={'/home'}>Akkountant</Link>
+                            <Link style={{color: "#FAFAFA", fontWeight: "700"}} to={'/'}>Akkountant</Link>
                         </Typography>
-                        <Button sx={{mx: 1}} className={styles.links}>
-                            <Link style={{color: "#FAFAFA"}} to={'/transactions'}>Transactions</Link>
-                        </Button>
-                        <Button sx={{mx: 1}} className={styles.links}>
-                            <Link style={{color: "#FAFAFA"}} to={'/investments'}>Investments</Link>
-                        </Button>
-                        <Button sx={{mx: 1}} className={styles.links}>
-                            <Link style={{color: "#FAFAFA"}} to={'/jobs'}>Jobs</Link>
-                        </Button>
+                        {auth.currentUser && (
+                            <>
+                                <Button sx={{mx: 1}} className={styles.links}>
+                                    <Link style={{color: "#FAFAFA"}} to={'/transactions'}>Transactions</Link>
+                                </Button>
+                                <Button sx={{mx: 1}} className={styles.links}>
+                                    <Link style={{color: "#FAFAFA"}} to={'/investments'}>Investments</Link>
+                                </Button>
+                                <Button sx={{mx: 1}} className={styles.links}>
+                                    <Link style={{color: "#FAFAFA"}} to={'/jobs'}>Jobs</Link>
+                                </Button>
+                            </>
+                        )}
                     </Box>
                     <Box display="flex" alignItems="center">
-                        <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)}>
-                            <Avatar sx={{bgcolor: '#5B5B7B'}}>{auth.currentUser?.email?.[0] || ""}</Avatar>
-                        </IconButton>
+                        {auth.currentUser ? (
+                            <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)}>
+                                <Avatar sx={{bgcolor: '#5B5B7B'}}>{auth.currentUser?.email?.[0] || ""}</Avatar>
+                            </IconButton>
+                        ) : (
+                            <Button 
+                                variant="contained"
+                                onClick={() => navigate('/login')}
+                                sx={{
+                                    backgroundColor: '#4A90E2',
+                                    '&:hover': { backgroundColor: '#357ABD' }
+                                }}
+                            >
+                                Login
+                            </Button>
+                        )}
                     </Box>
                 </Toolbar>
                 <Menu
@@ -107,34 +124,24 @@ const Header = () => {
                     open={Boolean(anchorElUser)}
                     onClose={() => setAnchorElUser(null)}
                 >
-                    {auth.currentUser
-                        ? ['Logout', 'Settings'].map((setting) => (
-                            <MenuItem
-                                key={setting}
-                                style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
-                                onClick={setting === 'Settings' ? () => {
-                                    setDrawerOpen(true);
-                                    setAnchorElUser(null);
-                                } : () => {
-                                    setAnchorElUser(null);
-                                    getAuth().signOut().then(() => navigate('/')).catch(() => setPayload({
-                                        type: "error",
-                                        message: "Error logging out."
-                                    }));
-                                }}
-                            >
-                                <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
-                            </MenuItem>
-                        ))
-                        : ["Login"].map((setting) => (
-                            <MenuItem
-                                key={setting}
-                                style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
-                                onClick={() => navigate('/login')}
-                            >
-                                <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
-                            </MenuItem>
-                        ))}
+                    {['Logout', 'Settings'].map((setting) => (
+                        <MenuItem
+                            key={setting}
+                            style={{backgroundColor: "#121C24", color: "#FAFAFA"}}
+                            onClick={setting === 'Settings' ? () => {
+                                setDrawerOpen(true);
+                                setAnchorElUser(null);
+                            } : () => {
+                                setAnchorElUser(null);
+                                getAuth().signOut().then(() => navigate('/')).catch(() => setPayload({
+                                    type: "error",
+                                    message: "Error logging out."
+                                }));
+                            }}
+                        >
+                            <Typography sx={{textAlign: 'center'}}>{setting}</Typography>
+                        </MenuItem>
+                    ))}
                 </Menu>
             </AppBar>
 
@@ -149,7 +156,7 @@ const Header = () => {
                             <AssuredWorkloadIcon style={{marginRight: "0.5rem"}}/>
                             <Typography>Select Banks</Typography>
                         </ListItem>
-                        <ListItem onClick={() => setDialogOpen(true)} sx={{cursor: "pointer"}}>
+                        <ListItem onClick={() => setChangePasswordOpen(true)} sx={{cursor: "pointer"}}>
                             <LockResetIcon style={{marginRight: "0.5rem"}}/>
                             <Typography>Change Password</Typography>
                         </ListItem>
@@ -177,7 +184,7 @@ const Header = () => {
                             <AccessTimeIcon style={{marginRight: "0.5rem"}}/><ListItemText
                             primary="File Timestamps" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
-                        <ChangepasswordDialog open={isDialogOpen} onClose={() => setDialogOpen(false)}/>
+                        <ChangepasswordDialog open={isChangePasswordOpen} onClose={() => setChangePasswordOpen(false)}/>
                         <JobsDialog open={isJobsDialogOpen} onClose={() => setJobsDialogOpen(false)}/>
                         <OptBanksDialog isBankDialogOpen={isBankDialogOpen} setBankDialogOpen={setBankDialogOpen}/>
                         <ObjectDetailsDialog open={optedBanksDialog} onClose={() => setOptedBanksDialog(false)}
