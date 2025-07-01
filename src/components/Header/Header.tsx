@@ -77,13 +77,13 @@ const Header = () => {
                         </Typography>
                         {auth.currentUser && (
                             <>
-                                <Button sx={{mx: 1}} className={styles.links}>
-                                    <Link style={{color: "#FAFAFA"}} to={'/transactions'}>Transactions</Link>
+                                <Button sx={{mx: 1}} onClick={()=>{navigate('/transactions')}} className={styles.links}>
+                                    <Link style={{color: "#FAFAFA"}}   to={'/transactions'}>Transactions</Link>
                                 </Button>
-                                <Button sx={{mx: 1}} className={styles.links}>
+                                <Button sx={{mx: 1}} onClick={()=>{navigate('/investments')}} className={styles.links}>
                                     <Link style={{color: "#FAFAFA"}} to={'/investments'}>Investments</Link>
                                 </Button>
-                                <Button sx={{mx: 1}} className={styles.links}>
+                                <Button sx={{mx: 1}} onClick={()=>{navigate('/jobs')}}  className={styles.links}>
                                     <Link style={{color: "#FAFAFA"}} to={'/jobs'}>Jobs</Link>
                                 </Button>
                             </>
