@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import BasicCard from "../../components/BasicCard";
 import styles from "./Freelance.module.scss";
 import FreelanceDashboard from "../../components/FreelanceDashboard/FreelanceDashboard";
@@ -6,7 +6,6 @@ import InvoiceCreator from "../../components/InvoiceCreator/InvoiceCreator";
 import InvoiceManager from "../../components/InvoiceManager/InvoiceManager";
 import InvoiceSigner from "../../components/InvoiceSigner/InvoiceSigner";
 import CustomerManager from "../../components/CustomerManager/CustomerManager";
-import { useMessage } from "../../contexts/MessageContext";
 
 type TabType = "dashboard" | "create" | "manage" | "signer" | "customers";
 
