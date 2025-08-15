@@ -201,3 +201,251 @@ export interface JobsResponse {
     page: number;
     jobs: Record<string, string>;
 }
+
+// Freelance and Invoice Interfaces
+export interface InvoiceItem {
+    description: string;
+    quantity: number;
+    rate: number;
+    amount: number;
+}
+
+export interface PaymentBreakdown {
+    [key: string]: number;
+}
+
+export interface PaymentInfo {
+    paymentMethod: string;
+    amountReceived: number;
+    breakdown: PaymentBreakdown;
+    paymentDate?: string;
+    notes?: string;
+}
+
+export interface CustomField {
+    key: string;
+    value: string;
+    hidden?: boolean; // If key starts with *, this will be true
+}
+
+export interface InvoiceData {
+    invoiceNumber: string;
+    projectName: string;
+    issueDate: string;
+    dueDate: string;
+    customerId?: string;
+    currency: 'USD' | 'INR' | 'GBP' | 'EUR' | 'AUD';
+    from: {
+        name: string;
+        email: string;
+        address: string;
+        phone?: string;
+    };
+    to: {
+        name: string;
+        email: string;
+        address: string;
+        company?: string;
+    };
+    customFields?: CustomField[];
+    hiddenCoreFields?: { [key: string]: boolean }; // For hiding core fields like emails/phones
+    items: InvoiceItem[];
+    subtotal: number;
+    tax?: {
+        rate: number;
+        amount: number;
+    };
+    total: number;
+    notes?: string;
+    terms?: string;
+    status?: 'draft' | 'sent' | 'paid' | 'overdue';
+    payment?: PaymentInfo;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface FreelanceEarning {
+    date: string;
+    clientName: string;
+    projectName: string;
+    amount: number;
+    paidAmount?: number; // Amount paid in base currency (INR)
+    currency?: string; // Original invoice currency
+    invoiceNumber: string;
+    status: 'paid' | 'pending' | 'overdue';
+}
+
+export interface UnpaidByCurrency {
+    currency: string;
+    amount: number;
+    count: number;
+}
+
+export interface FreelanceDashboard {
+    totalEarnings: number; // Total paid earnings in base currency (INR)
+    monthlyEarnings: number; // Monthly paid earnings in base currency (INR)
+    pendingAmount: number; // Total unpaid amount (multi-currency, estimated in INR)
+    completedProjects: number;
+    activeClients: number;
+    earningsByMonth: { month: string; earnings: number }[]; // Paid earnings by month in INR
+    earningsByClient: { client: string; earnings: number }[]; // Paid earnings by client in INR
+    recentInvoices: FreelanceEarning[];
+    unpaidByCurrency?: UnpaidByCurrency[]; // Unpaid invoices breakdown by currency
+}
+
+export interface SignatureData {
+    signatureUrl: string; // Data URL for the signature image
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+export interface Customer {
+    id: string;
+    name: string;
+    email: string;
+    company?: string;
+    address: string;
+    phone?: string;
+    defaultTemplate?: Partial<InvoiceData>;
+    totalEarnings: number;
+    projectCount: number;
+    lastInvoiceDate?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// Freelance API Request/Response Types
+export interface CreateInvoiceRequest {
+    invoiceData: InvoiceData;
+}
+
+export interface CreateInvoiceResponse {
+    invoiceId: string;
+    message: string;
+}
+
+export interface UpdateInvoiceRequest {
+    invoiceData: InvoiceData;
+}
+
+export interface UpdateInvoiceResponse {
+    message: string;
+}
+
+export interface DeleteInvoiceResponse {
+    message: string;
+}
+
+export interface FetchInvoicesResponse {
+    invoices: InvoiceData[];
+    page: number;
+    page_size: number;
+    total_count: number;
+}
+
+export interface FetchCustomersResponse {
+    customers: Customer[];
+    page: number;
+    page_size: number;
+    total_count: number;
+}
+
+export interface CreateCustomerRequest {
+    name: string;
+    email: string;
+    company?: string;
+    address: string;
+    phone?: string;
+}
+
+export interface CreateCustomerResponse {
+    message: string;
+    customer: Customer;
+}
+
+export interface UpdateCustomerRequest {
+    name: string;
+    email: string;
+    company?: string;
+    address: string;
+    phone?: string;
+}
+
+export interface UpdateCustomerResponse {
+    message: string;
+}
+
+export interface DeleteCustomerResponse {
+    message: string;
+}
+
+export interface UpdateCustomerTemplateRequest {
+    template: Partial<InvoiceData>;
+}
+
+export interface UpdateCustomerTemplateResponse {
+    message: string;
+}
+
+export interface InvoiceTemplate {
+    id: string;
+    name: string;
+    templateData: InvoiceData;
+    customerId?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateTemplateRequest {
+    name: string;
+    templateData: InvoiceData;
+    customerId?: string;
+}
+
+export interface CreateTemplateResponse {
+    message: string;
+    template: InvoiceTemplate;
+}
+
+export interface UpdateTemplateRequest {
+    name?: string;
+    templateData?: InvoiceData;
+    customerId?: string;
+}
+
+export interface UpdateTemplateResponse {
+    message: string;
+}
+
+export interface DeleteTemplateResponse {
+    message: string;
+}
+
+export interface Signature {
+    id: string;
+    name: string;
+    signature_data: string; // Base64 encoded image data
+    signature_type: string; // 'image'
+    is_default: boolean;
+    user_id: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface UploadSignatureResponse {
+    id: string;
+    name: string;
+    signature_data: string; // Base64 encoded image data
+    signature_type: string; // 'image'
+    is_default: boolean;
+    user_id: string;
+    created_at: string;
+    updated_at: string;
+    message?: string;
+}
+
+export interface DeleteSignatureResponse {
+    message: string;
+}

@@ -25,10 +25,8 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import ChangepasswordDialog from '../ChangePasswordDialog/ChangepasswordDialog.tsx';
 import {fetchOptedBanks} from '../../services/transactionService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
-import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
 import SavingsIcon from '@mui/icons-material/Savings';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import WorkHistoryIcon from '@mui/icons-material/WorkHistory';
 import OptBanksDialog from "../OptBanksDialogComponent/OptBanksDialog.tsx";
 import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
 import {getFileTimeStamps} from "../../services/investmentService.ts";
@@ -43,7 +41,6 @@ const Header = () => {
     const {setPayload} = useMessage();
     const navigate = useNavigate();
 
-    const [isJobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
     const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
     const [optedBanksDialog, setOptedBanksDialog] = useState<boolean>(false);
     useEffect(() => {
@@ -82,7 +79,7 @@ const Header = () => {
                             <Link style={{color: "#FAFAFA"}} to={'/investments'}>Investments</Link>
                         </Button>
                         <Button sx={{mx: 1}} className={styles.links}>
-                            <Link style={{color: "#FAFAFA"}} to={'/jobs'}>Jobs</Link>
+                            <Link style={{color: "#FAFAFA"}} to={'/freelance'}>Freelance</Link>
                         </Button>
                     </Box>
                     <Box display="flex" alignItems="center">
@@ -157,14 +154,6 @@ const Header = () => {
                             cursor: "pointer", "&:hover": {
                                 backgroundColor: "rgb(50, 62, 74)"
                             }
-                        }} onClick={() => setJobsDialogOpen(true)}>
-                            <WorkHistoryIcon style={{marginRight: "0.5rem"}}/><ListItemText
-                            primary="Jobs" sx={{color: "white", cursor: "pointer"}}/>
-                        </ListItem>
-                        <ListItem sx={{
-                            cursor: "pointer", "&:hover": {
-                                backgroundColor: "rgb(50, 62, 74)"
-                            }
                         }} onClick={() => setOptedBanksDialog(true)}>
                             <SavingsIcon style={{marginRight: "0.5rem"}}/><ListItemText
                             primary="OptedBanks" sx={{color: "white", cursor: "pointer"}}/>
@@ -178,7 +167,6 @@ const Header = () => {
                             primary="File Timestamps" sx={{color: "white", cursor: "pointer"}}/>
                         </ListItem>
                         <ChangepasswordDialog open={isDialogOpen} onClose={() => setDialogOpen(false)}/>
-                        <JobsDialog open={isJobsDialogOpen} onClose={() => setJobsDialogOpen(false)}/>
                         <OptBanksDialog isBankDialogOpen={isBankDialogOpen} setBankDialogOpen={setBankDialogOpen}/>
                         <ObjectDetailsDialog open={optedBanksDialog} onClose={() => setOptedBanksDialog(false)}
                                              title="Opted Banks" data={optedBanks}/>

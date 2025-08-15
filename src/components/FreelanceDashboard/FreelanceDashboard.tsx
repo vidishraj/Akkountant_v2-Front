@@ -1,0 +1,712 @@
+import { useState, useEffect } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import {
+  fetchFreelanceDashboard,
+  fetchEarningsByDateRange,
+} from "../../services/freelanceService";
+import { FreelanceDashboard as DashboardData } from "../../utils/interfaces";
+import { useMessage } from "../../contexts/MessageContext";
+import { currencyService } from "../../services/currencyService";
+import styles from "../../pages/Freelance/Freelance.module.scss";
+
+const FreelanceDashboard = () => {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filteredEarnings, setFilteredEarnings] = useState<any[]>([]);
+  const [showFilteredResults, setShowFilteredResults] = useState(false);
+  const { setPayload } = useMessage();
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchFreelanceDashboard();
+      setDashboardData(data);
+
+      // Update currency rates in background
+      currencyService.updateExchangeRates().catch(console.warn);
+    } catch (error) {
+      setPayload({
+        type: "error",
+        message: "Failed to load dashboard data. Backend connection required.",
+      });
+      console.error("Dashboard loading error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDateRangeFilter = async () => {
+    if (!startDate || !endDate) {
+      setPayload({
+        type: "error",
+        message: "Please select both start and end dates",
+      });
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      setPayload({
+        type: "error",
+        message: "Start date cannot be after end date",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const earnings = await fetchEarningsByDateRange(startDate, endDate);
+      setFilteredEarnings(earnings);
+      setShowFilteredResults(true);
+      setPayload({
+        type: "success",
+        message: `Found ${earnings.length} earnings in selected date range`,
+      });
+    } catch (error) {
+      setPayload({
+        type: "error",
+        message:
+          "Failed to fetch earnings for date range. Backend connection required.",
+      });
+      console.error("Date range filter error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearDateFilter = () => {
+    setShowFilteredResults(false);
+    setFilteredEarnings([]);
+    setStartDate("");
+    setEndDate("");
+    setShowDateFilter(false);
+  };
+
+  const formatCurrency = (amount: number, currency: string = "INR") => {
+    const locale = currency === "INR" ? "en-IN" : "en-US";
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: currency,
+    }).format(amount);
+  };
+
+  const formatBaseCurrency = (amount: number) => {
+    return formatCurrency(amount, "INR");
+  };
+
+  const getINRConversion = (amount: number, currency: string) => {
+    if (currency === "INR") return amount;
+    return currencyService.convertToINRSync(amount, currency);
+  };
+
+  const formatWithINRConversion = (amount: number, currency: string) => {
+    const originalFormatted = formatCurrency(amount, currency);
+    if (currency === "INR") {
+      return originalFormatted;
+    }
+    const inrAmount = getINRConversion(amount, currency);
+    return `${originalFormatted} (₹${inrAmount.toLocaleString("en-IN")})`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "#32CD32";
+      case "pending":
+        return "#FFD700";
+      case "overdue":
+        return "#DC143C";
+      default:
+        return "#B0B0B0";
+    }
+  };
+
+  const COLORS = ["#7B68EE", "#32CD32", "#FFD700", "#FF6347", "#20B2AA"];
+
+  if (loading) {
+    return (
+      <div className={styles.loadingSpinner}>
+        <div>Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
+    return <div className={styles.emptyState}>No dashboard data available</div>;
+  }
+
+  return (
+    <div>
+      {/* Date Filter Controls */}
+      <div className={styles.invoiceForm} style={{ marginBottom: "20px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "15px",
+          }}
+        >
+          <h3 style={{ color: "#FAFAFA", margin: 0 }}>
+            📊 Dashboard Analytics
+          </h3>
+          <button
+            className={styles.secondaryBtn}
+            onClick={() => setShowDateFilter(!showDateFilter)}
+          >
+            {showDateFilter ? "✕ Hide Filter" : "📅 Filter by Date Range"}
+          </button>
+        </div>
+
+        {showDateFilter && (
+          <div
+            style={{
+              padding: "20px",
+              backgroundColor: "#29384D",
+              borderRadius: "8px",
+              border: "1px solid #5B5B7B",
+            }}
+          >
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Start Date</label>
+                <input
+                  type="date"
+                  className={styles.formInput}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>End Date</label>
+                <input
+                  type="date"
+                  className={styles.formInput}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "end", gap: "10px" }}>
+                <button
+                  className={styles.primaryBtn}
+                  onClick={handleDateRangeFilter}
+                  disabled={loading || !startDate || !endDate}
+                >
+                  {loading ? "Filtering..." : "🔍 Apply Filter"}
+                </button>
+                {showFilteredResults && (
+                  <button
+                    className={styles.secondaryBtn}
+                    onClick={clearDateFilter}
+                    disabled={loading}
+                  >
+                    ✕ Clear Filter
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Show filtered results or dashboard */}
+      {showFilteredResults ? (
+        <div className={styles.chartContainer}>
+          <h3 className={styles.sectionTitle}>
+            Earnings from {new Date(startDate).toLocaleDateString()} to{" "}
+            {new Date(endDate).toLocaleDateString()}
+          </h3>
+          {filteredEarnings.length > 0 ? (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #5B5B7B" }}>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Date
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Invoice #
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Client
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Project
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "right",
+                      }}
+                    >
+                      Amount
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "center",
+                      }}
+                    >
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEarnings.map((earning, index) => (
+                    <tr
+                      key={index}
+                      style={{ borderBottom: "1px solid #5B5B7B" }}
+                    >
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {new Date(earning.date).toLocaleDateString()}
+                      </td>
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {earning.invoiceNumber}
+                      </td>
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {earning.clientName}
+                      </td>
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {earning.projectName}
+                      </td>
+                      <td
+                        style={{
+                          color: "#FAFAFA",
+                          padding: "12px",
+                          textAlign: "right",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {earning.status === "paid" ? (
+                          formatBaseCurrency(
+                            earning.paidAmount || earning.amount
+                          )
+                        ) : (
+                          <div>
+                            <div>
+                              {formatCurrency(
+                                earning.amount,
+                                earning.currency || "USD"
+                              )}
+                            </div>
+                            {earning.currency !== "INR" && (
+                              <div
+                                style={{ fontSize: "0.7rem", color: "#B0B0B0" }}
+                              >
+                                ≈ ₹
+                                {getINRConversion(
+                                  earning.amount,
+                                  earning.currency || "USD"
+                                ).toLocaleString("en-IN")}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          color: getStatusColor(earning.status),
+                          padding: "12px",
+                          textAlign: "center",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {earning.status.toUpperCase()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div
+                style={{
+                  marginTop: "15px",
+                  padding: "10px",
+                  backgroundColor: "rgba(123, 104, 238, 0.1)",
+                  borderRadius: "4px",
+                  textAlign: "center",
+                }}
+              >
+                <strong style={{ color: "#7B68EE" }}>
+                  Total Paid (INR):{" "}
+                  {formatBaseCurrency(
+                    filteredEarnings
+                      .filter((earning) => earning.status === "paid")
+                      .reduce(
+                        (sum, earning) =>
+                          sum + (earning.paidAmount || earning.amount),
+                        0
+                      )
+                  )}
+                </strong>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>
+              No earnings found in the selected date range.
+            </div>
+          )}
+        </div>
+      ) : (
+        // Original dashboard content
+        <>
+          {/* Key Metrics */}
+          <div className={styles.dashboardGrid}>
+            <div className={styles.metricCard}>
+              <div className={styles.metricValue}>
+                {formatBaseCurrency(dashboardData.totalEarnings)}
+              </div>
+              <div className={styles.metricLabel}>Total Paid (INR)</div>
+            </div>
+
+            <div className={styles.metricCard}>
+              <div className={styles.metricValue}>
+                {formatBaseCurrency(dashboardData.monthlyEarnings)}
+              </div>
+              <div className={styles.metricLabel}>This Month (INR)</div>
+            </div>
+
+            <div className={styles.metricCard}>
+              <div className={styles.metricValue}>
+                {dashboardData.unpaidByCurrency &&
+                dashboardData.unpaidByCurrency.length > 0
+                  ? formatBaseCurrency(
+                      dashboardData.unpaidByCurrency.reduce(
+                        (sum, item) =>
+                          sum + getINRConversion(item.amount, item.currency),
+                        0
+                      )
+                    )
+                  : formatBaseCurrency(0)}
+              </div>
+              <div className={styles.metricLabel}>Unpaid Value (INR)</div>
+            </div>
+
+            <div className={styles.metricCard}>
+              <div className={styles.metricValue}>
+                {dashboardData.completedProjects}
+              </div>
+              <div className={styles.metricLabel}>Completed Projects</div>
+            </div>
+
+            <div className={styles.metricCard}>
+              <div className={styles.metricValue}>
+                {dashboardData.activeClients}
+              </div>
+              <div className={styles.metricLabel}>Active Clients</div>
+            </div>
+          </div>
+
+          {/* Monthly Paid Earnings Chart (Base Currency) */}
+          <div className={styles.chartContainer}>
+            <h3 className={styles.sectionTitle}>
+              Monthly Paid Earnings Trend (INR)
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dashboardData.earningsByMonth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
+                <XAxis dataKey="month" stroke="#FAFAFA" />
+                <YAxis stroke="#FAFAFA" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#29384D",
+                    border: "1px solid #5B5B7B",
+                    borderRadius: "4px",
+                    color: "#FAFAFA",
+                  }}
+                  formatter={(value: number) => [
+                    formatBaseCurrency(value),
+                    "Paid Earnings",
+                  ]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="earnings"
+                  stroke="#32CD32"
+                  strokeWidth={3}
+                  dot={{ fill: "#32CD32", strokeWidth: 2, r: 6 }}
+                  activeDot={{ r: 8, fill: "#228B22" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Unpaid Invoices by Currency */}
+          {dashboardData.unpaidByCurrency &&
+            dashboardData.unpaidByCurrency.length > 0 && (
+              <div className={styles.chartContainer}>
+                <h3 className={styles.sectionTitle}>
+                  Unpaid Invoices by Currency
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={dashboardData.unpaidByCurrency}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
+                    <XAxis dataKey="currency" stroke="#FAFAFA" />
+                    <YAxis stroke="#FAFAFA" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#29384D",
+                        border: "1px solid #5B5B7B",
+                        borderRadius: "4px",
+                        color: "#FAFAFA",
+                      }}
+                      formatter={(value: number, _name: string, props: any) => [
+                        formatWithINRConversion(value, props.payload.currency),
+                        "Unpaid Amount",
+                      ]}
+                    />
+                    <Bar
+                      dataKey="amount"
+                      fill="#FFD700"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+          {/* Paid Earnings by Client Chart (Base Currency) */}
+          <div className={styles.chartContainer}>
+            <h3 className={styles.sectionTitle}>
+              Paid Earnings by Client (INR)
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dashboardData.earningsByClient}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
+                <XAxis dataKey="client" stroke="#FAFAFA" />
+                <YAxis stroke="#FAFAFA" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#29384D",
+                    border: "1px solid #5B5B7B",
+                    borderRadius: "4px",
+                    color: "#FAFAFA",
+                  }}
+                  formatter={(value: number) => [
+                    formatBaseCurrency(value),
+                    "Paid Earnings",
+                  ]}
+                />
+                <Bar dataKey="earnings" fill="#7B68EE" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Client Distribution Pie Chart (Paid Earnings) */}
+          <div className={styles.chartContainer}>
+            <h3 className={styles.sectionTitle}>
+              Paid Earnings Distribution by Client
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={dashboardData.earningsByClient}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ client, percent }) =>
+                    `${client}: ${((percent || 0) * 100).toFixed(0)}%`
+                  }
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="earnings"
+                >
+                  {dashboardData.earningsByClient.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#29384D",
+                    border: "1px solid #5B5B7B",
+                    borderRadius: "4px",
+                    color: "#FAFAFA",
+                  }}
+                  formatter={(value: number) => [
+                    formatBaseCurrency(value),
+                    "Paid Earnings",
+                  ]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Recent Invoices */}
+          <div className={styles.chartContainer}>
+            <h3 className={styles.sectionTitle}>Recent Invoices</h3>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #5B5B7B" }}>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Invoice #
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Client
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Project
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Amount
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Status
+                    </th>
+                    <th
+                      style={{
+                        color: "#FAFAFA",
+                        padding: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboardData.recentInvoices.map((invoice, index) => (
+                    <tr
+                      key={index}
+                      style={{ borderBottom: "1px solid #5B5B7B" }}
+                    >
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {invoice.invoiceNumber}
+                      </td>
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {invoice.clientName}
+                      </td>
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {invoice.projectName}
+                      </td>
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {invoice.status === "paid" ? (
+                          formatBaseCurrency(
+                            invoice.paidAmount || invoice.amount
+                          )
+                        ) : (
+                          <div>
+                            <div>
+                              {formatCurrency(
+                                invoice.amount,
+                                invoice.currency || "USD"
+                              )}
+                            </div>
+                            {invoice.currency !== "INR" && (
+                              <div
+                                style={{ fontSize: "0.7rem", color: "#B0B0B0" }}
+                              >
+                                ≈ ₹
+                                {getINRConversion(
+                                  invoice.amount,
+                                  invoice.currency || "USD"
+                                ).toLocaleString("en-IN")}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          color: getStatusColor(invoice.status),
+                          padding: "12px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {invoice.status.toUpperCase()}
+                      </td>
+                      <td style={{ color: "#FAFAFA", padding: "12px" }}>
+                        {new Date(invoice.date).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default FreelanceDashboard;

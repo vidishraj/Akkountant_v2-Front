@@ -1,0 +1,283 @@
+.customerDropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdownTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #29384D;
+  border: 1px solid #5B5B7B;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 36px;
+
+  &:hover:not(.disabled) {
+    border-color: #7B68EE;
+    background-color: #334155;
+  }
+
+  &.open {
+    border-color: #7B68EE;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: #1E293B;
+  }
+}
+
+.selectedValue {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.customerInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.customerName {
+  color: #FAFAFA;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customerCompany {
+  color: #B0B0B0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.placeholder {
+  color: #B0B0B0;
+  font-style: italic;
+}
+
+.dropdownActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+}
+
+.clearButton {
+  background: none;
+  border: none;
+  color: #B0B0B0;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #FAFAFA;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.dropdownArrow {
+  color: #B0B0B0;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+
+  &.rotated {
+    transform: rotate(180deg);
+  }
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #29384D;
+  border: 1px solid #7B68EE;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  max-height: 250px;
+  overflow: hidden;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.searchContainer {
+  padding: 8px;
+  border-bottom: 1px solid #5B5B7B;
+  background-color: #334155;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 6px 10px;
+  background-color: #1E293B;
+  border: 1px solid #5B5B7B;
+  border-radius: 4px;
+  color: #FAFAFA;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    border-color: #7B68EE;
+  }
+
+  &::placeholder {
+    color: #B0B0B0;
+  }
+}
+
+.customersList {
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #1E293B;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #5B5B7B;
+    border-radius: 3px;
+
+    &:hover {
+      background: #7B68EE;
+    }
+  }
+}
+
+.customerItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid rgba(91, 91, 123, 0.3);
+
+  &:hover {
+    background-color: #334155;
+  }
+
+  &.selected {
+    background-color: rgba(123, 104, 238, 0.2);
+    border-left: 3px solid #7B68EE;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .customerInfo {
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .customerName {
+    font-weight: 500;
+    font-size: 13px;
+  }
+
+  .customerCompany {
+    color: #9CA3AF;
+    font-size: 11px;
+    font-weight: normal;
+  }
+
+  .customerEmail {
+    color: #9CA3AF;
+    font-size: 11px;
+  }
+}
+
+.templateIndicator {
+  font-size: 14px;
+  opacity: 0.7;
+  margin-left: 6px;
+}
+
+.noResults {
+  padding: 12px;
+  text-align: center;
+  color: #B0B0B0;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.loadingItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  color: #B0B0B0;
+  font-size: 13px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #5B5B7B;
+  border-top: 2px solid #7B68EE;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .dropdownMenu {
+    max-height: 220px;
+  }
+
+  .customersList {
+    max-height: 170px;
+  }
+
+  .customerItem {
+    padding: 8px 10px;
+  }
+
+  .dropdownTrigger {
+    padding: 6px 10px;
+    min-height: 32px;
+  }
+}

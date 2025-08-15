@@ -9,6 +9,8 @@ type UserContextType = {
     setOptedBanks: (state: string[]) => void;
     transactionModeSelection: boolean; //false for files, true for transactions
     setTransactionMode: (state: boolean) => void;
+    invoiceJsonDraft: string;
+    setInvoiceJsonDraft: (json: string) => void;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -17,10 +19,11 @@ export const UserProvider = ({children}: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [transactionModeSelection, setTransactionMode] = useState<boolean>(true);
     const [optedBanks, setOptedBanks] = useState<string[]>([]);
+    const [invoiceJsonDraft, setInvoiceJsonDraft] = useState<string>('');
 
     return (
         <UserContext.Provider
-            value={{user, setUser, transactionModeSelection, setTransactionMode, optedBanks, setOptedBanks}}>
+            value={{user, setUser, transactionModeSelection, setTransactionMode, optedBanks, setOptedBanks, invoiceJsonDraft, setInvoiceJsonDraft}}>
             {children}
         </UserContext.Provider>
     );
