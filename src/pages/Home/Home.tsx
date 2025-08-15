@@ -28,27 +28,54 @@ const Home = () => {
     const navigate = useNavigate();
 
     return (
-        <div className={style.homeContainer}>
-            <div className={style.investmentsContainer} onClick={() => {
-                navigate('/investments')
-            }}>
-                <Lottie animationData={homeInvestmentsAnimation} loop={true} autoPlay={true} height={100} width={100}/>
-                <div className={style.investmentsTag}>Investments</div>
-            </div>
-            <div className={style.transactionsContainer} onClick={() => {
-                navigate('/transactions')
-            }}>
-                <Lottie animationData={homeTransactionsAnimation} loop={true} autoPlay={true} height={100} width={100}/>
-                <div className={style.transactionsTag}>Transactions</div>
-            </div>
-            <div className={style.jobsContainer} onClick={() => {
-                navigate('/jobs')
-            }}>
-                <Lottie animationData={homeJobsAnimation} loop={true} autoPlay={true} height={100} width={100}/>
-                <div className={style.jobsTag}>Jobs</div>
-            </div>
+      <div className={style.homeContainer}>
+        <div
+          className={style.investmentsContainer}
+          onClick={() => {
+            navigate("/investments");
+          }}
+        >
+          <Lottie
+            animationData={homeInvestmentsAnimation}
+            loop={true}
+            autoPlay={true}
+            height={100}
+            width={100}
+          />
+          <div className={style.investmentsTag}>Investments</div>
         </div>
-    )
+        <div
+          className={style.transactionsContainer}
+          onClick={() => {
+            navigate("/transactions");
+          }}
+        >
+          <Lottie
+            animationData={homeTransactionsAnimation}
+            loop={true}
+            autoPlay={true}
+            height={100}
+            width={100}
+          />
+          <div className={style.transactionsTag}>Transactions</div>
+        </div>
+        <div
+          className={style.jobsContainer}
+          onClick={() => {
+            navigate("/freelance");
+          }}
+        >
+          <Lottie
+            animationData={homeJobsAnimation}
+            loop={true}
+            autoPlay={true}
+            height={100}
+            width={100}
+          />
+          <div className={style.jobsTag}>Freelance</div>
+        </div>
+      </div>
+    );
 }
 
 export default Home;
