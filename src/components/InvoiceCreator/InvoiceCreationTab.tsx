@@ -21,7 +21,7 @@ interface InvoiceCreationTabProps {
     invoiceData: InvoiceData | null;
     editingInvoiceId?: string; // For editing existing invoices
     onEditComplete?: () => void; // Callback when editing is complete
-    onInvoiceUpdated?: (invoiceId: string) => void; // Callback to refresh invoice data after update
+    onInvoiceUpdated?: (invoiceId?: string) => void; // Callback to refresh dashboard data after create/update
 }
 
 const InvoiceCreationTab = ({
@@ -634,6 +634,8 @@ const InvoiceCreationTab = ({
                     type: 'success',
                     message: 'Invoice created successfully!'
                 });
+                // Trigger dashboard refresh for new invoices
+                onInvoiceUpdated?.();
                 // Reset to new invoice
                 resetToDefault();
             }

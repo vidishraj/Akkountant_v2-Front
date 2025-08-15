@@ -39,15 +39,20 @@ const Freelance = () => {
     setActiveTab("manage");
   };
 
+  const handleInvoiceUpdated = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return <FreelanceDashboard />;
+        return <FreelanceDashboard refreshTrigger={refreshTrigger} />;
       case "create":
         return (
           <InvoiceCreator
             editingInvoiceId={editingInvoiceId}
             onEditComplete={handleEditComplete}
+            onInvoiceUpdated={handleInvoiceUpdated}
           />
         );
       case "manage":
@@ -56,6 +61,7 @@ const Freelance = () => {
             onEditInvoice={handleEditInvoice}
             onPreviewInvoice={handlePreviewInvoice}
             refreshTrigger={refreshTrigger}
+            onInvoiceUpdated={handleInvoiceUpdated}
           />
         );
       case "signer":

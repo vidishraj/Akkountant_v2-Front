@@ -22,7 +22,11 @@ import { useMessage } from "../../contexts/MessageContext";
 import { currencyService } from "../../services/currencyService";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 
-const FreelanceDashboard = () => {
+interface FreelanceDashboardProps {
+  refreshTrigger?: number;
+}
+
+const FreelanceDashboard = ({ refreshTrigger }: FreelanceDashboardProps = {}) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
     null
   );
@@ -36,12 +40,12 @@ const FreelanceDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [refreshTrigger]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await fetchFreelanceDashboard();
+      const data = await fetchFreelanceDashboard(true); // Always clear cache for fresh data
       setDashboardData(data);
 
       // Update currency rates in background

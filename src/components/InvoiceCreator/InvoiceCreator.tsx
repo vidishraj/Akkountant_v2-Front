@@ -10,9 +10,10 @@ type InvoiceSubTab = 'creation' | 'html-preview' | 'pdf-preview';
 interface InvoiceCreatorProps {
     editingInvoiceId?: string;
     onEditComplete?: () => void;
+    onInvoiceUpdated?: () => void;
 }
 
-const InvoiceCreator = ({ editingInvoiceId, onEditComplete }: InvoiceCreatorProps) => {
+const InvoiceCreator = ({ editingInvoiceId, onEditComplete, onInvoiceUpdated }: InvoiceCreatorProps) => {
     const [activeSubTab, setActiveSubTab] = useState<InvoiceSubTab>('creation');
     const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
 
@@ -29,6 +30,7 @@ const InvoiceCreator = ({ editingInvoiceId, onEditComplete }: InvoiceCreatorProp
                         invoiceData={invoiceData}
                         editingInvoiceId={editingInvoiceId}
                         onEditComplete={onEditComplete}
+                        onInvoiceUpdated={onInvoiceUpdated}
                     />
                 );
             case 'html-preview':
@@ -42,6 +44,7 @@ const InvoiceCreator = ({ editingInvoiceId, onEditComplete }: InvoiceCreatorProp
                         invoiceData={invoiceData}
                         editingInvoiceId={editingInvoiceId}
                         onEditComplete={onEditComplete}
+                        onInvoiceUpdated={onInvoiceUpdated}
                     />
                 );
         }
