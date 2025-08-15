@@ -1,7 +1,7 @@
 // src/Login.tsx
 import React, {useEffect, useState} from 'react';
 import {signInWithEmailAndPassword} from 'firebase/auth';
-import {useNavigate} from 'react-router-dom';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import {
     Box,
     Button,
@@ -11,7 +11,6 @@ import {
 import {styled} from '@mui/system';
 import Lottie from 'lottie-react';
 import loginAnimation from '../assets/loginAnimation.json';
-import loginAnimation2 from '../assets/loginAnimation2.json';
 import {useUser} from '../contexts/GlobalContext';
 import {auth} from '../components/FirebaseConfig.tsx';
 // import SignupDialog from '../components/Signup';
@@ -103,6 +102,8 @@ const Login = () => {
     const {setUser} = useUser();
     const navigate = useNavigate();
     const {currentUser} = useAuth();
+    const [searchParams] = useSearchParams();
+    const returnUrl = searchParams.get('returnUrl');
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -114,7 +115,7 @@ const Login = () => {
                 password
             );
             setUser(userCredential.user);
-            navigate('/home');
+            navigate(returnUrl ? decodeURIComponent(returnUrl) : '/home');
         } catch (error) {
             console.error('Error logging in:', error);
         } finally {
@@ -132,41 +133,41 @@ const Login = () => {
     useEffect(() => {
         if (currentUser) {
             setUser(currentUser);
-            navigate('/home');
+            navigate(returnUrl ? decodeURIComponent(returnUrl) : '/home');
         } // eslint-disable-next-line
     }, [currentUser]);
 
     return (<>
         <Container>
             <LottieContainers>
-                <Lottie animationData={loginAnimation}/>
+                <Lottie animationData={loginAnimation} loop={true} height={300} width={300}/>
             </LottieContainers>
             <LoginBox>
                 <form onSubmit={handleLogin}>
                     <TextField
+                        fullWidth
                         label="Email"
                         variant="outlined"
-                        fullWidth
                         margin="normal"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />
                     <TextField
+                        fullWidth
                         label="Password"
                         type="password"
                         variant="outlined"
-                        fullWidth
                         margin="normal"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                     />
                     <Button
-                        type="submit"
+                        fullWidth
                         variant="contained"
                         color="primary"
-                        fullWidth
+                        type="submit"
                         disabled={loading}
-                        style={{marginTop: '16px'}}
+                        sx={{mt: 2}}
                     >
                         {loading ? <CircularProgress size={24}/> : 'Login'}
                     </Button>
@@ -178,15 +179,11 @@ const Login = () => {
                 {/*    onClick={handleOpenSignup}*/}
                 {/*    style={{marginTop: '8px'}}*/}
                 {/*>*/}
-                {/*    Don’t have an account? Sign Up*/}
+                {/*    Don't have an account? Sign Up*/}
                 {/*</Button>*/}
             </LoginBox>
-            <LottieContainers>
-                <Lottie animationData={loginAnimation2}
-                />
-            </LottieContainers>
+            {/*<SignupDialog open={openSignup} onClose={handleCloseSignup}/>*/}
         </Container>
-        {/*<SignupDialog open={openSignup} onClose={handleCloseSignup}/>*/}
     </>)
 }
 

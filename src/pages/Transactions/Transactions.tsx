@@ -23,7 +23,7 @@ import TransactionSummary from "../../components/TransactionSummaryComponent/Tra
 import FileSummary from "../../components/FileSummaryComponent/FileSummary.tsx";
 import {FileDetails, Transaction} from "../../utils/interfaces.ts";
 import "react-toastify/dist/ReactToastify.css";
-import GoogleComponent from "../../components/GoogleComponent /GoogleComponent.tsx";
+import GoogleComponent from "../../components/GoogleComponent/GoogleComponent.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
 
 const Transactions = () => {

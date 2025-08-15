@@ -28,7 +28,7 @@ createRoot(document.getElementById("root")!).render(
                                             <div className="content">
                                                 <App/>
                                             </div>
-                                            <div className="footer">© 2023 Akkountant</div>
+                                            <div className="footer">© 2025 Akkountant</div>
                                         </div>
                                     </NotificationMessage>
                                 </MSNProvider>
