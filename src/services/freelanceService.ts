@@ -618,14 +618,16 @@ export async function fetchInvoiceTemplates(clearCache = false): Promise<Invoice
 export async function saveInvoiceTemplate(
     templateName: string,
     invoiceData: InvoiceData,
-    customerId?: string
+    customerId?: string,
+    isCustomerDefault?: boolean
 ): Promise<CreateTemplateResponse> {
     const options = withRequestId('api/freelance/templates/create', withCacheCleared());
     const response = await queueRequest(() =>
         axios.post('freelance/templates', {
             name: templateName,
             templateData: invoiceData,
-            customerId
+            customerId,
+            isCustomerDefault
         }, options)
     );
     return response.data;

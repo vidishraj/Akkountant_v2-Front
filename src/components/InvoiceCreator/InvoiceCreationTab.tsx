@@ -7,8 +7,7 @@ import {
     fetchInvoiceTemplates,
     saveInvoiceTemplate,
     updateInvoiceTemplate,
-    deleteInvoiceTemplate,
-    updateCustomerTemplate
+    deleteInvoiceTemplate
 } from '../../services/freelanceService';
 import {useMessage} from '../../contexts/MessageContext';
 import {useUser} from '../../contexts/GlobalContext';
@@ -370,13 +369,9 @@ const InvoiceCreationTab = ({
             const result = await saveInvoiceTemplate(
                 templateName, 
                 invoiceData, 
-                isCustomerTemplate ? selectedCustomerForTemplate : undefined
+                (isCustomerTemplate || saveAsDefault) ? selectedCustomerForTemplate : undefined,
+                saveAsDefault
             );
-
-            // If saving as customer default, also update the customer's default template
-            if (saveAsDefault && selectedCustomerForTemplate) {
-                await updateCustomerTemplate(selectedCustomerForTemplate, invoiceData);
-            }
 
             setTemplateName('');
             setSelectedCustomerForTemplate('');
