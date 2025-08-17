@@ -44,8 +44,8 @@ const InvoiceCreationTab = ({
     const [showTemplateActions, setShowTemplateActions] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState<InvoiceTemplate | null>(null);
     const [editTemplateName, setEditTemplateName] = useState('');
-    const [showCustomerTemplate, setShowCustomerTemplate] = useState(false);
     const [selectedCustomerForDefault, setSelectedCustomerForDefault] = useState<string>('');
+    const [saveAsDefault, setSaveAsDefault] = useState(false);
     const {setPayload} = useMessage();
     const {invoiceJsonDraft, setInvoiceJsonDraft} = useUser();
 
@@ -356,7 +356,7 @@ const InvoiceCreationTab = ({
             return;
         }
 
-        if (isCustomerTemplate && !selectedCustomerForTemplate) {
+        if ((isCustomerTemplate || saveAsDefault) && !selectedCustomerForTemplate) {
             setPayload({
                 type: 'error',
                 message: 'Please select a customer for the template'
@@ -373,17 +373,20 @@ const InvoiceCreationTab = ({
                 isCustomerTemplate ? selectedCustomerForTemplate : undefined
             );
 
-            // Note: When saving with customerId, saveInvoiceTemplate should handle setting it as the customer's default template
-            // Removed duplicate updateCustomerTemplate call that was causing template duplication
+            // If saving as customer default, also update the customer's default template
+            if (saveAsDefault && selectedCustomerForTemplate) {
+                await updateCustomerTemplate(selectedCustomerForTemplate, invoiceData);
+            }
 
             setTemplateName('');
             setSelectedCustomerForTemplate('');
             setIsCustomerTemplate(false);
+            setSaveAsDefault(false);
             setShowSaveTemplate(false);
 
             setPayload({
                 type: 'success',
-                message: result.message
+                message: saveAsDefault ? 'Template saved and set as customer default' : result.message
             });
 
             // Reload templates to get the updated list
@@ -504,45 +507,6 @@ const InvoiceCreationTab = ({
         }
     };
 
-    const saveAsCustomerDefault = async () => {
-        if (!selectedCustomerForDefault) {
-            setPayload({
-                type: 'error',
-                message: 'Please select a customer'
-            });
-            return;
-        }
-
-        if (!invoiceData) {
-            setPayload({
-                type: 'error',
-                message: 'No invoice data to save'
-            });
-            return;
-        }
-
-        try {
-            setLoading(true);
-
-            await updateCustomerTemplate(selectedCustomerForDefault, invoiceData);
-
-            setSelectedCustomerForDefault('');
-            setShowCustomerTemplate(false);
-
-            setPayload({
-                type: 'success',
-                message: 'Default template saved for customer'
-            });
-        } catch (error) {
-            setPayload({
-                type: 'error',
-                message: 'Failed to save customer default template'
-            });
-            console.error('Error saving customer default template:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const resetToDefault = () => {
         const newData = {
@@ -663,13 +627,6 @@ const InvoiceCreationTab = ({
                             style={{ padding: '6px 10px', fontSize: '0.85rem' }}
                         >
                             Save Template
-                        </button>
-                        <button
-                            className={styles.secondaryBtn}
-                            onClick={() => setShowCustomerTemplate(!showCustomerTemplate)}
-                            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
-                        >
-                            Save as Customer Default
                         </button>
                         <button
                             className={styles.secondaryBtn}
@@ -841,12 +798,24 @@ const InvoiceCreationTab = ({
                                         setIsCustomerTemplate(e.target.checked);
                                         if (!e.target.checked) {
                                             setSelectedCustomerForTemplate('');
+                                            setSaveAsDefault(false);
                                         }
                                     }}
                                     style={{ accentColor: '#7B68EE' }}
                                 />
                                 Link to specific customer
                             </label>
+                            {isCustomerTemplate && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FAFAFA', cursor: 'pointer', marginLeft: '26px', marginTop: '8px' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={saveAsDefault}
+                                        onChange={(e) => setSaveAsDefault(e.target.checked)}
+                                        style={{ accentColor: '#7B68EE' }}
+                                    />
+                                    Set as customer default template
+                                </label>
+                            )}
                             <p style={{ color: '#B0B0B0', fontSize: '0.85rem', margin: '5px 0 0 26px' }}>
                                 Each customer can have multiple templates but only one default template which is auto-loaded when creating invoices.
                             </p>
@@ -866,7 +835,7 @@ const InvoiceCreationTab = ({
                                         fontSize: '0.8rem',
                                         color: '#B0B0B0'
                                     }}>
-                                        💡 Select a customer to link this template to them specifically
+                                        💡 Select a customer to link this template to them{saveAsDefault ? ' and set as their default' : ' specifically'}
                                     </div>
                                 </div>
                             </div>
@@ -887,6 +856,7 @@ const InvoiceCreationTab = ({
                                     setTemplateName('');
                                     setSelectedCustomerForTemplate('');
                                     setIsCustomerTemplate(false);
+                                    setSaveAsDefault(false);
                                 }}
                                 disabled={loading}
                             >
@@ -896,67 +866,6 @@ const InvoiceCreationTab = ({
                     </div>
                 )}
 
-                {/* Save as Customer Default Form */}
-                {showCustomerTemplate && (
-                    <div style={{ 
-                        marginTop: '10px', 
-                        padding: '12px', 
-                        backgroundColor: '#29384D', 
-                        borderRadius: '6px',
-                        border: '1px solid #5B5B7B'
-                    }}>
-                        <h4 style={{ color: '#FAFAFA', marginBottom: '10px', fontSize: '1rem' }}>Save as Customer Default Template</h4>
-                        
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Select Customer *</label>
-                                <CustomerDropdown
-                                    value={selectedCustomerForDefault}
-                                    onChange={(customerId: string) => setSelectedCustomerForDefault(customerId)}
-                                    className={styles.formInput}
-                                />
-                                <div style={{ 
-                                    marginTop: '6px', 
-                                    fontSize: '0.8rem',
-                                    color: '#B0B0B0'
-                                }}>
-                                    💡 Select a customer to save this as their default template
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                            <button
-                                className={styles.primaryBtn}
-                                onClick={saveAsCustomerDefault}
-                                disabled={loading}
-                            >
-                                {loading ? 'Saving...' : 'Save as Default'}
-                            </button>
-                            <button
-                                className={styles.secondaryBtn}
-                                onClick={() => {
-                                    setShowCustomerTemplate(false);
-                                    setSelectedCustomerForDefault('');
-                                }}
-                                disabled={loading}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                        
-                        <div style={{ 
-                            marginTop: '10px', 
-                            padding: '8px', 
-                            backgroundColor: 'rgba(123, 104, 238, 0.1)', 
-                            borderRadius: '4px',
-                            fontSize: '0.8rem',
-                            color: '#7B68EE'
-                        }}>
-                            💡 Customer default templates are automatically loaded when creating invoices and will appear in the customers table.
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Customer Selection - Required */}
