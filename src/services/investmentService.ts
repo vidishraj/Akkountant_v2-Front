@@ -273,8 +273,8 @@ export async function getKiteLoginUrl(): Promise<KiteLoginUrlResponse> {
 export async function generateKiteSession(
     requestToken: string
 ): Promise<KiteSessionResponse> {
-    const body: KiteSessionRequest = { request_token: requestToken };
-    const response = await queueRequest(() => 
+    const body: KiteSessionRequest = {request_token: requestToken};
+    const response = await queueRequest(() =>
         axios.post('/kite/generate-session', body)
     );
     return response.data;
@@ -290,7 +290,7 @@ export async function fetchKiteHoldings(
         'kite/holdings',
         clearCache ? withCacheCleared() : {}
     );
-    
+
     const response = await queueRequest(() => axios.get('/kite/holdings', options));
     return response.data;
 }
@@ -305,7 +305,7 @@ export async function fetchKitePositions(
         'kite/positions',
         clearCache ? withCacheCleared() : {}
     );
-    
+
     const response = await queueRequest(() => axios.get('/kite/positions', options));
     return response.data;
 }
@@ -314,6 +314,6 @@ export async function fetchKitePositions(
  * Sync holdings to database
  */
 export async function syncKiteHoldings(): Promise<KiteSyncResponse> {
-    const response = await queueRequest(() => axios.post('/kite/sync-holdings'));
+    const response = await queueRequest(() => axios.get('/kite/sync-holdings'));
     return response.data;
 }
