@@ -1,26 +1,32 @@
-import {useEffect, useState} from 'react';
 import {Navigate, useLocation} from 'react-router-dom';
-import {auth} from '../components/FirebaseConfig.tsx';
-import {onAuthStateChanged} from 'firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
+import { ReactNode } from 'react';
 
-const PrivateRoute = (props: any) => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+interface PrivateRouteProps {
+    children: ReactNode;
+}
+
+const PrivateRoute = (props: PrivateRouteProps) => {
+    const { currentUser, loading } = useAuth();
     const location = useLocation();
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setIsAuthenticated(user ? true : false);
-        });
-
-        return () => unsubscribe();
-    }, []);
-
-    //app will pause till firebase checks and populates user
-    if (isAuthenticated === null) {
-        return null;
+    // Show loading while checking authentication
+    if (loading) {
+        return (
+            <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                minHeight: '100vh',
+                backgroundColor: '#121C24',
+                color: '#FAFAFA'
+            }}>
+                Loading...
+            </div>
+        );
     }
 
-    if (!isAuthenticated) {
+    if (!currentUser) {
         const returnUrl = encodeURIComponent(location.pathname + location.search);
         return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
     }

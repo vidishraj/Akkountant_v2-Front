@@ -10,24 +10,19 @@ import Freelance from './pages/Freelance/Freelance.tsx';
 import {useLoading} from "./contexts/LoadingContext.tsx";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {useEffect} from "react";
+import {generateKiteSession, syncKiteHoldings} from "./services/investmentService.ts";
+import {useMessage} from "./contexts/MessageContext.tsx";
+import {useNavigate} from "react-router-dom";
 import Hero from './pages/Hero/Hero.tsx';
 
 function App() {
 
     setupAxiosInterceptors();
-    const {loading, setLoading} = useLoading()
+    const {loading, setLoading} = useLoading();
+    const {setPayload} = useMessage();
+    const navigate = useNavigate();
     const auth = getAuth();
-    const currentUser = auth.currentUser;
-    auth.beforeAuthStateChanged((auth) => {
-        console.log("Refresh attempted", auth)
-    })
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            console.log("User logged in:", user);
-        } else {
-            console.log("User logged out or not logged in.");
-        }
-    })
+
     useEffect(() => {
         // Listen for authentication state changes
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -41,7 +36,60 @@ function App() {
 
         // Cleanup the listener on unmount
         return () => unsubscribe();
-    }, [currentUser]);
+    }, [auth, setLoading]);
+
+    // Handle Kite callback
+    useEffect(() => {
+        const handleKiteCallback = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestToken = urlParams.get('request_token');
+            const status = urlParams.get('status');
+            
+            if (requestToken && status === 'success') {
+                try {
+                    setLoading(true);
+                    
+                    // Generate session with request token
+                    const sessionResponse = await generateKiteSession(requestToken);
+                    
+                    setPayload({
+                        type: 'success',
+                        message: `Kite authentication successful! Welcome ${sessionResponse.user_name}`
+                    });
+
+                    // Sync holdings
+                    await syncKiteHoldings();
+                    
+                    setPayload({
+                        type: 'success',
+                        message: 'Holdings synced successfully!'
+                    });
+                    
+                    // Clean up URL and redirect to investments
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    navigate('/investments');
+                    
+                } catch (error) {
+                    console.error('Error processing Kite callback:', error);
+                    setPayload({
+                        type: 'error',
+                        message: 'Failed to authenticate with Kite. Please try again.'
+                    });
+                } finally {
+                    setLoading(false);
+                }
+            } else if (status === 'error') {
+                setPayload({
+                    type: 'error',
+                    message: 'Kite authentication failed'
+                });
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        };
+
+        handleKiteCallback();
+    }, [navigate, setLoading, setPayload]);
 
     return (
         <Routes>

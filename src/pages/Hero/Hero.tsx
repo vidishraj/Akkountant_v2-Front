@@ -1,9 +1,11 @@
 import { Box, Button, Container, Typography, Paper } from '@mui/material';
 import { styled } from '@mui/system';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import EmailIcon from '@mui/icons-material/Email';
 import WorkIcon from '@mui/icons-material/Work';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './Hero.module.scss';
 
 const HeroSection = styled(Box)(({ theme }) => ({
@@ -81,6 +83,40 @@ const IconWrapper = styled(Box)(({ theme }) => ({
 
 const Hero = () => {
   const navigate = useNavigate();
+  const { currentUser, loading } = useAuth();
+  
+  useEffect(() => {
+    // Check for Kite callback parameters first
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestToken = urlParams.get('request_token');
+    const status = urlParams.get('status');
+    
+    // If this is a Kite callback, don't redirect - let KiteAuth handle it
+    const isKiteCallback = requestToken && (status === 'success' || status === 'error');
+    
+    // If user is already authenticated and this is NOT a Kite callback, redirect to home
+    if (!loading && currentUser && !isKiteCallback) {
+      navigate('/home');
+    }
+  }, [currentUser, loading, navigate]);
+  
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '100vh',
+          background: '#121C24',
+          color: '#FAFAFA'
+        }}
+      >
+        Loading...
+      </Box>
+    );
+  }
   
   const handleLearnMore = () => {
     window.location.href = 'https://docs.vidish.space/search/?q=akkountant';
@@ -246,6 +282,7 @@ const Hero = () => {
           </FeatureCard>
         </Box>
       </Container>
+      
     </HeroSection>
   );
 };

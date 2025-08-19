@@ -101,7 +101,7 @@ const Login = () => {
     // const [openSignup, setOpenSignup] = useState(false);
     const {setUser} = useUser();
     const navigate = useNavigate();
-    const {currentUser} = useAuth();
+    const {currentUser, loading: authLoading} = useAuth();
     const [searchParams] = useSearchParams();
     const returnUrl = searchParams.get('returnUrl');
 
@@ -131,11 +131,29 @@ const Login = () => {
     //     setOpenSignup(false);
     // };
     useEffect(() => {
-        if (currentUser) {
+        if (!authLoading && currentUser) {
             setUser(currentUser);
             navigate(returnUrl ? decodeURIComponent(returnUrl) : '/home');
-        } // eslint-disable-next-line
-    }, [currentUser]);
+        }
+    }, [currentUser, authLoading, navigate, returnUrl, setUser]);
+    
+    // Show loading while checking authentication
+    if (authLoading) {
+        return (
+            <Box 
+                sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    minHeight: '100vh',
+                    backgroundColor: 'beige',
+                    color: '#333'
+                }}
+            >
+                Loading...
+            </Box>
+        );
+    }
 
     return (<>
         <Container>
