@@ -15,10 +15,10 @@ import {
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import styles from "./Header.module.scss";
-import { auth } from "../FirebaseConfig.tsx";
 import Menu from "@mui/material/Menu";
 import { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
+import { useAuth } from "../../contexts/AuthContext";
 import SettingsIcon from "@mui/icons-material/Settings";
 import AssuredWorkloadIcon from "@mui/icons-material/AssuredWorkload";
 import LockResetIcon from "@mui/icons-material/LockReset";
@@ -39,12 +39,13 @@ const Header = () => {
   const [optedBanks, setOptedBanks] = useState<any>({});
   const [fileStamps, setFileStamps] = useState<any>({});
   const { setPayload } = useMessage();
+  const { currentUser, loading } = useAuth();
   const navigate = useNavigate();
 
   const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
   const [optedBanksDialog, setOptedBanksDialog] = useState<boolean>(false);
   useEffect(() => {
-    if (auth.currentUser) {
+    if (currentUser) {
       fetchOptedBanks()
         .then((data) => {
           if (Array.isArray(data)) {
@@ -73,7 +74,7 @@ const Header = () => {
           })
         );
     }
-  }, [auth.currentUser]);
+  }, [currentUser]);
 
   return (
     <>
@@ -88,7 +89,7 @@ const Header = () => {
                 Akkountant
               </Link>
             </Typography>
-            {auth.currentUser && (
+            {!loading && currentUser && (
               <>
                 <Button
                   sx={{ mx: 1 }}
@@ -127,10 +128,13 @@ const Header = () => {
             )}
           </Box>
           <Box display="flex" alignItems="center">
-            {auth.currentUser ? (
+            {loading ? (
+              // Show nothing or a loading indicator during auth check
+              <Box sx={{ width: 40, height: 40 }} />
+            ) : currentUser ? (
               <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)}>
                 <Avatar sx={{ bgcolor: "#5B5B7B" }}>
-                  {auth.currentUser?.email?.[0] || ""}
+                  {currentUser?.email?.[0] || ""}
                 </Avatar>
               </IconButton>
             ) : (

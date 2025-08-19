@@ -7,9 +7,11 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import WorkIcon from '@mui/icons-material/Work';
 import {getAuth, signOut} from 'firebase/auth';
 import HomeIcon from '@mui/icons-material/Home';
+import JobsDialog from './JobsDialogComponent/JobsDialogComponent.tsx';
 
 const SideBar = () => {
     const [collapsed, setCollapsed] = useState(true);
+    const [jobsDialogOpen, setJobsDialogOpen] = useState(false);
     const navigate = useNavigate()
 
     async function logOut() {
@@ -47,7 +49,7 @@ const SideBar = () => {
                     <MenuItem icon={<PaidIcon/>} component={<Link to="/investments"/>}>
                         Investments
                     </MenuItem>
-                    <MenuItem icon={<WorkIcon/>} component={<Link to="/jobs"/>}>
+                    <MenuItem icon={<WorkIcon/>} onClick={() => setJobsDialogOpen(true)}>
                         Jobs
                     </MenuItem>
                     <MenuItem icon={<LogoutIcon/>} onClick={logOut} component={<Link to="/"/>}>
@@ -55,6 +57,10 @@ const SideBar = () => {
                     </MenuItem>
                 </Menu>
             </Sidebar>
+            <JobsDialog 
+                open={jobsDialogOpen} 
+                onClose={() => setJobsDialogOpen(false)}
+            />
         </div>
     );
 };
