@@ -15,6 +15,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
 import CustomModal from "../InputDialogComponent/CustomModal.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
+import KiteAuth from "../KiteAuth/KiteAuth.tsx";
 
 interface MSNCardProps {
     title: string;
@@ -28,6 +29,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
     const [summary, setSummary] = useState<MSNSummaryResponse>();
     const [buyModal, setBuyModal] = useState<boolean>(false);
     const {setPayload} = useMessage();
+
     useEffect(() => {
         if (cardType) {
             setSummary(state.summaries[cardType]);
@@ -226,11 +228,18 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
             onClick={handleCardClick}
             className={`${className} ${moduleStyle.MSNCard}`}
         >
-            <span className={moduleStyle.title}>{title}</span>
-            <div className={moduleStyle.actionButtons}>
-                {renderRefreshButton()}
-                {(cardType === "stocks" || cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
-                {(cardType2 === "ppf" || cardType2 === "gold") && renderAddButton()}
+            <div className={moduleStyle.headerRow}>
+                <span className={moduleStyle.title}>{title}</span>
+                <div className={moduleStyle.actionButtons}>
+                    {renderRefreshButton()}
+                    {cardType === "stocks" && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <KiteAuth />
+                        </div>
+                    )}
+                    {(cardType === "stocks" || cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
+                    {(cardType2 === "ppf" || cardType2 === "gold") && renderAddButton()}
+                </div>
             </div>
             <div className={moduleStyle.summary}>{renderSummary()}</div>
         </BasicCard>

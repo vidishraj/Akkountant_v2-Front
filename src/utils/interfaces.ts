@@ -449,3 +449,84 @@ export interface UploadSignatureResponse {
 export interface DeleteSignatureResponse {
     message: string;
 }
+
+// Kite Connect API Interfaces
+export interface KiteLoginUrlResponse {
+    login_url: string;
+}
+
+export interface KiteSessionRequest {
+    request_token: string;
+}
+
+export interface KiteSessionResponse {
+    access_token: string;
+    user_id: string;
+    user_name: string;
+    message: string;
+}
+
+export interface KiteHolding {
+    tradingsymbol: string;
+    exchange: string;
+    isin: string;
+    quantity: number;
+    t1_quantity: number;
+    realised_quantity: number;
+    collateral_quantity: number;
+    product: string;
+    price: number;
+    last_price: number;
+    pnl: number;
+    close_price: number;
+    average_price: number;
+    day_change: number;
+    day_change_percentage: number;
+    instrument_token: string;
+    authorised_date?: string;
+    authorised_quantity?: number;
+}
+
+export interface KitePosition {
+    tradingsymbol: string;
+    exchange: string;
+    instrument_token: string;
+    product: string;
+    quantity: number;
+    overnight_quantity: number;
+    multiplier: number;
+    average_price: number;
+    close_price: number;
+    last_price: number;
+    value: number;
+    pnl: number;
+    m2m: number;
+    unrealised: number;
+    realised: number;
+    buy_quantity: number;
+    buy_price: number;
+    buy_value: number;
+    sell_quantity: number;
+    sell_price: number;
+    sell_value: number;
+    day_buy_quantity: number;
+    day_buy_price: number;
+    day_buy_value: number;
+    day_sell_quantity: number;
+    day_sell_price: number;
+    day_sell_value: number;
+}
+
+export interface KiteHoldingsResponse {
+    holdings: KiteHolding[];
+}
+
+export interface KitePositionsResponse {
+    net: KitePosition[];
+    day: KitePosition[];
+}
+
+export interface KiteSyncResponse {
+    message: string;
+    holdings_synced: number;
+}

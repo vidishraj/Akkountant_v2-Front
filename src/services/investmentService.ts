@@ -7,6 +7,12 @@ import {
     MSNListResponse,
     MSNRateResponse,
     MSNSummaryResponse,
+    KiteLoginUrlResponse,
+    KiteSessionRequest,
+    KiteSessionResponse,
+    KiteHoldingsResponse,
+    KitePositionsResponse,
+    KiteSyncResponse,
 } from '../utils/interfaces.ts';
 import {queueRequest} from './AxiosQueueManager.tsx';
 import {CacheAxiosResponse} from 'axios-cache-interceptor';
@@ -248,5 +254,66 @@ export async function getFileTimeStamps(
     );
 
     const response = await queueRequest(() => axios.get('/fetchTimeStamps', options));
+    return response.data;
+}
+
+// Kite Connect API Functions
+
+/**
+ * Get Kite login URL for authentication
+ */
+export async function getKiteLoginUrl(): Promise<KiteLoginUrlResponse> {
+    const response = await queueRequest(() => axios.get('/kite/login-url'));
+    return response.data;
+}
+
+/**
+ * Generate Kite session using request token
+ */
+export async function generateKiteSession(
+    requestToken: string
+): Promise<KiteSessionResponse> {
+    const body: KiteSessionRequest = { request_token: requestToken };
+    const response = await queueRequest(() => 
+        axios.post('/kite/generate-session', body)
+    );
+    return response.data;
+}
+
+/**
+ * Fetch user's holdings from Kite
+ */
+export async function fetchKiteHoldings(
+    clearCache = false
+): Promise<KiteHoldingsResponse> {
+    const options = withRequestId(
+        'kite/holdings',
+        clearCache ? withCacheCleared() : {}
+    );
+    
+    const response = await queueRequest(() => axios.get('/kite/holdings', options));
+    return response.data;
+}
+
+/**
+ * Fetch user's positions from Kite
+ */
+export async function fetchKitePositions(
+    clearCache = false
+): Promise<KitePositionsResponse> {
+    const options = withRequestId(
+        'kite/positions',
+        clearCache ? withCacheCleared() : {}
+    );
+    
+    const response = await queueRequest(() => axios.get('/kite/positions', options));
+    return response.data;
+}
+
+/**
+ * Sync holdings to database
+ */
+export async function syncKiteHoldings(): Promise<KiteSyncResponse> {
+    const response = await queueRequest(() => axios.post('/kite/sync-holdings'));
     return response.data;
 }

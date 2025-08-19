@@ -1,14 +1,20 @@
 .MSNCard {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   //background-color: pink !important;
   padding: 12px 5px;
   background-color: #121c24 !important;
 }
 
+.headerRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .title {
   padding: 5px 5px;
-  flex-basis: 45%;
+  flex: 1;
   color: #FAFAFA;
   display: flex;
   justify-content: center;
@@ -16,13 +22,12 @@
 }
 
 .actionButtons {
-  flex-basis: 45%;
+  flex: 0 0 auto;
   padding: 5px 5px;
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
   align-items: center;
-  width: 100%;
 }
 
 .FileUploadButton {

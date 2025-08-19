@@ -91,7 +91,7 @@ const Hero = () => {
     const requestToken = urlParams.get('request_token');
     const status = urlParams.get('status');
     
-    // If this is a Kite callback, don't redirect - let KiteAuth handle it
+    // If this is a Kite callback, don't redirect - let App.tsx handle it
     const isKiteCallback = requestToken && (status === 'success' || status === 'error');
     
     // If user is already authenticated and this is NOT a Kite callback, redirect to home
