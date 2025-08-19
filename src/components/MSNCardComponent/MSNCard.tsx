@@ -9,7 +9,7 @@ import FileUploadDialog from "../FileUploadComponent/FileUpload";
 import moduleStyle from "./MSNCard.module.scss";
 import {useMSNContext} from "../../contexts/MSNContext";
 import {InsertEPGRequest, MSNSummaryResponse} from "../../utils/interfaces";
-import {insertEPG, uploadFile} from "../../services/investmentService";
+import {insertEPG, uploadFile, syncKiteHoldings} from "../../services/investmentService";
 import withLoader from "../LoaderHOC.tsx";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
@@ -123,12 +123,27 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
             <Button
                 className={moduleStyle.FileUploadButton}
                 variant="contained"
-                onClick={(e) => {
+                onClick={async (e) => {
                     e.stopPropagation();
                     if (cardType) {
-                        const serviceType = cardType === "mf" ? "Mutual_Funds" : cardType === "stocks" ?
-                            "Stocks" : "NPS";
-                        fetchAndSetSummary(serviceType, true);
+                        if (cardType === "stocks") {
+                            try {
+                                await syncKiteHoldings();
+                                fetchAndSetSummary("Stocks", true);
+                                setPayload({
+                                    type: "success",
+                                    message: "Holdings synced successfully"
+                                });
+                            } catch (error) {
+                                setPayload({
+                                    type: "error", 
+                                    message: "Failed to sync holdings"
+                                });
+                            }
+                        } else {
+                            const serviceType = cardType === "mf" ? "Mutual_Funds" : "NPS";
+                            fetchAndSetSummary(serviceType, true);
+                        }
                     } else if (cardType2) {
                         console.log("HELLO")
                         const serviceType = cardType2 === "gold" ? "Gold" : cardType2 === "epf" ? "EPF" : "PF";

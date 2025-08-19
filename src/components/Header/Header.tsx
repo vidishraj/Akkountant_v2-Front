@@ -27,9 +27,11 @@ import { fetchOptedBanks } from "../../services/transactionService.ts";
 import { useMessage } from "../../contexts/MessageContext.tsx";
 import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import WorkIcon from "@mui/icons-material/Work";
 import OptBanksDialog from "../OptBanksDialogComponent/OptBanksDialog.tsx";
 import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
 import { getFileTimeStamps } from "../../services/investmentService.ts";
+import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
 
 const Header = () => {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -44,6 +46,7 @@ const Header = () => {
 
   const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
   const [optedBanksDialog, setOptedBanksDialog] = useState<boolean>(false);
+  const [jobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
   useEffect(() => {
     if (currentUser) {
       fetchOptedBanks()
@@ -260,6 +263,21 @@ const Header = () => {
                 sx={{ color: "white", cursor: "pointer" }}
               />
             </ListItem>
+            <ListItem
+              sx={{
+                cursor: "pointer",
+                "&:hover": {
+                  backgroundColor: "rgb(50, 62, 74)",
+                },
+              }}
+              onClick={() => setJobsDialogOpen(true)}
+            >
+              <WorkIcon style={{ marginRight: "0.5rem" }} />
+              <ListItemText
+                primary="Jobs"
+                sx={{ color: "white", cursor: "pointer" }}
+              />
+            </ListItem>
             <ChangepasswordDialog
               open={isChangePasswordOpen}
               onClose={() => setChangePasswordOpen(false)}
@@ -279,6 +297,10 @@ const Header = () => {
               onClose={() => setTimeStampsDialog(false)}
               title="File Timestamps"
               data={fileStamps}
+            />
+            <JobsDialog 
+              open={jobsDialogOpen} 
+              onClose={() => setJobsDialogOpen(false)}
             />
           </List>
         </Box>
