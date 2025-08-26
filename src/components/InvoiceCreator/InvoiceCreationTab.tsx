@@ -653,13 +653,13 @@ const InvoiceCreationTab = ({
                                     loadTemplate(e.target.value);
                                 }
                             }}
+                            style={{ width: '100%', minWidth: 0 }}
                         >
                             <option value="">Select a template...</option>
                             {templates.map(template => (
-                                <option key={template.id} value={template.id}>
-                                    {template.name}
-                                    {template.customerId && ' (Customer Template)'}
-                                    {' - ' + new Date(template.createdAt).toLocaleDateString()}
+                                <option key={template.id} value={template.id} title={`${template.name}${template.customerId ? ' (Customer Template)' : ''} - ${new Date(template.createdAt).toLocaleDateString()}`}>
+                                    {template.name.length > 30 ? `${template.name.substring(0, 30)}...` : template.name}
+                                    {template.customerId && ' (CT)'}
                                 </option>
                             ))}
                         </select>
@@ -953,7 +953,12 @@ const InvoiceCreationTab = ({
                     border: '1px solid #5B5B7B'
                 }}>
                     <h4 style={{color: '#FAFAFA', marginBottom: '12px', fontSize: '0.95rem'}}>💡 JSON Helper Guide:</h4>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', fontSize: '0.8rem'}}>
+                    <div style={{
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+                        gap: '15px', 
+                        fontSize: '0.8rem'
+                    }}>
                         <div>
                             <div style={{color: '#7B68EE', fontWeight: 'bold', marginBottom: '6px'}}>Enum Field Values:</div>
                             <ul style={{color: '#B0B0B0', margin: 0, paddingLeft: '16px', lineHeight: '1.5'}}>
@@ -981,13 +986,20 @@ const InvoiceCreationTab = ({
                             </ul>
                         </div>
                     </div>
-                    <div style={{marginTop: '12px', padding: '10px', backgroundColor: '#2A2A3E', borderRadius: '4px'}}>
+                    <div style={{marginTop: '12px', padding: '10px', backgroundColor: '#2A2A3E', borderRadius: '4px', overflow: 'hidden'}}>
                         <div style={{color: '#FFD700', fontWeight: 'bold', marginBottom: '6px', fontSize: '0.85rem'}}>💫 Examples:</div>
-                        <div style={{color: '#B0B0B0', fontSize: '0.75rem', fontFamily: 'monospace'}}>
-                            <div>{`"customFields": [{"key": "PO Number", "value": "PO-123"}, {"key": "*Internal Notes", "value": "Hide this"}]`}</div>
-                            <div style={{marginTop: '4px'}}>{`"*from.email": "hide@email.com" // Hides email from PDF`}</div>
-                            <div style={{marginTop: '4px'}}>{`"*to.phone": "+1234567890" // Hides phone from PDF`}</div>
-                            <div style={{marginTop: '4px'}}>{`"currency": "EUR", "status": "sent" // Valid enum values`}</div>
+                        <div style={{
+                            color: '#B0B0B0', 
+                            fontSize: '0.75rem', 
+                            fontFamily: 'monospace',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                        }}>
+                            <div style={{marginBottom: '4px', wordBreak: 'break-all'}}>{`"customFields": [{"key": "PO Number", "value": "PO-123"}]`}</div>
+                            <div style={{marginBottom: '4px'}}>{`"*from.email": "hide@email.com"`}</div>
+                            <div style={{marginBottom: '4px'}}>{`"*to.phone": "+1234567890"`}</div>
+                            <div>{`"currency": "EUR", "status": "sent"`}</div>
                         </div>
                     </div>
                 </div>

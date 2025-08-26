@@ -7,9 +7,10 @@ import withLoader from "../LoaderHOC.tsx";
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import PercentIcon from '@mui/icons-material/Percent';
 import DepositModal from "../DepositsComponent.tsx";
-import {fetchRates} from "../../services/investmentService.ts";
+import {fetchRates, syncKiteTransactions} from "../../services/investmentService.ts";
 import RatesModal from "../RatesModal.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
+import SyncIcon from '@mui/icons-material/Sync';
 
 const MSNSummary = () => {
     const [summary, setSummary] = useState<any | undefined>(undefined); // Set appropriate type later if possible
@@ -34,6 +35,20 @@ const MSNSummary = () => {
             setPayload({
                 type: "error",
                 message: "Error while fetching rates. Please try later"
+            })
+        })
+    }
+
+    function handleSyncTransactions() {
+        syncKiteTransactions().then(() => {
+            setPayload({
+                type: "success",
+                message: "Transactions synced successfully"
+            })
+        }).catch(() => {
+            setPayload({
+                type: "error",
+                message: "Error while syncing transactions. Please try later"
             })
         })
     }
@@ -174,6 +189,19 @@ const MSNSummary = () => {
                                 Rates
                             </Button>}
                     </Grid>
+                    {state.selectedCard.stocks && (
+                        <Grid container spacing={2} alignItems="center" justifyContent="center" marginTop={1}>
+                            <Button
+                                size="small"
+                                startIcon={<SyncIcon/>}
+                                onClick={handleSyncTransactions}
+                                variant="outlined"
+                                sx={{ minWidth: 'auto', fontSize: '0.75rem' }}
+                            >
+                                Sync
+                            </Button>
+                        </Grid>
+                    )}
                 </>) : summary && (
                     <>
                         {/* Total Asset Value Section */}
@@ -290,6 +318,21 @@ const MSNSummary = () => {
                                     </Button>}
                             </Grid>
                         </Grid>
+                        
+                        {/* Sync button for stocks (desktop view) */}
+                        {state.selectedCard.stocks && (
+                            <Grid container spacing={2} alignItems="center" justifyContent="center" marginTop={2}>
+                                <Button
+                                    size="small"
+                                    startIcon={<SyncIcon/>}
+                                    onClick={handleSyncTransactions}
+                                    variant="outlined"
+                                    sx={{ minWidth: 'auto', fontSize: '0.75rem' }}
+                                >
+                                    Sync Transactions
+                                </Button>
+                            </Grid>
+                        )}
                     </>
                 )}
             </CardContent>

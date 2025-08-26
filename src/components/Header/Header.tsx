@@ -12,6 +12,8 @@ import {
   ListItem,
   Drawer,
   ListItemText,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import styles from "./Header.module.scss";
@@ -28,6 +30,7 @@ import { useMessage } from "../../contexts/MessageContext.tsx";
 import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WorkIcon from "@mui/icons-material/Work";
+import MenuIcon from "@mui/icons-material/Menu";
 import OptBanksDialog from "../OptBanksDialogComponent/OptBanksDialog.tsx";
 import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
 import { getFileTimeStamps } from "../../services/investmentService.ts";
@@ -36,6 +39,9 @@ import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
 const Header = () => {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   const [isDrawerOpen, setDrawerOpen] = useState(false);
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
   const [isBankDialogOpen, setBankDialogOpen] = useState(false);
   const [optedBanks, setOptedBanks] = useState<any>({});
@@ -92,7 +98,7 @@ const Header = () => {
                 Akkountant
               </Link>
             </Typography>
-            {!loading && currentUser && (
+            {!loading && currentUser && !isMobile && (
               <>
                 <Button
                   sx={{ mx: 1 }}
@@ -131,6 +137,14 @@ const Header = () => {
             )}
           </Box>
           <Box display="flex" alignItems="center">
+            {!loading && currentUser && isMobile && (
+              <IconButton
+                onClick={() => setMobileMenuOpen(true)}
+                sx={{ color: "#FAFAFA", mr: 1 }}
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
             {loading ? (
               // Show nothing or a loading indicator during auth check
               <Box sx={{ width: 40, height: 40 }} />
@@ -200,6 +214,58 @@ const Header = () => {
         </Menu>
       </AppBar>
 
+      {/* Mobile Navigation Menu */}
+      <Drawer
+        anchor="left"
+        open={isMobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      >
+        <Box
+          sx={{
+            width: 250,
+            backgroundColor: "#121C24",
+            height: "100%",
+            color: "#FAFAFA",
+            p: 2,
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+            Navigation
+          </Typography>
+          <Divider sx={{ backgroundColor: "#FAFAFA", mb: 2 }} />
+          <List>
+            <ListItem
+              onClick={() => {
+                navigate("/transactions");
+                setMobileMenuOpen(false);
+              }}
+              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
+            >
+              <ListItemText primary="Transactions" sx={{ color: "white" }} />
+            </ListItem>
+            <ListItem
+              onClick={() => {
+                navigate("/investments");
+                setMobileMenuOpen(false);
+              }}
+              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
+            >
+              <ListItemText primary="Investments" sx={{ color: "white" }} />
+            </ListItem>
+            <ListItem
+              onClick={() => {
+                navigate("/freelance");
+                setMobileMenuOpen(false);
+              }}
+              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
+            >
+              <ListItemText primary="Freelance" sx={{ color: "white" }} />
+            </ListItem>
+          </List>
+        </Box>
+      </Drawer>
+
+      {/* Settings Drawer */}
       <Drawer
         anchor="right"
         open={isDrawerOpen}

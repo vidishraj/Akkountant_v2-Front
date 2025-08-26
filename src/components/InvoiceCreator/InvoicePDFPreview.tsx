@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import {InvoiceData} from '../../utils/interfaces';
 import {generateInvoicePDFLocal} from '../../services/freelanceService';
 import {useMessage} from '../../contexts/MessageContext';
@@ -11,7 +11,23 @@ interface InvoicePDFPreviewProps {
 const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
     const [loading, setLoading] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showFallback, setShowFallback] = useState(false);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
     const {setPayload} = useMessage();
+
+    // Check if we're on mobile - be more conservative
+    useEffect(() => {
+        const checkMobile = () => {
+            // Only show fallback on actual mobile devices, not just small screens
+            const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isSmallScreen = window.innerWidth <= 480; // Only very small screens
+            setShowFallback(isMobileDevice && isSmallScreen);
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const handlePreviewPDF = async () => {
         if (!invoiceData) {
@@ -151,7 +167,7 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                 }}>
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
                         gap: '8px',
                         color: '#B0B0B0',
                         fontSize: '0.85rem'
@@ -174,17 +190,52 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                         borderRadius: '8px',
                         border: '1px solid #5B5B7B'
                     }}>
-                        <iframe
-                            src={previewUrl}
-                            width="100%"
-                            height="800px"
-                            style={{
-                                border: '1px solid #5B5B7B',
-                                borderRadius: '4px',
-                                backgroundColor: 'white'
-                            }}
-                            title="Invoice PDF Preview"
-                        />
+                        <div style={{ position: 'relative', width: '100%' }}>
+                            <iframe
+                                ref={iframeRef}
+                                src={previewUrl}
+                                width="100%"
+                                height="800px"
+                                style={{
+                                    border: '1px solid #5B5B7B',
+                                    borderRadius: '4px',
+                                    backgroundColor: 'white',
+                                    minHeight: '600px',
+                                    maxWidth: '100%',
+                                    display: showFallback ? 'none' : 'block',
+                                    boxSizing: 'border-box'
+                                }}
+                                title="Invoice PDF Preview"
+                                allowFullScreen
+                                loading="lazy"
+                            />
+                            
+                            {/* Mobile fallback message */}
+                            {showFallback && (
+                                <div 
+                                    style={{ 
+                                        textAlign: 'center',
+                                        padding: '20px',
+                                        backgroundColor: 'rgba(123, 104, 238, 0.1)',
+                                        borderRadius: '4px',
+                                        marginTop: '10px',
+                                        color: '#B0B0B0',
+                                        fontSize: '0.9rem'
+                                    }}
+                                >
+                                    📱 PDF preview may not display properly on mobile devices. 
+                                    <br />
+                                    <button
+                                        className={styles.primaryBtn}
+                                        onClick={handleDownloadPDF}
+                                        disabled={loading}
+                                        style={{ marginTop: '10px', padding: '8px 16px', fontSize: '0.9rem' }}
+                                    >
+                                        {loading ? 'Downloading...' : 'Download PDF Instead'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
 
                         <div style={{
                             marginTop: '15px',

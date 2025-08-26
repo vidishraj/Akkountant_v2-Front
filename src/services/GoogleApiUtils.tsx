@@ -1,18 +1,18 @@
 import {updateGoogleTokens} from './transactionService';
 
 export function makeDriveInitialRequest() {
-    let localStorage = window.localStorage
-    let authUrl = localStorage.getItem('oauth_uri')
-    let redirect_uri = localStorage.getItem('redirect_uri')
-    let client_id = localStorage.getItem('client_id')
+    const localStorage = window.localStorage
+    const authUrl = localStorage.getItem('oauth_uri')
+    const redirect_uri = localStorage.getItem('redirect_uri')
+    const client_id = localStorage.getItem('client_id')
     window.location.href = `${authUrl}?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file&response_type=code&redirect_uri=${redirect_uri}&client_id=${client_id}&prompt=consent&access_type=offline`;
 }
 
 export function makeInitialRequest() {
-    let localStorage = window.localStorage
-    let authUrl = localStorage.getItem('oauth_uri')
-    let redirect_uri = localStorage.getItem('redirect_uri')
-    let client_id = localStorage.getItem('client_id')
+    const localStorage = window.localStorage
+    const authUrl = localStorage.getItem('oauth_uri')
+    const redirect_uri = localStorage.getItem('redirect_uri')
+    const client_id = localStorage.getItem('client_id')
     window.location.href = `${authUrl}?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly&response_type=code&redirect_uri=${redirect_uri}&client_id=${client_id}&prompt=consent&access_type=offline`
 }
 

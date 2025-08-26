@@ -317,3 +317,11 @@ export async function syncKiteHoldings(): Promise<KiteSyncResponse> {
     const response = await queueRequest(() => axios.get('/kite/sync-holdings'));
     return response.data;
 }
+
+/**
+ * Sync transactions to database
+ */
+export async function syncKiteTransactions(): Promise<KiteSyncResponse> {
+    const response = await queueRequest(() => axios.get('/kite/sync-transactions'));
+    return response.data;
+}
