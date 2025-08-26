@@ -155,10 +155,6 @@ export class CurrencyService {
           INR: 1.0,
         };
         this.lastUpdated = new Date();
-        console.log(
-          "✅ Exchange rates updated from currency-api:",
-          this.exchangeRates
-        );
       } else {
         throw new Error("Invalid API response");
       }

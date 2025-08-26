@@ -27,9 +27,7 @@ function App() {
         // Listen for authentication state changes
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log("User logged in:", user);
             } else {
-                console.log("User logged out or not logged in.");
             }
             setLoading(false);
         });

@@ -15,11 +15,11 @@ const Home = () => {
         if (code && scope && code.length > 0) {
             if (scope.endsWith('drive.file')) {
                 makeDriveTokenRequest(code).catch((error) => {
-                    console.log(error);
+                    console.error('Drive token request error:', error);
                 })
             } else {
                 makeTokenRequest(code).catch((error) => {
-                    console.log(error);
+                    console.error('Token request error:', error);
                 })
             }
         }
@@ -60,7 +60,7 @@ const Home = () => {
           <div className={style.transactionsTag}>Transactions</div>
         </div>
         <div
-          className={style.jobsContainer}
+          className={style.freelanceContainer}
           onClick={() => {
             navigate("/freelance");
           }}
@@ -72,7 +72,7 @@ const Home = () => {
             height={100}
             width={100}
           />
-          <div className={style.jobsTag}>Freelance</div>
+          <div className={style.freelanceTag}>Freelance</div>
         </div>
       </div>
     );

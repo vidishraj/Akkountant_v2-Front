@@ -50,13 +50,12 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ open, onClose }) => {
                     insertUser(body)
                         .then(() => setUser(response.user))
                         .catch((error) => {
-                            console.log(error);
+                            console.error('Error inserting user:', error);
                             deleteUser(response.user);
                         });
                 })
                 .catch((error) => {
-                    console.log(error);
-                    console.log('Error signing up');
+                    console.error('Error signing up:', error);
                 });
             onClose();
         } catch (error) {

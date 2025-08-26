@@ -4,9 +4,7 @@ import {onAuthStateChanged} from 'firebase/auth';
 import {setupCache} from 'axios-cache-interceptor';
 
 const instance = Axios.create({baseURL: '/api/'});
-const axios = setupCache(instance, {
-    debug: console.log,
-});
+const axios = setupCache(instance);
 
 
 export const setupAxiosInterceptors = () => {

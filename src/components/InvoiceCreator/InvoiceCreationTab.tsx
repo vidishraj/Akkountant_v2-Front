@@ -140,9 +140,7 @@ const InvoiceCreationTab = ({
 
     const loadTemplates = async (clearCache = false) => {
         try {
-            console.log('Loading templates with clearCache:', clearCache);
             const templatesData = await fetchInvoiceTemplates(clearCache);
-            console.log('Templates loaded:', templatesData.length, 'templates');
             setTemplates(templatesData);
         } catch (error) {
             console.error('Error loading templates:', error);
@@ -158,10 +156,10 @@ const InvoiceCreationTab = ({
         try {
             const parsed = JSON.parse(jsonStr);
             const errors: string[] = [];
-            
+
             // Basic validation for required fields with specific errors
             if (!parsed.invoiceNumber) errors.push('invoiceNumber is required');
-            if (!parsed.projectName) errors.push('projectName is required'); 
+            if (!parsed.projectName) errors.push('projectName is required');
             if (!parsed.from?.name) errors.push('from.name is required');
             if (!parsed.to?.name) errors.push('to.name is required');
             if (!parsed.currency) errors.push('currency is required');
@@ -176,7 +174,7 @@ const InvoiceCreationTab = ({
             if (parsed.currency && !validCurrencies.includes(parsed.currency)) {
                 errors.push(`currency must be one of: ${validCurrencies.join(', ')}`);
             }
-            
+
             // Validate status if provided
             const validStatuses = ['draft', 'sent', 'paid', 'overdue'];
             if (parsed.status && !validStatuses.includes(parsed.status)) {
@@ -196,7 +194,7 @@ const InvoiceCreationTab = ({
                     }
                 }
             }
-            
+
             // Validate items array
             if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
                 errors.push('items array is required and must contain at least one item');
@@ -251,7 +249,7 @@ const InvoiceCreationTab = ({
                     });
                 }
             }
-            
+
             // Set detailed error message
             if (errors.length > 0) {
                 setJsonError(`Validation errors:\n• ${errors.join('\n• ')}`);
@@ -283,15 +281,15 @@ const InvoiceCreationTab = ({
             // Handle hidden core fields (check if JSON contains fields with * prefix)
             const hiddenCoreFields: { [key: string]: boolean } = {};
             const coreFieldsToCheck = ['from.email', 'from.phone', 'to.email', 'to.company'];
-            
+
             coreFieldsToCheck.forEach(fieldPath => {
                 const hiddenFieldKey = `*${fieldPath}`;
                 const [section, field] = fieldPath.split('.');
-                
+
                 // Check for flat field format like "*from.email": "value"
                 if (parsed[hiddenFieldKey]) {
                     hiddenCoreFields[fieldPath] = true;
-                    
+
                     // Move the value to the normal location
                     if (!parsed[section]) parsed[section] = {};
                     parsed[section][field] = parsed[hiddenFieldKey];
@@ -300,11 +298,11 @@ const InvoiceCreationTab = ({
                 // Check for nested format like "*from": { "email": "value" }
                 else if (parsed[`*${section}`] && parsed[`*${section}`][field]) {
                     hiddenCoreFields[fieldPath] = true;
-                    
+
                     // Move the value to the normal location
                     if (!parsed[section]) parsed[section] = {};
                     parsed[section][field] = parsed[`*${section}`][field];
-                    
+
                     // Clean up the nested structure if it's now empty
                     delete parsed[`*${section}`][field];
                     if (Object.keys(parsed[`*${section}`]).length === 0) {
@@ -316,7 +314,7 @@ const InvoiceCreationTab = ({
                     hiddenCoreFields[fieldPath] = true;
                 }
             });
-            
+
             if (Object.keys(hiddenCoreFields).length > 0) {
                 parsed.hiddenCoreFields = hiddenCoreFields;
             }
@@ -367,8 +365,8 @@ const InvoiceCreationTab = ({
             setLoading(true);
 
             const result = await saveInvoiceTemplate(
-                templateName, 
-                invoiceData, 
+                templateName,
+                invoiceData,
                 (isCustomerTemplate || saveAsDefault) ? selectedCustomerForTemplate : undefined,
                 saveAsDefault
             );
@@ -412,14 +410,14 @@ const InvoiceCreationTab = ({
             setInvoiceJsonDraft(templateJsonString);
             validateAndSetJson(templateJsonString);
             setShowTemplateActions(true);
-            
+
             // Auto-select the customer if the template has a customerId
             if (template.customerId) {
                 setSelectedCustomerForDefault(template.customerId);
             } else if (templateWithNewInvoiceNumber.customerId) {
                 setSelectedCustomerForDefault(templateWithNewInvoiceNumber.customerId);
             }
-            
+
             // Template loading feedback is provided by UI changes, no toast needed
         }
     };
@@ -526,12 +524,12 @@ const InvoiceCreationTab = ({
             const invoiceJsonString = JSON.stringify(invoice, null, 2);
             setInvoiceJsonDraft(invoiceJsonString);
             validateAndSetJson(invoiceJsonString);
-            
+
             // Auto-select the customer from the loaded invoice
             if (invoice.customerId) {
                 setSelectedCustomerForDefault(invoice.customerId);
             }
-            
+
             // Invoice loading feedback is provided by UI changes, no toast needed
         } catch (error) {
             setPayload({
@@ -546,7 +544,7 @@ const InvoiceCreationTab = ({
 
     const handleCustomerSelection = (customerId: string) => {
         setSelectedCustomerForDefault(customerId);
-        
+
         if (customerId) {
             // Update the invoice data with the selected customer ID
             const currentData = invoiceJsonDraft ? JSON.parse(invoiceJsonDraft) : defaultInvoiceStructure;
@@ -554,11 +552,11 @@ const InvoiceCreationTab = ({
                 ...currentData,
                 customerId: customerId
             };
-            
+
             const updatedJsonString = JSON.stringify(updatedData, null, 2);
             setInvoiceJsonDraft(updatedJsonString);
             validateAndSetJson(updatedJsonString);
-            
+
             // Customer selection feedback is provided by UI changes, no toast needed
         }
     };
@@ -580,12 +578,12 @@ const InvoiceCreationTab = ({
                     type: 'success',
                     message: 'Invoice updated successfully!'
                 });
-                
+
                 // Trigger refresh to get updated invoice data
                 if (onInvoiceUpdated) {
                     onInvoiceUpdated(editingInvoiceId);
                 }
-                
+
                 onEditComplete?.();
             } else {
                 await createInvoice(invoiceData);
@@ -608,25 +606,31 @@ const InvoiceCreationTab = ({
             setLoading(false);
         }
     };
-    console.log(templates)
     return (
         <div>
             {/* Quick Start & Actions */}
-            <div className={styles.invoiceForm} style={{ marginBottom: '15px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+            <div className={styles.invoiceForm} style={{marginBottom: '15px'}}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '10px',
+                    flexWrap: 'wrap',
+                    gap: '10px'
+                }}>
                     <h3 style={{color: '#FAFAFA', margin: 0}}>Quick Start & Actions</h3>
                     <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
                         <button
                             className={styles.secondaryBtn}
                             onClick={() => setShowSaveTemplate(!showSaveTemplate)}
-                            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                            style={{padding: '6px 10px', fontSize: '0.85rem'}}
                         >
                             Save Template
                         </button>
                         <button
                             className={styles.secondaryBtn}
                             onClick={resetToDefault}
-                            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                            style={{padding: '6px 10px', fontSize: '0.85rem'}}
                         >
                             Reset
                         </button>
@@ -634,7 +638,7 @@ const InvoiceCreationTab = ({
                             className={styles.secondaryBtn}
                             onClick={formatJson}
                             disabled={!isValidJson}
-                            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                            style={{padding: '6px 10px', fontSize: '0.85rem'}}
                         >
                             Format
                         </button>
@@ -653,21 +657,22 @@ const InvoiceCreationTab = ({
                                     loadTemplate(e.target.value);
                                 }
                             }}
-                            style={{ width: '100%', minWidth: 0 }}
+                            style={{width: '100%', minWidth: 0}}
                         >
                             <option value="">Select a template...</option>
                             {templates.map(template => (
-                                <option key={template.id} value={template.id} title={`${template.name}${template.customerId ? ' (Customer Template)' : ''} - ${new Date(template.createdAt).toLocaleDateString()}`}>
+                                <option key={template.id} value={template.id}
+                                        title={`${template.name}${template.customerId ? ' (Customer Template)' : ''} - ${new Date(template.createdAt).toLocaleDateString()}`}>
                                     {template.name.length > 30 ? `${template.name.substring(0, 30)}...` : template.name}
                                     {template.customerId && ' (CT)'}
                                 </option>
                             ))}
                         </select>
                         {templates.length === 0 && (
-                            <div style={{ 
-                                marginTop: '6px', 
-                                padding: '6px', 
-                                backgroundColor: 'rgba(123, 104, 238, 0.1)', 
+                            <div style={{
+                                marginTop: '6px',
+                                padding: '6px',
+                                backgroundColor: 'rgba(123, 104, 238, 0.1)',
                                 borderRadius: '4px',
                                 fontSize: '0.8rem',
                                 color: '#7B68EE'
@@ -676,16 +681,16 @@ const InvoiceCreationTab = ({
                             </div>
                         )}
                     </div>
-                    
+
                     {/* Template Actions */}
                     {selectedTemplate && showTemplateActions && (
                         <div className={styles.formGroup}>
                             <label className={styles.formLabel}>Template Actions</label>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
                                 <button
                                     className={styles.secondaryBtn}
                                     onClick={() => handleEditTemplate(selectedTemplate)}
-                                    style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                                    style={{padding: '6px 10px', fontSize: '0.85rem'}}
                                     disabled={loading}
                                 >
                                     Edit Template
@@ -693,17 +698,17 @@ const InvoiceCreationTab = ({
                                 <button
                                     className={styles.dangerBtn}
                                     onClick={() => handleDeleteTemplate(selectedTemplate)}
-                                    style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                                    style={{padding: '6px 10px', fontSize: '0.85rem'}}
                                     disabled={loading}
                                 >
                                     Delete Template
                                 </button>
                             </div>
                             {templates.find(t => t.id === selectedTemplate)?.customerId && (
-                                <div style={{ 
-                                    marginTop: '6px', 
-                                    padding: '6px', 
-                                    backgroundColor: 'rgba(50, 205, 50, 0.1)', 
+                                <div style={{
+                                    marginTop: '6px',
+                                    padding: '6px',
+                                    backgroundColor: 'rgba(50, 205, 50, 0.1)',
                                     borderRadius: '4px',
                                     fontSize: '0.8rem',
                                     color: '#32CD32'
@@ -717,15 +722,16 @@ const InvoiceCreationTab = ({
 
                 {/* Edit Template Modal */}
                 {editingTemplate && (
-                    <div style={{ 
-                        marginTop: '10px', 
-                        padding: '12px', 
-                        backgroundColor: '#29384D', 
+                    <div style={{
+                        marginTop: '10px',
+                        padding: '12px',
+                        backgroundColor: '#29384D',
                         borderRadius: '6px',
                         border: '1px solid #5B5B7B'
                     }}>
-                        <h4 style={{ color: '#FAFAFA', marginBottom: '10px', fontSize: '1rem' }}>Edit Template: {editingTemplate.name}</h4>
-                        
+                        <h4 style={{color: '#FAFAFA', marginBottom: '10px', fontSize: '1rem'}}>Edit
+                            Template: {editingTemplate.name}</h4>
+
                         <div className={styles.formRow}>
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Template Name *</label>
@@ -738,8 +744,8 @@ const InvoiceCreationTab = ({
                                 />
                             </div>
                         </div>
-                        
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+
+                        <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
                             <button
                                 className={styles.primaryBtn}
                                 onClick={handleUpdateTemplate}
@@ -762,15 +768,15 @@ const InvoiceCreationTab = ({
                 )}
 
                 {showSaveTemplate && (
-                    <div style={{ 
-                        marginTop: '10px', 
-                        padding: '12px', 
-                        backgroundColor: '#29384D', 
+                    <div style={{
+                        marginTop: '10px',
+                        padding: '12px',
+                        backgroundColor: '#29384D',
                         borderRadius: '6px',
                         border: '1px solid #5B5B7B'
                     }}>
-                        <h4 style={{ color: '#FAFAFA', marginBottom: '10px', fontSize: '1rem' }}>Save as Template</h4>
-                        
+                        <h4 style={{color: '#FAFAFA', marginBottom: '10px', fontSize: '1rem'}}>Save as Template</h4>
+
                         <div className={styles.formRow}>
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Template Name *</label>
@@ -783,9 +789,15 @@ const InvoiceCreationTab = ({
                                 />
                             </div>
                         </div>
-                        
-                        <div style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FAFAFA', cursor: 'pointer' }}>
+
+                        <div style={{marginBottom: '15px'}}>
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                color: '#FAFAFA',
+                                cursor: 'pointer'
+                            }}>
                                 <input
                                     type="checkbox"
                                     checked={isCustomerTemplate}
@@ -796,26 +808,35 @@ const InvoiceCreationTab = ({
                                             setSaveAsDefault(false);
                                         }
                                     }}
-                                    style={{ accentColor: '#7B68EE' }}
+                                    style={{accentColor: '#7B68EE'}}
                                 />
                                 Link to specific customer
                             </label>
                             {isCustomerTemplate && (
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FAFAFA', cursor: 'pointer', marginLeft: '26px', marginTop: '8px' }}>
+                                <label style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    color: '#FAFAFA',
+                                    cursor: 'pointer',
+                                    marginLeft: '26px',
+                                    marginTop: '8px'
+                                }}>
                                     <input
                                         type="checkbox"
                                         checked={saveAsDefault}
                                         onChange={(e) => setSaveAsDefault(e.target.checked)}
-                                        style={{ accentColor: '#7B68EE' }}
+                                        style={{accentColor: '#7B68EE'}}
                                     />
                                     Set as customer default template
                                 </label>
                             )}
-                            <p style={{ color: '#B0B0B0', fontSize: '0.85rem', margin: '5px 0 0 26px' }}>
-                                Each customer can have multiple templates but only one default template which is auto-loaded when creating invoices.
+                            <p style={{color: '#B0B0B0', fontSize: '0.85rem', margin: '5px 0 0 26px'}}>
+                                Each customer can have multiple templates but only one default template which is
+                                auto-loaded when creating invoices.
                             </p>
                         </div>
-                        
+
                         {isCustomerTemplate && (
                             <div className={styles.formRow}>
                                 <div className={styles.formGroup}>
@@ -825,18 +846,19 @@ const InvoiceCreationTab = ({
                                         onChange={(customerId: string) => setSelectedCustomerForTemplate(customerId)}
                                         className={styles.formInput}
                                     />
-                                    <div style={{ 
-                                        marginTop: '6px', 
+                                    <div style={{
+                                        marginTop: '6px',
                                         fontSize: '0.8rem',
                                         color: '#B0B0B0'
                                     }}>
-                                        💡 Select a customer to link this template to them{saveAsDefault ? ' and set as their default' : ' specifically'}
+                                        💡 Select a customer to link this template to
+                                        them{saveAsDefault ? ' and set as their default' : ' specifically'}
                                     </div>
                                 </div>
                             </div>
                         )}
-                        
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+
+                        <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
                             <button
                                 className={styles.primaryBtn}
                                 onClick={saveTemplate}
@@ -864,10 +886,10 @@ const InvoiceCreationTab = ({
             </div>
 
             {/* Customer Selection - Required */}
-            <div className={styles.invoiceForm} style={{ marginBottom: '15px' }}>
-                <h3 style={{ color: '#FAFAFA', marginBottom: '12px' }}>🏢 Customer Selection (Required)</h3>
+            <div className={styles.invoiceForm} style={{marginBottom: '15px'}}>
+                <h3 style={{color: '#FAFAFA', marginBottom: '12px'}}>🏢 Customer Selection (Required)</h3>
                 <div className={styles.formRow}>
-                    <div className={styles.formGroup} style={{ flex: 1 }}>
+                    <div className={styles.formGroup} style={{flex: 1}}>
                         <label className={styles.formLabel}>Select Customer *</label>
                         <CustomerDropdown
                             value={selectedCustomerForDefault}
@@ -875,7 +897,7 @@ const InvoiceCreationTab = ({
                             className={`${styles.formInput} ${!selectedCustomerForDefault ? 'error' : ''}`}
                         />
                         {!selectedCustomerForDefault && (
-                            <div style={{ color: '#DC143C', fontSize: '0.8rem', marginTop: '4px' }}>
+                            <div style={{color: '#DC143C', fontSize: '0.8rem', marginTop: '4px'}}>
                                 Customer selection is required to create an invoice
                             </div>
                         )}
@@ -899,8 +921,8 @@ const InvoiceCreationTab = ({
                 )}
 
                 <div style={{position: 'relative'}}>
-                    <div style={{ 
-                        display: 'flex', 
+                    <div style={{
+                        display: 'flex',
                         border: !isValidJson ? '2px solid #DC143C' : '1px solid #5B5B7B',
                         borderRadius: '4px',
                         overflow: 'hidden'
@@ -922,7 +944,7 @@ const InvoiceCreationTab = ({
                                 <div key={index}>{index + 1}</div>
                             ))}
                         </div>
-                        
+
                         <textarea
                             className={`${styles.formInput}`}
                             value={invoiceJsonDraft}
@@ -946,21 +968,23 @@ const InvoiceCreationTab = ({
 
                 {/* JSON Helper Guide */}
                 <div style={{
-                    marginTop: '15px', 
-                    padding: '15px', 
-                    backgroundColor: '#1E1E2E', 
+                    marginTop: '15px',
+                    padding: '15px',
+                    backgroundColor: '#1E1E2E',
                     borderRadius: '6px',
                     border: '1px solid #5B5B7B'
                 }}>
                     <h4 style={{color: '#FAFAFA', marginBottom: '12px', fontSize: '0.95rem'}}>💡 JSON Helper Guide:</h4>
                     <div style={{
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-                        gap: '15px', 
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                        gap: '15px',
                         fontSize: '0.8rem'
                     }}>
                         <div>
-                            <div style={{color: '#7B68EE', fontWeight: 'bold', marginBottom: '6px'}}>Enum Field Values:</div>
+                            <div style={{color: '#7B68EE', fontWeight: 'bold', marginBottom: '6px'}}>Enum Field
+                                Values:
+                            </div>
                             <ul style={{color: '#B0B0B0', margin: 0, paddingLeft: '16px', lineHeight: '1.5'}}>
                                 <li><strong>currency:</strong> USD, INR, GBP, EUR, AUD</li>
                                 <li><strong>status:</strong> draft, sent, paid, overdue</li>
@@ -977,7 +1001,8 @@ const InvoiceCreationTab = ({
                             </ul>
                         </div>
                         <div>
-                            <div style={{color: '#FF6B6B', fontWeight: 'bold', marginBottom: '6px'}}>Hidden Fields:</div>
+                            <div style={{color: '#FF6B6B', fontWeight: 'bold', marginBottom: '6px'}}>Hidden Fields:
+                            </div>
                             <ul style={{color: '#B0B0B0', margin: 0, paddingLeft: '16px', lineHeight: '1.5'}}>
                                 <li><strong>Custom fields:</strong> Prefix key with "*"</li>
                                 <li><strong>Example:</strong> "*Internal Note"</li>
@@ -986,17 +1011,28 @@ const InvoiceCreationTab = ({
                             </ul>
                         </div>
                     </div>
-                    <div style={{marginTop: '12px', padding: '10px', backgroundColor: '#2A2A3E', borderRadius: '4px', overflow: 'hidden'}}>
-                        <div style={{color: '#FFD700', fontWeight: 'bold', marginBottom: '6px', fontSize: '0.85rem'}}>💫 Examples:</div>
+                    <div style={{
+                        marginTop: '12px',
+                        padding: '10px',
+                        backgroundColor: '#2A2A3E',
+                        borderRadius: '4px',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{color: '#FFD700', fontWeight: 'bold', marginBottom: '6px', fontSize: '0.85rem'}}>💫
+                            Examples:
+                        </div>
                         <div style={{
-                            color: '#B0B0B0', 
-                            fontSize: '0.75rem', 
+                            color: '#B0B0B0',
+                            fontSize: '0.75rem',
                             fontFamily: 'monospace',
                             wordWrap: 'break-word',
                             overflowWrap: 'break-word',
                             whiteSpace: 'pre-wrap'
                         }}>
-                            <div style={{marginBottom: '4px', wordBreak: 'break-all'}}>{`"customFields": [{"key": "PO Number", "value": "PO-123"}]`}</div>
+                            <div style={{
+                                marginBottom: '4px',
+                                wordBreak: 'break-all'
+                            }}>{`"customFields": [{"key": "PO Number", "value": "PO-123"}]`}</div>
                             <div style={{marginBottom: '4px'}}>{`"*from.email": "hide@email.com"`}</div>
                             <div style={{marginBottom: '4px'}}>{`"*to.phone": "+1234567890"`}</div>
                             <div>{`"currency": "EUR", "status": "sent"`}</div>

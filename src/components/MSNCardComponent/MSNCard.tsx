@@ -4,6 +4,7 @@ import {
     Typography,
 } from "@mui/material";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import BasicCard from "../BasicCard";
 import FileUploadDialog from "../FileUploadComponent/FileUpload";
 import moduleStyle from "./MSNCard.module.scss";
@@ -126,32 +127,42 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 onClick={async (e) => {
                     e.stopPropagation();
                     if (cardType) {
-                        if (cardType === "stocks") {
-                            try {
-                                await syncKiteHoldings();
-                                fetchAndSetSummary("Stocks", true);
-                                setPayload({
-                                    type: "success",
-                                    message: "Holdings synced successfully"
-                                });
-                            } catch (error) {
-                                setPayload({
-                                    type: "error", 
-                                    message: "Failed to sync holdings"
-                                });
-                            }
-                        } else {
-                            const serviceType = cardType === "mf" ? "Mutual_Funds" : "NPS";
-                            fetchAndSetSummary(serviceType, true);
-                        }
+                        const serviceType = cardType === "stocks" ? "Stocks" : cardType === "mf" ? "Mutual_Funds" : "NPS";
+                        fetchAndSetSummary(serviceType, true);
                     } else if (cardType2) {
-                        console.log("HELLO")
                         const serviceType = cardType2 === "gold" ? "Gold" : cardType2 === "epf" ? "EPF" : "PF";
                         AllInfoForEpf(serviceType, true);
                     }
                 }}
             >
                 <RefreshIcon style={{color: "black"}}/>
+            </Button>
+        </div>
+    );
+
+    const renderCloudSyncButton = () => (
+        <div onClick={(e) => e.stopPropagation()}>
+            <Button
+                className={moduleStyle.FileUploadButton}
+                variant="contained"
+                onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await syncKiteHoldings();
+                        fetchAndSetSummary("Stocks", true);
+                        setPayload({
+                            type: "success",
+                            message: "Holdings synced successfully"
+                        });
+                    } catch (error) {
+                        setPayload({
+                            type: "error",
+                            message: "Failed to sync holdings"
+                        });
+                    }
+                }}
+            >
+                <CloudSyncIcon style={{color: "black"}}/>
             </Button>
         </div>
     );
@@ -249,10 +260,11 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                     {renderRefreshButton()}
                     {cardType === "stocks" && (
                         <div onClick={(e) => e.stopPropagation()}>
-                            <KiteAuth />
+                            <KiteAuth/>
                         </div>
                     )}
-                    {(cardType === "stocks" || cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
+                    {cardType === "stocks" && renderCloudSyncButton()}
+                    {(cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
                     {(cardType2 === "ppf" || cardType2 === "gold") && renderAddButton()}
                 </div>
             </div>
