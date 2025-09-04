@@ -157,9 +157,9 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<Blob
 }
 
 /**
- * Generate local PDF fallback using jsPDF when backend is unavailable.
+ * Core PDF generation function that both regular and signed PDFs use.
  */
-export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise<Blob> {
+function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData): jsPDF {
     // Create a new jsPDF instance with A4 format
     const doc = new jsPDF({
         orientation: 'portrait',
@@ -522,21 +522,58 @@ export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise
         }
     }
 
-    // Add signature line
+    // Add signature section
     yPosition += 15; // Reduced space before signature
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     doc.text('Authorized Signature:', margin, yPosition);
+    
+    // Add signature image if provided, otherwise draw signature line
+    if (signatureData?.signatureUrl) {
+        try {
+            const signatureY = yPosition + 5;
+            const signatureWidth = 50; // 50mm wide signature
+            const signatureHeight = 20; // 20mm tall signature
+            doc.addImage(signatureData.signatureUrl, 'PNG', margin, signatureY, signatureWidth, signatureHeight);
+        } catch (error) {
+            console.warn('Failed to add signature image to PDF:', error);
+            // Draw signature line as fallback
+            const signatureLineY = yPosition + 15;
+            const signatureLineWidth = 60; // 60mm wide line
+            doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+            doc.setLineWidth(0.5);
+            doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
+        }
+    } else {
+        // Draw signature line if no signature provided
+        const signatureLineY = yPosition + 15;
+        const signatureLineWidth = 60; // 60mm wide line
+        doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+        doc.setLineWidth(0.5);
+        doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
+    }
 
-    // Draw signature line
-    const signatureLineY = yPosition + 15;
-    const signatureLineWidth = 60; // 60mm wide line
-    doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
-    doc.setLineWidth(0.5);
-    doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
+    return doc;
+}
 
-    // Convert to blob and return
+/**
+ * Generate local PDF fallback using jsPDF when backend is unavailable.
+ */
+export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise<Blob> {
+    const doc = generatePDFCore(invoiceData);
+    const pdfBlob = doc.output('blob');
+    return Promise.resolve(pdfBlob);
+}
+
+/**
+ * Sign invoice PDF with signature data (local generation with new format).
+ */
+export async function signInvoicePDFLocal(
+    invoiceData: InvoiceData,
+    signatureData: SignatureData
+): Promise<Blob> {
+    const doc = generatePDFCore(invoiceData, signatureData);
     const pdfBlob = doc.output('blob');
     return Promise.resolve(pdfBlob);
 }
@@ -596,8 +633,9 @@ export async function deleteSignature(signatureId: string): Promise<DeleteSignat
     return response.data;
 }
 
+
 /**
- * Sign invoice PDF with signature data.
+ * Sign invoice PDF with signature data (backend API call - legacy).
  */
 export async function signInvoicePDF(
     invoiceId: string,
