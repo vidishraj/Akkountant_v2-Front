@@ -170,7 +170,6 @@ export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise
     // Set up colors
     const primaryColor = [123, 104, 238]; // #7B68EE
     const textColor = [51, 51, 51]; // #333
-    const grayColor = [102, 102, 102]; // #666
 
     // Currency symbols
     const currencySymbols: Record<string, string> = {
@@ -184,9 +183,33 @@ export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise
 
     // Page dimensions
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 20;
     let yPosition = margin;
+
+    // Add rounded image in top left corner (hardcoded path - replace with your image)
+    const logoImagePath = 'img.png'; // Replace with your base64 image
+    const logoSize = 25; // Size in mm
+    const logoX = margin;
+    const logoY = margin;
+
+    try {
+        // Add the image (you'll need to replace logoImagePath with your actual image data)
+        doc.addImage(logoImagePath, 'PNG', logoX, logoY, logoSize, logoSize);
+
+        // Create rounded corners effect by adding a white border mask
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(2);
+
+        // Draw rounded rectangle outline to create the rounded effect
+        const radius = 3;
+        doc.roundedRect(logoX - 1, logoY - 1, logoSize + 2, logoSize + 2, radius, radius, 'S');
+
+        // Adjust yPosition to account for the logo
+        yPosition = Math.max(yPosition, logoY + logoSize + 10);
+    } catch (error) {
+        console.warn('Failed to add logo image to PDF:', error);
+        // Continue without logo if image fails to load
+    }
 
     // Helper function to add text with automatic line breaks
     const addText = (text: string, x: number, y: number, maxWidth?: number) => {
@@ -200,119 +223,184 @@ export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise
         }
     };
 
-    // Header - Invoice Title
-    doc.setFontSize(28);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text('INVOICE', pageWidth / 2, yPosition, {align: 'center'});
+    // Helper function to add right-aligned text
+    const addRightAlignedText = (text: string, y: number, maxWidth?: number) => {
+        if (maxWidth) {
+            const lines = doc.splitTextToSize(text, maxWidth);
+            lines.forEach((line: string, index: number) => {
+                doc.text(line, pageWidth - margin, y + (index * 5), {align: 'right'});
+            });
+            return y + (lines.length * 5);
+        } else {
+            doc.text(text, pageWidth - margin, y, {align: 'right'});
+            return y + 7;
+        }
+    };
 
-    yPosition += 12;
-    doc.setFontSize(16);
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.text(`#${invoiceData.invoiceNumber}`, pageWidth / 2, yPosition, {align: 'center'});
+    // Add "From" section in top right, parallel to logo - RIGHT ALIGNED
+    const fromSectionY = logoY; // Same Y position as logo
+    const fromSectionWidth = 80; // Max width for text wrapping
 
-    yPosition += 8;
-    if (invoiceData.projectName) {
-        doc.setFontSize(12);
-        doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-        doc.text(`Project: ${invoiceData.projectName}`, pageWidth / 2, yPosition, {align: 'center'});
-        yPosition += 8;
-    }
-
-    yPosition += 12;
-
-    // Dates section
-    doc.setFontSize(10);
-    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-    doc.text(`Issue Date: ${new Date(invoiceData.issueDate).toLocaleDateString()}`, margin, yPosition);
-    doc.text(`Due Date: ${new Date(invoiceData.dueDate).toLocaleDateString()}`, margin, yPosition + 5);
-
-    yPosition += 20;
-
-    // From and To sections
-    const leftColWidth = (pageWidth - 3 * margin) / 2;
-    const rightColStart = margin + leftColWidth + margin;
-
-    // From section
     doc.setFontSize(12);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text('From:', margin, yPosition);
+    doc.text('From:', pageWidth - margin, fromSectionY, {align: 'right'});
 
     doc.setFontSize(10);
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-    let fromY = yPosition + 7;
+    let fromY = fromSectionY + 7;
     doc.setFont('helvetica', 'bold');
-    fromY = addText(invoiceData.from.name, margin, fromY, leftColWidth);
+    fromY = addRightAlignedText(invoiceData.from.name, fromY, fromSectionWidth);
     doc.setFont('helvetica', 'normal');
-    
+
     // Check if email should be hidden
     if (!invoiceData.hiddenCoreFields?.['from.email']) {
-        fromY = addText(invoiceData.from.email, margin, fromY, leftColWidth);
-    }
-    
-    fromY = addText(invoiceData.from.address, margin, fromY, leftColWidth);
-    
-    // Check if phone should be hidden
-    if (invoiceData.from.phone && !invoiceData.hiddenCoreFields?.['from.phone']) {
-        fromY = addText(invoiceData.from.phone, margin, fromY, leftColWidth);
+        fromY = addRightAlignedText(invoiceData.from.email, fromY, fromSectionWidth);
     }
 
-    // To section
+    fromY = addRightAlignedText(invoiceData.from.address, fromY, fromSectionWidth);
+
+    // Check if phone should be hidden
+    if (invoiceData.from.phone && !invoiceData.hiddenCoreFields?.['from.phone']) {
+        fromY = addRightAlignedText(invoiceData.from.phone, fromY, fromSectionWidth);
+    }
+
+    // Update yPosition to account for both logo and from section
+    yPosition = Math.max(yPosition, fromY + 10);
+
+    // Add horizontal separating line below logo and from section
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+
+    yPosition += 15; // Add space after the line
+
+    // Create two columns below the separator line
+    const leftColumnWidth = (pageWidth - 3 * margin) / 2;
+    const sectionStartY = yPosition;
+
+    // LEFT COLUMN: To section
     doc.setFontSize(12);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text('To:', rightColStart, yPosition);
+    doc.text('To:', margin, sectionStartY);
 
     doc.setFontSize(10);
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-    let toY = yPosition + 7;
+    let toY = sectionStartY + 7;
     doc.setFont('helvetica', 'bold');
-    toY = addText(invoiceData.to.name, rightColStart, toY, leftColWidth);
+    toY = addText(invoiceData.to.name, margin, toY, leftColumnWidth);
     doc.setFont('helvetica', 'normal');
-    
+
     // Check if company should be hidden
     if (invoiceData.to.company && !invoiceData.hiddenCoreFields?.['to.company']) {
         doc.setFont('helvetica', 'italic');
-        toY = addText(invoiceData.to.company, rightColStart, toY, leftColWidth);
+        toY = addText(invoiceData.to.company, margin, toY, leftColumnWidth);
         doc.setFont('helvetica', 'normal');
     }
-    
+
     // Check if email should be hidden
     if (!invoiceData.hiddenCoreFields?.['to.email']) {
-        toY = addText(invoiceData.to.email, rightColStart, toY, leftColWidth);
+        toY = addText(invoiceData.to.email, margin, toY, leftColumnWidth);
     }
-    
-    toY = addText(invoiceData.to.address, rightColStart, toY, leftColWidth);
 
-    yPosition = Math.max(fromY, toY) + 15;
+    toY = addText(invoiceData.to.address, margin, toY, leftColumnWidth);
 
-    // Custom Fields section (only non-hidden fields)
+    // RIGHT COLUMN: Invoice details (invoice number, dates, custom fields) - RIGHT ALIGNED
+    let detailsY = sectionStartY;
+
+    // Invoice Number
+    doc.setFontSize(12);
+    const invoiceLabel = 'Invoice#: ';
+    const invoiceValue = `${invoiceData.invoiceNumber}`;
+
+    // Calculate total width to position correctly when right-aligned
+    doc.setFont('helvetica', 'normal');
+    const invoiceLabelWidth = doc.getTextWidth(invoiceLabel);
+    doc.setFont('helvetica', 'bold');
+    const invoiceValueWidth = doc.getTextWidth(invoiceValue);
+    const totalWidth = invoiceLabelWidth + invoiceValueWidth;
+
+    // Draw label in purple
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFont('helvetica', 'normal');
+    doc.text(invoiceLabel, pageWidth - margin - totalWidth, detailsY);
+
+    // Draw value in black (bold)
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.text(invoiceValue, pageWidth - margin - invoiceValueWidth, detailsY);
+
+    detailsY += 8; // spacing
+
+    // Issue Date
+    doc.setFontSize(10);
+    const issueDateLabel = 'Issue Date: ';
+    const issueDateValue = new Date(invoiceData.issueDate).toLocaleDateString();
+
+    // Calculate total width to position correctly when right-aligned
+    doc.setFont('helvetica', 'normal');
+    const issueDateLabelWidth = doc.getTextWidth(issueDateLabel);
+    const issueDateValueWidth = doc.getTextWidth(issueDateValue);
+    const issueDateTotalWidth = issueDateLabelWidth + issueDateValueWidth;
+
+    // Draw label in purple
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text(issueDateLabel, pageWidth - margin - issueDateTotalWidth, detailsY);
+
+    // Draw value in black
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    doc.text(issueDateValue, pageWidth - margin - issueDateValueWidth, detailsY);
+
+    detailsY += 6; // spacing
+
+    // Due Date
+    doc.setFontSize(10);
+    const dueDateLabel = 'Due Date: ';
+    const dueDateValue = new Date(invoiceData.dueDate).toLocaleDateString();
+
+    // Calculate total width to position correctly when right-aligned
+    doc.setFont('helvetica', 'normal');
+    const dueDateLabelWidth = doc.getTextWidth(dueDateLabel);
+    const dueDateValueWidth = doc.getTextWidth(dueDateValue);
+    const dueDateTotalWidth = dueDateLabelWidth + dueDateValueWidth;
+
+    // Draw label in purple
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text(dueDateLabel, pageWidth - margin - dueDateTotalWidth, detailsY);
+
+    // Draw value in black
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    doc.text(dueDateValue, pageWidth - margin - dueDateValueWidth, detailsY);
+
+    detailsY += 8; // spacing before custom fields
+
+    // Custom Fields (Additional Information) in right column - RIGHT ALIGNED
     const visibleCustomFields = invoiceData.customFields?.filter(field => !field.hidden) || [];
     if (visibleCustomFields.length > 0) {
-        doc.setFontSize(12);
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.text('Additional Information:', margin, yPosition);
+        visibleCustomFields.forEach((field) => {
+            doc.setFontSize(10);
+            const fieldLabel = `${field.key}: `;
+            const fieldValue = field.value || '-';
 
-        yPosition += 8;
-        doc.setFontSize(10);
-        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-
-        // Create a grid layout for custom fields
-        const fieldsPerRow = 2;
-        const fieldWidth = (pageWidth - 3 * margin) / fieldsPerRow;
-        
-        visibleCustomFields.forEach((field, index) => {
-            const row = Math.floor(index / fieldsPerRow);
-            const col = index % fieldsPerRow;
-            const fieldX = margin + col * (fieldWidth + margin);
-            const fieldY = yPosition + row * 12;
-
-            doc.setFont('helvetica', 'bold');
-            doc.text(`${field.key}:`, fieldX, fieldY);
+            // Calculate total width to position correctly when right-aligned
             doc.setFont('helvetica', 'normal');
-            doc.text(field.value || '-', fieldX, fieldY + 4, { maxWidth: fieldWidth - 10 });
-        });
+            const fieldLabelWidth = doc.getTextWidth(fieldLabel);
+            const fieldValueWidth = doc.getTextWidth(fieldValue);
+            const fieldTotalWidth = fieldLabelWidth + fieldValueWidth;
 
-        yPosition += Math.ceil(visibleCustomFields.length / fieldsPerRow) * 12 + 10;
+            // Draw label in purple
+            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.text(fieldLabel, pageWidth - margin - fieldTotalWidth, detailsY);
+
+            // Draw value in black
+            doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+            doc.text(fieldValue, pageWidth - margin - fieldValueWidth, detailsY);
+
+            detailsY += 6; // spacing between fields
+        });
     }
+
+    // Set yPosition to the bottom of both columns
+    yPosition = Math.max(toY, detailsY) + 15;
 
     // Items table
     const tableStartY = yPosition;
@@ -328,21 +416,27 @@ export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
 
-    let xPos = tableStartX + 2;
-    doc.text('Description', xPos, yPosition + 5.5);
-    xPos += colWidths[0];
-    doc.text('Qty', xPos, yPosition + 5.5, {align: 'right'});
-    xPos += colWidths[1] - 2;
-    doc.text('Rate', xPos, yPosition + 5.5, {align: 'right'});
-    xPos += colWidths[2] - 2;
-    doc.text('Amount', xPos, yPosition + 5.5, {align: 'right'});
+    // Column positions
+    const col1X = tableStartX + 2; // Description
+    const col2X = tableStartX + colWidths[0]; // Qty
+    const col3X = tableStartX + colWidths[0] + colWidths[1]; // Rate
+    const col4X = tableStartX + colWidths[0] + colWidths[1] + colWidths[2]; // Amount
+
+    doc.text('Description', col1X, yPosition + 5.5);
+    doc.text('Qty', col2X + colWidths[1] - 2, yPosition + 5.5, {align: 'right'});
+    doc.text('Rate', col3X + colWidths[2] - 2, yPosition + 5.5, {align: 'right'});
+    doc.text('Amount', col4X + colWidths[3] - 2, yPosition + 5.5, {align: 'right'});
 
     yPosition += 8;
 
     // Table rows
     doc.setFont('helvetica', 'normal');
     invoiceData.items.forEach((item, index) => {
-        const rowHeight = 8;
+        // Calculate dynamic row height based on description text wrapping
+        const descriptionLines = doc.splitTextToSize(item.description, colWidths[0] - 4);
+        const minRowHeight = 8;
+        const lineHeight = 5;
+        const rowHeight = Math.max(minRowHeight, descriptionLines.length * lineHeight + 4);
 
         // Alternate row background
         if (index % 2 === 1) {
@@ -350,14 +444,17 @@ export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise
             doc.rect(tableStartX, yPosition, tableWidth, rowHeight, 'F');
         }
 
-        xPos = tableStartX + 2;
-        doc.text(item.description, xPos, yPosition + 5.5, {maxWidth: colWidths[0] - 4});
-        xPos += colWidths[0];
-        doc.text(item.quantity.toString(), xPos - 2, yPosition + 5.5, {align: 'right'});
-        xPos += colWidths[1];
-        doc.text(`${currencySymbol}${item.rate.toFixed(2)}`, xPos - 2, yPosition + 5.5, {align: 'right'});
-        xPos += colWidths[2];
-        doc.text(`${currencySymbol}${item.amount.toFixed(2)}`, xPos - 2, yPosition + 5.5, {align: 'right'});
+        // Description column (with text wrapping)
+        doc.text(descriptionLines, col1X, yPosition + 5.5);
+
+        // Qty column (right-aligned)
+        doc.text(item.quantity.toString(), col2X + colWidths[1] - 2, yPosition + 5.5, {align: 'right'});
+
+        // Rate column (right-aligned)
+        doc.text(`${currencySymbol}${item.rate.toFixed(2)}`, col3X + colWidths[2] - 2, yPosition + 5.5, {align: 'right'});
+
+        // Amount column (right-aligned)
+        doc.text(`${currencySymbol}${item.amount.toFixed(2)}`, col4X + colWidths[3] - 2, yPosition + 5.5, {align: 'right'});
 
         yPosition += rowHeight;
     });
@@ -425,18 +522,19 @@ export async function generateInvoicePDFLocal(invoiceData: InvoiceData): Promise
         }
     }
 
-    // Footer
-    doc.setFontSize(8);
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    const footerY = pageHeight - 15;
-    doc.setDrawColor(238, 238, 238);
-    doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
-    doc.text(
-        `Invoice generated on ${new Date().toLocaleDateString()} • Thank you for your business!`,
-        pageWidth / 2,
-        footerY,
-        {align: 'center'}
-    );
+    // Add signature line
+    yPosition += 15; // Reduced space before signature
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    doc.text('Authorized Signature:', margin, yPosition);
+
+    // Draw signature line
+    const signatureLineY = yPosition + 15;
+    const signatureLineWidth = 60; // 60mm wide line
+    doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
 
     // Convert to blob and return
     const pdfBlob = doc.output('blob');
@@ -525,11 +623,11 @@ export async function fetchCustomers(
     clearCache = false,
     search = ''
 ): Promise<FetchCustomersResponse> {
-    const params: Record<string, string | number> = { page, limit };
+    const params: Record<string, string | number> = {page, limit};
     if (search) {
         params.search = search;
     }
-    
+
     const options = withRequestId('api/freelance/customers', clearCache ? withCacheCleared({
         params
     }) : {
