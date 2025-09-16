@@ -284,11 +284,11 @@ export interface UnpaidByCurrency {
 export interface FreelanceDashboard {
     totalEarnings: number; // Total paid earnings in base currency (INR)
     monthlyEarnings: number; // Monthly paid earnings in base currency (INR)
-    pendingAmount: number; // Total unpaid amount (multi-currency, estimated in INR)
     completedProjects: number;
     activeClients: number;
     earningsByMonth: { month: string; earnings: number }[]; // Paid earnings by month in INR
     earningsByClient: { client: string; earnings: number }[]; // Paid earnings by client in INR
+    earningsByClientCombined: { client: string; paidAmount: number; pendingAmount: number; totalAmount: number }[]; // All client earnings converted to INR
     recentInvoices: FreelanceEarning[];
     unpaidByCurrency?: UnpaidByCurrency[]; // Unpaid invoices breakdown by currency
 }

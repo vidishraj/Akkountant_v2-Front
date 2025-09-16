@@ -154,51 +154,15 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
     }
   };
 
-  const COLORS = ["#7B68EE", "#32CD32", "#FFD700", "#FF6347", "#20B2AA"];
-  const COLORS_SECONDARY = ["#9370DB", "#3CB371", "#F0E68C", "#FA8072", "#48D1CC"];
+  const COLORS = ["#7B68EE", "#32CD32", "#FFD700", "#FF6347", "#20B2AA", "#FF69B4", "#FFA500", "#9932CC"];
+  const COLORS_SECONDARY = ["#9370DB", "#3CB371", "#F0E68C", "#FA8072", "#48D1CC", "#DA70D6", "#FFB84D", "#BA55D3"];
 
   const calculateClientDistribution = () => {
-    if (!dashboardData) return [];
+    if (!dashboardData?.earningsByClientCombined) return [];
 
-    const clientTotals: Record<string, { 
-      client: string; 
-      paidAmount: number; 
-      pendingAmount: number; 
-      totalAmount: number; 
-    }> = {};
-
-    // Add paid earnings from earningsByClient
-    dashboardData.earningsByClient.forEach(item => {
-      clientTotals[item.client] = {
-        client: item.client,
-        paidAmount: item.earnings,
-        pendingAmount: 0,
-        totalAmount: item.earnings
-      };
-    });
-
-    // Add pending amounts from recent invoices (as a sample of pending invoices)
-    dashboardData.recentInvoices
-      .filter(invoice => invoice.status === 'pending' || invoice.status === 'overdue')
-      .forEach(invoice => {
-        const pendingAmountINR = invoice.currency !== 'INR' 
-          ? getINRConversion(invoice.amount, invoice.currency || 'USD')
-          : invoice.amount;
-
-        if (clientTotals[invoice.clientName]) {
-          clientTotals[invoice.clientName].pendingAmount += pendingAmountINR;
-          clientTotals[invoice.clientName].totalAmount += pendingAmountINR;
-        } else {
-          clientTotals[invoice.clientName] = {
-            client: invoice.clientName,
-            paidAmount: 0,
-            pendingAmount: pendingAmountINR,
-            totalAmount: pendingAmountINR
-          };
-        }
-      });
-
-    return Object.values(clientTotals).sort((a, b) => b.totalAmount - a.totalAmount);
+    // Use the backend-provided combined data which has proper currency conversion
+    return dashboardData.earningsByClientCombined
+      .sort((a, b) => b.totalAmount - a.totalAmount);
   };
 
   const handleClientPieClick = (data: { client: string; totalAmount: number }) => {
@@ -560,7 +524,7 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
                         borderRadius: "4px",
                         color: "#FAFAFA",
                       }}
-                      formatter={(value: number, _name: string, props: any) => [
+                      formatter={(value: number, _name: string, props: { payload?: { currency?: string } }) => [
                         formatWithINRConversion(value, props.payload?.currency || 'USD'),
                         "Unpaid Amount",
                       ]}
@@ -602,10 +566,10 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
             </ResponsiveContainer>
           </div>
 
-          {/* Client Distribution Pie Charts */}
+          {/* Client Distribution Analysis */}
           <div className={styles.chartContainer}>
             <h3 className={styles.sectionTitle}>
-              Client Distribution Analysis
+              Client Distribution Analysis (All Converted to INR)
             </h3>
             
             {/* Client Information Display */}
@@ -648,6 +612,38 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
                 </button>
               </div>
             )}
+
+            {/* Summary Table of All Clients */}
+            <div style={{ marginBottom: '20px', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#29384D', borderRadius: '8px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #5B5B7B' }}>
+                    <th style={{ color: '#FAFAFA', padding: '12px', textAlign: 'left' }}>Client</th>
+                    <th style={{ color: '#32CD32', padding: '12px', textAlign: 'right' }}>Paid (INR)</th>
+                    <th style={{ color: '#FFD700', padding: '12px', textAlign: 'right' }}>Pending (INR)</th>
+                    <th style={{ color: '#7B68EE', padding: '12px', textAlign: 'right' }}>Total (INR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calculateClientDistribution().map((client) => (
+                    <tr key={client.client} style={{ borderBottom: '1px solid #5B5B7B' }}>
+                      <td style={{ color: '#FAFAFA', padding: '12px', fontWeight: 'bold' }}>
+                        {client.client}
+                      </td>
+                      <td style={{ color: '#32CD32', padding: '12px', textAlign: 'right' }}>
+                        {formatBaseCurrency(client.paidAmount)}
+                      </td>
+                      <td style={{ color: '#FFD700', padding: '12px', textAlign: 'right' }}>
+                        {formatBaseCurrency(client.pendingAmount)}
+                      </td>
+                      <td style={{ color: '#7B68EE', padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                        {formatBaseCurrency(client.totalAmount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div style={{
               display: 'grid',
@@ -699,7 +695,7 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
               {/* Total Client Distribution Pie Chart (Paid + Pending) */}
               <div>
                 <h4 style={{ color: '#FAFAFA', textAlign: 'center', marginBottom: '15px' }}>
-                  Total Client Distribution (Paid + Pending)
+                  Total Client Distribution (All Currencies → INR)
                 </h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
@@ -738,14 +734,22 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <p style={{ 
-                  color: '#B0B0B0', 
-                  fontSize: '0.8rem', 
-                  textAlign: 'center', 
-                  marginTop: '10px' 
-                }}>
-                  💡 Click on a sector to see detailed breakdown
-                </p>
+                <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                  <p style={{ 
+                    color: '#B0B0B0', 
+                    fontSize: '0.8rem', 
+                    marginBottom: '5px'
+                  }}>
+                    💡 Click on a sector to see detailed breakdown
+                  </p>
+                  <p style={{ 
+                    color: '#A0A0A0', 
+                    fontSize: '0.7rem', 
+                    fontStyle: 'italic'
+                  }}>
+                    Exchange rates: USD→INR (83), GBP→INR (105), INR (1:1)
+                  </p>
+                </div>
               </div>
             </div>
           </div>
