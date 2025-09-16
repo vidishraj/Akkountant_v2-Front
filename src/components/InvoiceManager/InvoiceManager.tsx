@@ -13,6 +13,7 @@ interface InvoiceManagerProps {
     onPreviewInvoice?: (invoiceId: string) => void;
     refreshTrigger?: number;
     onInvoiceUpdated?: () => void;
+    isActive?: boolean;
 }
 
 const InvoiceManager = ({
@@ -20,6 +21,7 @@ const InvoiceManager = ({
                             onPreviewInvoice,
                             refreshTrigger,
                             onInvoiceUpdated,
+                            isActive = true,
                         }: InvoiceManagerProps) => {
     const [invoices, setInvoices] = useState<InvoiceData[]>([]);
     const [loading, setLoading] = useState(false);
@@ -37,6 +39,17 @@ const InvoiceManager = ({
     useEffect(() => {
         loadInvoices();
     }, [currentPage, refreshTrigger]);
+
+    useEffect(() => {
+        if (isActive) {
+            loadInvoices();
+        }
+    }, [isActive]);
+
+    const handleRefresh = () => {
+        loadInvoices();
+        onInvoiceUpdated?.();
+    };
 
     const loadInvoices = async () => {
         try {
@@ -204,7 +217,7 @@ const InvoiceManager = ({
             </span>
                         <button
                             className={styles.secondaryBtn}
-                            onClick={loadInvoices}
+                            onClick={handleRefresh}
                             disabled={loading}
                         >
                             {loading ? "Refreshing..." : "Refresh"}

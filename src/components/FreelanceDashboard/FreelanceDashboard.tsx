@@ -17,16 +17,17 @@ import {
   fetchFreelanceDashboard,
   fetchEarningsByDateRange,
 } from "../../services/freelanceService";
-import { FreelanceDashboard as DashboardData } from "../../utils/interfaces";
+import { FreelanceDashboard as DashboardData, FreelanceEarning } from "../../utils/interfaces";
 import { useMessage } from "../../contexts/MessageContext";
 import { currencyService } from "../../services/currencyService";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 
 interface FreelanceDashboardProps {
   refreshTrigger?: number;
+  isActive?: boolean;
 }
 
-const FreelanceDashboard = ({ refreshTrigger }: FreelanceDashboardProps = {}) => {
+const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashboardProps = {}) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
     null
   );
@@ -34,13 +35,20 @@ const FreelanceDashboard = ({ refreshTrigger }: FreelanceDashboardProps = {}) =>
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [filteredEarnings, setFilteredEarnings] = useState<any[]>([]);
+  const [filteredEarnings, setFilteredEarnings] = useState<FreelanceEarning[]>([]);
   const [showFilteredResults, setShowFilteredResults] = useState(false);
+  const [selectedClientInfo, setSelectedClientInfo] = useState<{ client: string; totalAmount: number; paidAmount: number; pendingAmount: number } | null>(null);
   const { setPayload } = useMessage();
 
   useEffect(() => {
     loadDashboardData();
   }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (isActive) {
+      loadDashboardData();
+    }
+  }, [isActive]);
 
   const loadDashboardData = async () => {
     try {
@@ -147,6 +155,58 @@ const FreelanceDashboard = ({ refreshTrigger }: FreelanceDashboardProps = {}) =>
   };
 
   const COLORS = ["#7B68EE", "#32CD32", "#FFD700", "#FF6347", "#20B2AA"];
+  const COLORS_SECONDARY = ["#9370DB", "#3CB371", "#F0E68C", "#FA8072", "#48D1CC"];
+
+  const calculateClientDistribution = () => {
+    if (!dashboardData) return [];
+
+    const clientTotals: Record<string, { 
+      client: string; 
+      paidAmount: number; 
+      pendingAmount: number; 
+      totalAmount: number; 
+    }> = {};
+
+    // Add paid earnings from earningsByClient
+    dashboardData.earningsByClient.forEach(item => {
+      clientTotals[item.client] = {
+        client: item.client,
+        paidAmount: item.earnings,
+        pendingAmount: 0,
+        totalAmount: item.earnings
+      };
+    });
+
+    // Add pending amounts from recent invoices (as a sample of pending invoices)
+    dashboardData.recentInvoices
+      .filter(invoice => invoice.status === 'pending' || invoice.status === 'overdue')
+      .forEach(invoice => {
+        const pendingAmountINR = invoice.currency !== 'INR' 
+          ? getINRConversion(invoice.amount, invoice.currency || 'USD')
+          : invoice.amount;
+
+        if (clientTotals[invoice.clientName]) {
+          clientTotals[invoice.clientName].pendingAmount += pendingAmountINR;
+          clientTotals[invoice.clientName].totalAmount += pendingAmountINR;
+        } else {
+          clientTotals[invoice.clientName] = {
+            client: invoice.clientName,
+            paidAmount: 0,
+            pendingAmount: pendingAmountINR,
+            totalAmount: pendingAmountINR
+          };
+        }
+      });
+
+    return Object.values(clientTotals).sort((a, b) => b.totalAmount - a.totalAmount);
+  };
+
+  const handleClientPieClick = (data: { client: string; totalAmount: number }) => {
+    const clientData = calculateClientDistribution().find(item => item.client === data.client);
+    if (clientData) {
+      setSelectedClientInfo(clientData);
+    }
+  };
 
   if (loading) {
     return (
@@ -500,7 +560,7 @@ const FreelanceDashboard = ({ refreshTrigger }: FreelanceDashboardProps = {}) =>
                         borderRadius: "4px",
                         color: "#FAFAFA",
                       }}
-                      formatter={(value: number, _name: string, props: any) => [
+                      formatter={(value: number, _name: string, props: { payload: { currency: string } }) => [
                         formatWithINRConversion(value, props.payload.currency),
                         "Unpaid Amount",
                       ]}
@@ -542,46 +602,155 @@ const FreelanceDashboard = ({ refreshTrigger }: FreelanceDashboardProps = {}) =>
             </ResponsiveContainer>
           </div>
 
-          {/* Client Distribution Pie Chart (Paid Earnings) */}
+          {/* Client Distribution Pie Charts */}
           <div className={styles.chartContainer}>
             <h3 className={styles.sectionTitle}>
-              Paid Earnings Distribution by Client
+              Client Distribution Analysis
             </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={dashboardData.earningsByClient}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ client, percent }) =>
-                    `${client}: ${((percent || 0) * 100).toFixed(0)}%`
-                  }
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="earnings"
+            
+            {/* Client Information Display */}
+            {selectedClientInfo && (
+              <div style={{
+                marginBottom: '20px',
+                padding: '15px',
+                backgroundColor: '#29384D',
+                borderRadius: '8px',
+                border: '2px solid #7B68EE'
+              }}>
+                <h4 style={{color: '#7B68EE', margin: '0 0 10px 0'}}>
+                  📊 {selectedClientInfo.client} - Detailed Breakdown
+                </h4>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '15px',
+                  color: '#FAFAFA'
+                }}>
+                  <div>
+                    <strong style={{color: '#32CD32'}}>Total Paid:</strong><br />
+                    {formatBaseCurrency(selectedClientInfo.paidAmount)}
+                  </div>
+                  <div>
+                    <strong style={{color: '#FFD700'}}>Pending:</strong><br />
+                    {formatBaseCurrency(selectedClientInfo.pendingAmount)}
+                  </div>
+                  <div>
+                    <strong style={{color: '#7B68EE'}}>Total Value:</strong><br />
+                    {formatBaseCurrency(selectedClientInfo.totalAmount)}
+                  </div>
+                </div>
+                <button
+                  className={styles.secondaryBtn}
+                  onClick={() => setSelectedClientInfo(null)}
+                  style={{marginTop: '10px', padding: '5px 10px', fontSize: '0.8rem'}}
                 >
-                  {dashboardData.earningsByClient.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
+                  ✕ Close
+                </button>
+              </div>
+            )}
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '20px',
+              '@media (max-width: 768px)': {
+                gridTemplateColumns: '1fr'
+              }
+            }}>
+              {/* Paid Earnings Pie Chart */}
+              <div>
+                <h4 style={{ color: '#FAFAFA', textAlign: 'center', marginBottom: '15px' }}>
+                  Paid Earnings Distribution
+                </h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={dashboardData.earningsByClient}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ client, percent }) =>
+                        `${client}: ${((percent || 0) * 100).toFixed(0)}%`
+                      }
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="earnings"
+                    >
+                      {dashboardData.earningsByClient.map((_, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#29384D",
+                        border: "1px solid #5B5B7B",
+                        borderRadius: "4px",
+                        color: "#FAFAFA",
+                      }}
+                      formatter={(value: number) => [
+                        formatBaseCurrency(value),
+                        "Paid Earnings",
+                      ]}
                     />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#29384D",
-                    border: "1px solid #5B5B7B",
-                    borderRadius: "4px",
-                    color: "#FAFAFA",
-                  }}
-                  formatter={(value: number) => [
-                    formatBaseCurrency(value),
-                    "Paid Earnings",
-                  ]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Total Client Distribution Pie Chart (Paid + Pending) */}
+              <div>
+                <h4 style={{ color: '#FAFAFA', textAlign: 'center', marginBottom: '15px' }}>
+                  Total Client Distribution (Paid + Pending)
+                </h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={calculateClientDistribution()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ client, percent }) =>
+                        `${client}: ${((percent || 0) * 100).toFixed(0)}%`
+                      }
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="totalAmount"
+                      onClick={handleClientPieClick}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {calculateClientDistribution().map((_, index) => (
+                        <Cell
+                          key={`cell-total-${index}`}
+                          fill={COLORS_SECONDARY[index % COLORS_SECONDARY.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#29384D",
+                        border: "1px solid #5B5B7B",
+                        borderRadius: "4px",
+                        color: "#FAFAFA",
+                      }}
+                      formatter={(value: number) => [
+                        formatBaseCurrency(value),
+                        "Total Value (Paid + Pending)",
+                      ]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <p style={{ 
+                  color: '#B0B0B0', 
+                  fontSize: '0.8rem', 
+                  textAlign: 'center', 
+                  marginTop: '10px' 
+                }}>
+                  💡 Click on a sector to see detailed breakdown
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Recent Invoices */}

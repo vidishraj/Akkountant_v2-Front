@@ -46,7 +46,7 @@ const Freelance = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return <FreelanceDashboard refreshTrigger={refreshTrigger} />;
+        return <FreelanceDashboard refreshTrigger={refreshTrigger} isActive={activeTab === "dashboard"} />;
       case "create":
         return (
           <InvoiceCreator
@@ -62,6 +62,7 @@ const Freelance = () => {
             onPreviewInvoice={handlePreviewInvoice}
             refreshTrigger={refreshTrigger}
             onInvoiceUpdated={handleInvoiceUpdated}
+            isActive={activeTab === "manage"}
           />
         );
       case "signer":
