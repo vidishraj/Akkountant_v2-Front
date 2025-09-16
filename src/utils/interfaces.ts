@@ -288,7 +288,7 @@ export interface FreelanceDashboard {
     activeClients: number;
     earningsByMonth: { month: string; earnings: number }[]; // Paid earnings by month in INR
     earningsByClient: { client: string; earnings: number }[]; // Paid earnings by client in INR
-    earningsByClientCombined: { client: string; paidAmount: number; pendingAmount: number; totalAmount: number }[]; // All client earnings converted to INR
+    earningsByClientCombined: { client: string; earnings: number }[]; // All client earnings converted to INR
     recentInvoices: FreelanceEarning[];
     unpaidByCurrency?: UnpaidByCurrency[]; // Unpaid invoices breakdown by currency
 }

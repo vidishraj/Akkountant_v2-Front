@@ -165,17 +165,44 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
       return [];
     }
     
-    // Use the backend-provided combined data which has proper currency conversion
-    return dashboardData.earningsByClientCombined
+    // Create client distribution from combined earnings and recent invoices
+    const clientTotals: Record<string, { 
+      client: string; 
+      paidAmount: number; 
+      pendingAmount: number; 
+      totalAmount: number; 
+    }> = {};
+
+    // Add combined earnings as total amounts
+    dashboardData.earningsByClientCombined.forEach(item => {
+      clientTotals[item.client] = {
+        client: item.client,
+        paidAmount: 0, // Will be calculated below
+        pendingAmount: 0, // Will be calculated below
+        totalAmount: item.earnings
+      };
+    });
+
+    // Get paid amounts from earningsByClient
+    dashboardData.earningsByClient.forEach(item => {
+      if (clientTotals[item.client]) {
+        clientTotals[item.client].paidAmount = item.earnings;
+        clientTotals[item.client].pendingAmount = clientTotals[item.client].totalAmount - item.earnings;
+      }
+    });
+
+    // Ensure pending amounts are not negative
+    Object.values(clientTotals).forEach(client => {
+      if (client.pendingAmount < 0) {
+        client.pendingAmount = 0;
+      }
+    });
+
+    return Object.values(clientTotals)
+      .filter(item => item.totalAmount > 0)
       .sort((a, b) => b.totalAmount - a.totalAmount);
   };
 
-  const handleClientPieClick = (data: { client: string; totalAmount: number }) => {
-    const clientData = calculateClientDistribution().find(item => item.client === data.client);
-    if (clientData) {
-      setSelectedClientInfo(clientData);
-    }
-  };
 
   if (loading) {
     return (
@@ -714,11 +741,11 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
                 <h4 style={{ color: '#FAFAFA', textAlign: 'center', marginBottom: '15px' }}>
                   Total Client Distribution (All Currencies → INR)
                 </h4>
-                {calculateClientDistribution().length > 0 ? (
+                {dashboardData?.earningsByClientCombined && dashboardData.earningsByClientCombined.filter(item => item.earnings > 0).length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
-                        data={calculateClientDistribution().filter(item => item.totalAmount > 0)}
+                        data={dashboardData.earningsByClientCombined.filter(item => item.earnings > 0)}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -727,11 +754,17 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
                         }
                         outerRadius={80}
                         fill="#8884d8"
-                        dataKey="totalAmount"
-                        onClick={handleClientPieClick}
+                        dataKey="earnings"
+                        onClick={(data) => {
+                          // Find the client data from calculated distribution for detailed breakdown
+                          const clientData = calculateClientDistribution().find(item => item.client === data.client);
+                          if (clientData) {
+                            setSelectedClientInfo(clientData);
+                          }
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
-                        {calculateClientDistribution().filter(item => item.totalAmount > 0).map((_, index) => (
+                        {dashboardData.earningsByClientCombined.filter(item => item.earnings > 0).map((_, index) => (
                           <Cell
                             key={`cell-total-${index}`}
                             fill={COLORS_SECONDARY[index % COLORS_SECONDARY.length]}
