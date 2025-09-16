@@ -560,8 +560,8 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
                         borderRadius: "4px",
                         color: "#FAFAFA",
                       }}
-                      formatter={(value: number, _name: string, props: { payload: { currency: string } }) => [
-                        formatWithINRConversion(value, props.payload.currency),
+                      formatter={(value: number, _name: string, props: any) => [
+                        formatWithINRConversion(value, props.payload?.currency || 'USD'),
                         "Unpaid Amount",
                       ]}
                     />
@@ -651,11 +651,8 @@ const FreelanceDashboard = ({ refreshTrigger, isActive = true }: FreelanceDashbo
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '20px',
-              '@media (max-width: 768px)': {
-                gridTemplateColumns: '1fr'
-              }
+              gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr',
+              gap: '20px'
             }}>
               {/* Paid Earnings Pie Chart */}
               <div>
