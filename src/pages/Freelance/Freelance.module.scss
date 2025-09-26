@@ -70,7 +70,7 @@
 }
 
 .metricCard {
-  background-color: #29384d !important;
+  background-color: #242424 !important;
   border: 1px solid #fafafa !important;
   padding: 20px;
   border-radius: 8px;
@@ -91,7 +91,7 @@
 }
 
 .chartContainer {
-  background-color: #29384d !important;
+  background-color: #242424 !important;
   border: 1px solid #fafafa !important;
   border-radius: 8px;
   padding: 20px;
@@ -99,7 +99,7 @@
 }
 
 .invoiceForm {
-  background-color: #29384d !important;
+  background-color: #242424 !important;
   border: 1px solid #fafafa !important;
   border-radius: 8px;
   padding: 20px;
@@ -201,7 +201,7 @@
 }
 
 .totalSection {
-  background-color: #29384d !important;
+  background-color: #242424 !important;
   padding: 20px;
   border-radius: 8px;
   border: 1px solid #fafafa;
@@ -303,7 +303,7 @@
 }
 
 .pdfPreview {
-  background-color: #29384d !important;
+  background-color: #242424 !important;
   border: 1px solid #fafafa !important;
   border-radius: 8px;
   padding: 20px;
@@ -347,7 +347,7 @@
 }
 
 .signatureSection {
-  background-color: #29384d !important;
+  background-color: #242424 !important;
   border: 1px solid #fafafa !important;
   border-radius: 8px;
   padding: 20px;
@@ -375,14 +375,14 @@
 .tabContainer {
   display: flex;
   border-bottom: 2px solid #fafafa;
-  background-color: #29384d;
+  background-color: #242424;
   padding: 0;
   margin: 0;
   flex-shrink: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #7b68ee #29384d;
+  scrollbar-color: #7b68ee #242424;
   
   /* Webkit scrollbar styling */
   &::-webkit-scrollbar {
@@ -390,7 +390,7 @@
   }
   
   &::-webkit-scrollbar-track {
-    background-color: #29384d;
+    background-color: #242424;
   }
   
   &::-webkit-scrollbar-thumb {

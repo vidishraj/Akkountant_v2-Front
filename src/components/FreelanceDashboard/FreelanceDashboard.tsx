@@ -58,7 +58,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
     const loadDashboardData = async () => {
         try {
             setLoading(true);
-            const data = await fetchFreelanceDashboard(true); // Always clear cache for fresh data
+            const data = await fetchFreelanceDashboard(); // Cache automatically cleared
             setDashboardData(data);
 
             // Update currency rates in background

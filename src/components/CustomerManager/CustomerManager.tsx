@@ -37,10 +37,10 @@ const CustomerManager = () => {
     loadCustomers();
   }, [currentPage]);
 
-  const loadCustomers = async (clearCache = false) => {
+  const loadCustomers = async () => {
     try {
       setLoading(true);
-      const response = await fetchCustomers(currentPage, itemsPerPage, clearCache);
+      const response = await fetchCustomers(currentPage, itemsPerPage);
       setCustomers(response.customers);
       setTotalCustomers(response.total_count);
     } catch (error) {
@@ -84,7 +84,7 @@ const CustomerManager = () => {
       });
 
       // Reload customers to get the updated list
-      await loadCustomers(true);
+      await loadCustomers();
     } catch (error) {
       setPayload({
         type: "error",
@@ -127,7 +127,7 @@ const CustomerManager = () => {
       });
 
       // Reload customers to get the updated list
-      await loadCustomers(true);
+      await loadCustomers();
     } catch (error) {
       setPayload({
         type: "error",
@@ -158,7 +158,7 @@ const CustomerManager = () => {
         });
 
         // Reload customers to get the updated list
-        await loadCustomers(true);
+        await loadCustomers();
       } catch (error) {
         setPayload({
           type: "error",

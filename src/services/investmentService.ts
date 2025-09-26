@@ -3,7 +3,9 @@ import {
     EPGResponse,
     FileUploadParams,
     FileUploadResponse,
-    InsertEPGRequest, JobsResponse,
+    InsertEPGRequest, 
+    InsertSecurityTransactionRequest,
+    JobsResponse,
     MSNListResponse,
     MSNRateResponse,
     MSNSummaryResponse,
@@ -324,4 +326,19 @@ export async function syncKiteHoldings(): Promise<KiteSyncResponse> {
 export async function syncKiteTransactions(): Promise<KiteSyncResponse> {
     const response = await queueRequest(() => axios.get('/kite/sync-transactions'));
     return response.data;
+}
+
+/**
+ * Insert a new security transaction (Mutual Fund, Stock, or NPS)
+ */
+export async function insertSecurityTransaction(
+    transactionData: InsertSecurityTransactionRequest,
+    clearCache = false
+): Promise<CacheAxiosResponse<{Message: string}>> {
+    const options = withRequestId(
+        'insertSecurityTransaction',
+        clearCache ? withCacheCleared() : {}
+    );
+
+    return queueRequest(() => axios.post('insertSecurityTransaction', transactionData, options));
 }

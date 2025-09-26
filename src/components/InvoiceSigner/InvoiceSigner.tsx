@@ -66,7 +66,7 @@ const InvoiceSigner = () => {
 
     const loadSignatures = async () => {
         try {
-            const fetchedSignatures = await fetchUserSignatures(true);
+            const fetchedSignatures = await fetchUserSignatures();
             setSignatures(fetchedSignatures);
             if (fetchedSignatures.length > 0 && !selectedSignature) {
                 const firstSignatureUrl = getSignatureDataUrl(fetchedSignatures[0]);

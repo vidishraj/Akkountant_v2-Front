@@ -11,6 +11,7 @@ import {
     Select,
     TextField,
 } from "@mui/material";
+import {ReactSearchAutocomplete} from "react-search-autocomplete";
 import styles from "./CustomModal.module.scss";
 
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
     onSubmit: (formData: FormDataType) => void;
     cardType: "mf" | "gold" | string | undefined;
     maxNav?: number;
+    searchItems?: any[]; // Added for MF search
 };
 
 type FormDataType = {
@@ -29,6 +31,8 @@ type FormDataType = {
     description: string;
     amount: string;
     goldCarat: string;
+    schemeCode: string; // For backwards compatibility 
+    selectedMF?: any; // Selected mutual fund object from search
 };
 
 const CustomModal: React.FC<Props> = ({
@@ -37,7 +41,8 @@ const CustomModal: React.FC<Props> = ({
                                           onCancel,
                                           onSubmit,
                                           cardType,
-                                          maxNav,
+                                          searchItems = [], // Default to empty array
+                                          // maxNav, // Not used anymore since we removed NAV field
                                       }) => {
     const [formData, setFormData] = useState<FormDataType>({
         date: "",
@@ -46,6 +51,8 @@ const CustomModal: React.FC<Props> = ({
         description: "",
         amount: "",
         goldCarat: "18 carat",
+        schemeCode: "",
+        selectedMF: null, // Selected mutual fund from search
     });
 
     const [errors, setErrors] = useState<Partial<FormDataType>>({});
@@ -55,13 +62,25 @@ const CustomModal: React.FC<Props> = ({
         setErrors((prev) => ({...prev, [field]: ""})); // Clear error on input change
     };
 
+    const handleMFSelect = (selectedItem: any) => {
+        setFormData((prev) => ({
+            ...prev, 
+            selectedMF: selectedItem,
+            schemeCode: selectedItem.code // Extract scheme code for submission
+        }));
+        if (errors.selectedMF) {
+            setErrors((prev) => ({...prev, selectedMF: undefined}));
+        }
+    };
+
     const validateForm = () => {
         const newErrors: Partial<FormDataType> = {};
 
         if (!formData.date) newErrors.date = "Date is required.";
 
         if (cardType === "mf") {
-            if (!formData.nav) newErrors.nav = "NAV is required.";
+            if (!formData.selectedMF) newErrors.selectedMF = "Please select a mutual fund.";
+            if (!formData.amount) newErrors.amount = "Amount is required.";
             if (!formData.quantity) newErrors.quantity = "Quantity is required.";
         } else {
             if (!formData.description) newErrors.description = "Description is required.";
@@ -117,17 +136,58 @@ const CustomModal: React.FC<Props> = ({
 
                     {cardType === "mf" && (
                         <>
-                            {/* NAV Field */}
+                            {/* Mutual Fund Search */}
+                            <Box className={styles.inputField}>
+                                <InputLabel 
+                                    sx={{ 
+                                        color: 'white', 
+                                        fontSize: '0.875rem', 
+                                        marginBottom: 1 
+                                    }}
+                                >
+                                    Select Mutual Fund {errors.selectedMF ? ' *' : ''}
+                                </InputLabel>
+                                <ReactSearchAutocomplete
+                                    styling={{
+                                        backgroundColor: "#29384D",
+                                        color: "#FAFAFA !important",
+                                        border: errors.selectedMF ? "1px solid #f44336" : "1px solid rgba(255, 255, 255, 0.23)",
+                                        iconColor: "white",
+                                        borderRadius: '4px',
+                                        lineColor: "white",
+                                        hoverBackgroundColor: "#121c24",
+                                        zIndex: 999,
+                                        fontSize: '16px',
+                                        height: '56px'
+                                    }}
+                                    resultStringKeyName="name"
+                                    items={searchItems}
+                                    onSelect={handleMFSelect}
+                                    placeholder="Search for mutual fund..."
+                                />
+                                {errors.selectedMF && (
+                                    <Box sx={{ color: '#f44336', fontSize: '0.75rem', marginTop: '3px', marginLeft: '14px' }}>
+                                        {errors.selectedMF}
+                                    </Box>
+                                )}
+                                {formData.selectedMF && (
+                                    <Box sx={{ color: '#4caf50', fontSize: '0.75rem', marginTop: '3px', marginLeft: '14px' }}>
+                                        Selected: {formData.selectedMF.name}
+                                    </Box>
+                                )}
+                            </Box>
+
+                            {/* Amount Field */}
                             <TextField
-                                label="NAV"
+                                label="Amount"
                                 type="number"
-                                value={formData.nav}
-                                onChange={(e) => handleInputChange("nav", e.target.value)}
-                                InputProps={{inputProps: {min: 0, max: maxNav, style: {color: 'white'}}}}
+                                value={formData.amount}
+                                onChange={(e) => handleInputChange("amount", e.target.value)}
+                                InputProps={{inputProps: {min: 0, step: 0.01}, style: {color: 'white'}}}
                                 fullWidth
                                 className={styles.inputField}
-                                error={!!errors.nav}
-                                helperText={errors.nav}
+                                error={!!errors.amount}
+                                helperText={errors.amount}
                             />
 
                             {/* Quantity Field */}

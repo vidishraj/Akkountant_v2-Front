@@ -43,8 +43,8 @@ function withRequestId(endpoint: string, options: Record<string, unknown> = {}):
 /**
  * Fetch freelance dashboard analytics data.
  */
-export async function fetchFreelanceDashboard(clearCache = false): Promise<FreelanceDashboard> {
-    const options = withRequestId('api/freelance/dashboard', clearCache ? withCacheCleared() : {});
+export async function fetchFreelanceDashboard(): Promise<FreelanceDashboard> {
+    const options = withRequestId('api/freelance/dashboard', withCacheCleared());
     const response = await queueRequest(() =>
         axios.get('freelance/dashboard', options)
     );
@@ -56,14 +56,11 @@ export async function fetchFreelanceDashboard(clearCache = false): Promise<Freel
  */
 export async function fetchEarningsByDateRange(
     startDate: string,
-    endDate: string,
-    clearCache = false
+    endDate: string
 ): Promise<FreelanceEarning[]> {
-    const options = withRequestId('api/freelance/earnings', clearCache ? withCacheCleared({
+    const options = withRequestId('api/freelance/earnings', withCacheCleared({
         params: {startDate, endDate}
-    }) : {
-        params: {startDate, endDate}
-    });
+    }));
     const response = await queueRequest(() =>
         axios.get('freelance/earnings', options)
     );
@@ -112,10 +109,9 @@ export async function deleteInvoice(invoiceId: string): Promise<DeleteInvoiceRes
  * Fetch specific invoice by ID.
  */
 export async function fetchInvoiceById(
-    invoiceId: string,
-    clearCache = true
+    invoiceId: string
 ): Promise<InvoiceData> {
-    const options = withRequestId(`api/freelance/invoices/${invoiceId}`, clearCache ? withCacheCleared() : {});
+    const options = withRequestId(`api/freelance/invoices/${invoiceId}`, withCacheCleared());
     const response = await queueRequest(() =>
         axios.get(`freelance/invoices/${invoiceId}`, options)
     );
@@ -127,14 +123,11 @@ export async function fetchInvoiceById(
  */
 export async function fetchAllInvoices(
     page = 1,
-    limit = 10,
-    clearCache = false
+    limit = 10
 ): Promise<FetchInvoicesResponse> {
-    const options = withRequestId('api/freelance/invoices', clearCache ? withCacheCleared({
+    const options = withRequestId('api/freelance/invoices', withCacheCleared({
         params: {page, limit}
-    }) : {
-        params: {page, limit}
-    });
+    }));
     const response = await queueRequest(() =>
         axios.get('freelance/invoices', options)
     );
@@ -612,10 +605,8 @@ export async function uploadSignature(
 /**
  * Fetch all user signatures.
  */
-export async function fetchUserSignatures(
-    clearCache = false
-): Promise<Signature[]> {
-    const options = withRequestId('api/freelance/signatures', clearCache ? withCacheCleared() : {});
+export async function fetchUserSignatures(): Promise<Signature[]> {
+    const options = withRequestId('api/freelance/signatures', withCacheCleared());
     const response = await queueRequest(() =>
         axios.get('freelance/signatures', options)
     );
@@ -658,7 +649,6 @@ export async function signInvoicePDF(
 export async function fetchCustomers(
     page = 1,
     limit = 10,
-    clearCache = false,
     search = ''
 ): Promise<FetchCustomersResponse> {
     const params: Record<string, string | number> = {page, limit};
@@ -666,11 +656,9 @@ export async function fetchCustomers(
         params.search = search;
     }
 
-    const options = withRequestId('api/freelance/customers', clearCache ? withCacheCleared({
+    const options = withRequestId('api/freelance/customers', withCacheCleared({
         params
-    }) : {
-        params
-    });
+    }));
     const response = await queueRequest(() =>
         axios.get('freelance/customers', options)
     );
@@ -680,8 +668,8 @@ export async function fetchCustomers(
 /**
  * Fetch all customers as array (backward compatibility).
  */
-export async function fetchAllCustomers(clearCache = false): Promise<Customer[]> {
-    const response = await fetchCustomers(1, 1000, clearCache); // Get a large page to fetch all
+export async function fetchAllCustomers(): Promise<Customer[]> {
+    const response = await fetchCustomers(1, 1000); // Get a large page to fetch all
     return response.customers;
 }
 
@@ -740,8 +728,8 @@ export async function updateCustomerTemplate(
 /**
  * Fetch all invoice templates for the authenticated user.
  */
-export async function fetchInvoiceTemplates(clearCache = false): Promise<InvoiceTemplate[]> {
-    const options = withRequestId('api/freelance/templates', clearCache ? withCacheCleared() : {});
+export async function fetchInvoiceTemplates(): Promise<InvoiceTemplate[]> {
+    const options = withRequestId('api/freelance/templates', withCacheCleared());
     const response = await queueRequest(() =>
         axios.get('freelance/templates', options)
     );

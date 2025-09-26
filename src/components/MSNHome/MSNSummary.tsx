@@ -1,16 +1,15 @@
 import {ReactNode, useEffect, useState} from "react";
 import {Card, Typography, Grid, CardContent, Divider, Button, useMediaQuery} from "@mui/material";
-import CircleIcon from "@mui/icons-material/Circle";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import style from "./MSNHome.module.scss";
 import withLoader from "../LoaderHOC.tsx";
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import PercentIcon from '@mui/icons-material/Percent';
 import DepositModal from "../DepositsComponent.tsx";
-import {fetchRates, syncKiteTransactions} from "../../services/investmentService.ts";
+import {fetchRates} from "../../services/investmentService.ts";
 import RatesModal from "../RatesModal.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
-import SyncIcon from '@mui/icons-material/Sync';
+// Removed unused imports: CircleIcon, SyncIcon, syncKiteTransactions
 
 const MSNSummary = () => {
     const [summary, setSummary] = useState<any | undefined>(undefined); // Set appropriate type later if possible
@@ -39,19 +38,7 @@ const MSNSummary = () => {
         })
     }
 
-    function handleSyncTransactions() {
-        syncKiteTransactions().then(() => {
-            setPayload({
-                type: "success",
-                message: "Transactions synced successfully"
-            })
-        }).catch(() => {
-            setPayload({
-                type: "error",
-                message: "Error while syncing transactions. Please try later"
-            })
-        })
-    }
+    // Removed handleSyncTransactions function since sync buttons are commented out
 
     useEffect(() => {
         const {selectedCard, summaries} = state;
@@ -131,7 +118,7 @@ const MSNSummary = () => {
                                 textAlign="center"
                                 sx={{fontSize: {xs: '1.25rem', sm: '1.5rem'}}}
                             >
-                                &#8377;{Number(summary.totalValue).toLocaleString('en-IN', {
+                                &#8377;{Number(summary.currentValue).toLocaleString('en-IN', {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                             })}
@@ -143,7 +130,7 @@ const MSNSummary = () => {
                     <Grid container spacing={2} alignItems="center" justifyContent="space-evenly" flexWrap={'nowrap'}>
                         {
                             renderSummaryItem(
-                                "Current", Number(summary.totalValue).toLocaleString('en-IN', {
+                                "Invested", Number(summary.totalValue).toLocaleString('en-IN', {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                 })
@@ -163,12 +150,12 @@ const MSNSummary = () => {
                     </Grid>
                     <Grid container spacing={2} alignItems="center" justifyContent="space-evenly" flexWrap={'nowrap'}
                           marginTop={(state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks) ? '' : 1}>
-                        {state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
+                        {/*state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
                             renderSummaryItem(
                                 "Market Status", <CircleIcon
                                     style={{color: summary.marketStatus ? "green" : "maroon"}}
                                 />
-                            ) : state.selectedCard.ppf && <Button
+                            ) : */state.selectedCard.ppf && <Button
                             startIcon={<FormatListBulletedIcon/>}
                             onClick={() => setDepositModal(true)}
                             className={style.depositsButton}
@@ -189,7 +176,7 @@ const MSNSummary = () => {
                                 Rates
                             </Button>}
                     </Grid>
-                    {state.selectedCard.stocks && (
+                    {/*state.selectedCard.stocks && (
                         <Grid container spacing={2} alignItems="center" justifyContent="center" marginTop={1}>
                             <Button
                                 size="small"
@@ -201,7 +188,7 @@ const MSNSummary = () => {
                                 Sync
                             </Button>
                         </Grid>
-                    )}
+                    )*/}
                 </>) : summary && (
                     <>
                         {/* Total Asset Value Section */}
@@ -210,7 +197,7 @@ const MSNSummary = () => {
                                 Total Asset Value
                             </Typography>
                             <Typography variant="h6" className={style.value}>
-                                &#8377;{Number(summary.totalValue).toLocaleString('en-IN', {
+                                &#8377;{Number(summary.currentValue).toLocaleString('en-IN', {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                             })}
@@ -221,13 +208,13 @@ const MSNSummary = () => {
 
                         {/* Additional Information Section */}
                         <Grid container spacing={1} className={style.infoGrid}>
-                            {/* Current Value */}
+                            {/* Invested Value */}
                             <Grid item xs={4}>
                                 <Typography variant="subtitle1" className={style.label}>
-                                    Current
+                                    Invested
                                 </Typography>
                                 <Typography className={style.dValue} variant="body1">
-                                    &#8377;{Number(summary.currentValue).toLocaleString('en-IN', {
+                                    &#8377;{Number(summary.totalValue).toLocaleString('en-IN', {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                 })}
@@ -295,7 +282,7 @@ const MSNSummary = () => {
 
                             {/* Market Status */}
                             <Grid item xs={6}>
-                                {state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
+                                {/*state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
                                     <>
                                         <Typography variant="subtitle1" className={style.label}>
                                             Market Status
@@ -305,22 +292,22 @@ const MSNSummary = () => {
                                                 style={{color: summary.marketStatus ? "green" : "maroon"}}
                                             />
                                         </Typography>
-                                    </> :
-                                    <Button
-                                        startIcon={<PercentIcon/>}
-                                        onClick={() => {
-                                            setRate()
-                                            setRatesModal(true)
-                                        }}
-                                        className={style.rateButton}
-                                    >
-                                        Rates
-                                    </Button>}
+                                    </> :*/}
+                                <Button
+                                    startIcon={<PercentIcon/>}
+                                    onClick={() => {
+                                        setRate()
+                                        setRatesModal(true)
+                                    }}
+                                    className={style.rateButton}
+                                >
+                                    Rates
+                                </Button>
                             </Grid>
                         </Grid>
-                        
+
                         {/* Sync button for stocks (desktop view) */}
-                        {state.selectedCard.stocks && (
+                        {/*state.selectedCard.stocks && (
                             <Grid container spacing={2} alignItems="center" justifyContent="center" marginTop={2}>
                                 <Button
                                     size="small"
@@ -332,7 +319,7 @@ const MSNSummary = () => {
                                     Sync Transactions
                                 </Button>
                             </Grid>
-                        )}
+                        )*/}
                     </>
                 )}
             </CardContent>

@@ -171,6 +171,14 @@ export interface InsertEPGRequest {
     goldType?: string;
 }
 
+export interface InsertSecurityTransactionRequest {
+    serviceType: "Mutual_Funds" | "Stocks" | "NPS";
+    schemeCode: string;
+    date: string; // Format: YYYY-MM-DD
+    quantity: number;
+    amount: number;
+}
+
 export interface GlobalSummaryInterface {
     totalInvestment: number;
     currentValue: number;

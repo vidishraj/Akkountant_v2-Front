@@ -83,7 +83,15 @@ const filterReducer = (state: FilterState, action: FilterAction): FilterState =>
         case "SET_LIMIT":
             return {...state, limit: action.payload};
         case "RESET_FILTERS":
-            return initialState;
+            return {
+                ...state,
+                searchTerm: "",
+                startDate: "",
+                endDate: "",
+                bank: "",
+                month: "",
+                page: 0, // Reset to first page when clearing filters
+            };
         default:
             throw new Error(`Unknown action type: ${action}`);
     }

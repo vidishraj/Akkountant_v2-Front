@@ -145,6 +145,8 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                         dispatch({
                             type: "RESET_FILTERS",
                         });
+                        // Refresh transactions after clearing filters to apply the cleared state
+                        setTimeout(() => refreshTransactions(), 0);
                     }}
                 />
             </Box>

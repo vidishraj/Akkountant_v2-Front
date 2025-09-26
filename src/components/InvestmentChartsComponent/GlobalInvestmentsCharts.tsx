@@ -11,8 +11,8 @@ import "slick-carousel/slick/slick-theme.css";
 const GlobalInvestmentsCharts = () => {
     const {state} = useMSNContext();
     const [barChartSeries, setBarChartSeries] = useState<any>([
-        {label: 'Total Investment', data: []},
-        {label: 'Current Value', data: []},
+        {label: 'Invested', data: []},
+        {label: 'Total Value', data: []},
     ]);
     const [barChartOrder, setBarChartOrder] = useState<any>([]);
     const [pieChartSeries, setPieChartSeries] = useState<any>([{data: []}]);
@@ -63,8 +63,8 @@ const GlobalInvestmentsCharts = () => {
         });
 
         setBarChartSeries([
-            {label: 'Total Investment', data: totalInvestmentSeries},
-            {label: 'Current Value', data: currentValueSeries},
+            {label: 'Invested', data: totalInvestmentSeries},
+            {label: 'Total Value', data: currentValueSeries},
         ]);
         setPieChartSeries([{data: pieSeries}]);
         setBarChartOrder(order);

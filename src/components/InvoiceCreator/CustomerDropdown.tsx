@@ -96,7 +96,7 @@ const CustomerDropdown: React.FC<CustomerDropdownProps> = ({
 
         try {
             setLoading(true);
-            const response = await fetchCustomers(pageNum, ITEMS_PER_PAGE, false, search);
+            const response = await fetchCustomers(pageNum, ITEMS_PER_PAGE, search);
             
             if (reset) {
                 setCustomers(response.customers);

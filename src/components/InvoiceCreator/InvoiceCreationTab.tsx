@@ -138,9 +138,9 @@ const InvoiceCreationTab = ({
         }
     }, [invoiceJsonDraft]);
 
-    const loadTemplates = async (clearCache = false) => {
+    const loadTemplates = async () => {
         try {
-            const templatesData = await fetchInvoiceTemplates(clearCache);
+            const templatesData = await fetchInvoiceTemplates();
             setTemplates(templatesData);
         } catch (error) {
             console.error('Error loading templates:', error);
@@ -383,7 +383,7 @@ const InvoiceCreationTab = ({
             });
 
             // Reload templates to get the updated list
-            await loadTemplates(true); // Clear cache to get fresh data
+            await loadTemplates(); // Cache automatically cleared
         } catch (error) {
             setPayload({
                 type: 'error',
@@ -436,7 +436,7 @@ const InvoiceCreationTab = ({
                 });
                 setSelectedTemplate('');
                 setShowTemplateActions(false);
-                await loadTemplates(true); // Clear cache to get fresh data
+                await loadTemplates(); // Cache automatically cleared
             } catch (error) {
                 setPayload({
                     type: 'error',
@@ -488,7 +488,7 @@ const InvoiceCreationTab = ({
                 message: result.message
             });
 
-            await loadTemplates(true); // Clear cache to get fresh data
+            await loadTemplates(); // Cache automatically cleared
         } catch (error) {
             setPayload({
                 type: 'error',
@@ -520,7 +520,7 @@ const InvoiceCreationTab = ({
     const loadInvoiceForEdit = async (invoiceId: string) => {
         try {
             setLoading(true);
-            const invoice = await fetchInvoiceById(invoiceId, true); // Force cache clear to get fresh data
+            const invoice = await fetchInvoiceById(invoiceId); // Cache automatically cleared
             const invoiceJsonString = JSON.stringify(invoice, null, 2);
             setInvoiceJsonDraft(invoiceJsonString);
             validateAndSetJson(invoiceJsonString);

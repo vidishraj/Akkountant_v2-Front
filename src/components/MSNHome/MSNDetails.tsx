@@ -29,6 +29,8 @@ export interface Transaction {
     price: string; // The price as a string, possibly for precision.
     quant: string; // The quantity as a string, possibly for precision.
     transactionType: 'buy' | 'sell'; // The type of transaction, constrained to specific values.
+    securityCode?: string; // NEW - MF scheme code or security identifier
+    buyId?: string; // NEW - Reference ID for the transaction
 }
 
 const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
@@ -60,12 +62,46 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
             setStockOverview(details.info);
         }
         const selected = getContextKey();
-        setFinancialData(state.transactions[selected])
+        const allTransactions = state.transactions[selected] || [];
+
+        // Filter transactions to show only those for the current security
+        let filteredTransactions = allTransactions;
+        if (state.selectedCard.mf || state.selectedCard.nps) {
+            // For both MF and NPS: use buyCode to match with transaction.securityCode
+            let securityCodeToMatch = null;
+
+            if (state.selectedCard.mf || state.selectedCard.nps) {
+                securityCodeToMatch = details.buyCode;
+            }
+
+            console.log('MSNDetails Debug:', {
+                serviceType: state.selectedCard.mf ? 'MF' : 'NPS',
+                securityCodeToMatch: securityCodeToMatch,
+                detailsBuyCode: details.buyCode,
+                detailsSchemeCode: details.schemeCode,
+                allTransactionsCount: allTransactions.length,
+                allTransactions: allTransactions.map((t: any) => ({securityCode: t.securityCode, buyId: t.buyId}))
+            });
+
+            // Filter transactions that match the security code
+            if (securityCodeToMatch) {
+                filteredTransactions = allTransactions.filter((transaction: Transaction) =>
+                    transaction.securityCode === securityCodeToMatch ||
+                    String(transaction.securityCode) === String(securityCodeToMatch)
+                );
+                console.log('Filtered transactions count:', filteredTransactions.length);
+            }
+        }
+
+        setFinancialData(filteredTransactions)
     }, [details, state.selectedCard, state.transactions]);
 
     useEffect(() => {
-        fetchTransactions(getServiceType(), false)
-    }, []);
+        // Only fetch transactions for MF and NPS, not stocks
+        if (state.selectedCard.mf || state.selectedCard.nps) {
+            fetchTransactions(getServiceType(), false)
+        }
+    }, [state.selectedCard]);
     // Handle tab change
     const handleTabChange = (_: React.ChangeEvent<{}>, newValue: number) => {
         setActiveTab(newValue);
@@ -92,7 +128,10 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                 className={style.tabs}
             >
                 <Tab label="Technicals" className={style.tab}/>
-                <Tab label="Transactions" className={style.tab}/>
+                {/* Only show Transactions tab for MF and NPS, not for stocks */}
+                {(state.selectedCard.mf || state.selectedCard.nps) && (
+                    <Tab label="Transactions" className={style.tab}/>
+                )}
             </Tabs>
 
             {/* Tab Content */}
@@ -110,7 +149,8 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                 </Box>
             )}
 
-            {activeTab === 1 && (
+            {/* Show transactions tab only for MF and NPS, not stocks */}
+            {activeTab === 1 && (state.selectedCard.mf || state.selectedCard.nps) && (
                 <Box className={style.tabContent}>
                     <TableContainer component={Paper} className={style.table}>
                         <Table>
@@ -120,6 +160,7 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                     <TableCell><b>Price</b></TableCell>
                                     <TableCell><b>Quantity</b></TableCell>
                                     <TableCell><b>Action</b></TableCell>
+                                    <TableCell><b>Security</b></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -129,6 +170,7 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                         <TableCell>{row.price}</TableCell>
                                         <TableCell>{row.quant}</TableCell>
                                         <TableCell>{row.transactionType}</TableCell>
+                                        <TableCell>{row.securityCode || row.buyId || 'N/A'}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

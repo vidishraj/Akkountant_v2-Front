@@ -9,8 +9,8 @@ import BasicCard from "../BasicCard";
 import FileUploadDialog from "../FileUploadComponent/FileUpload";
 import moduleStyle from "./MSNCard.module.scss";
 import {useMSNContext} from "../../contexts/MSNContext";
-import {InsertEPGRequest, MSNSummaryResponse} from "../../utils/interfaces";
-import {insertEPG, uploadFile, syncKiteHoldings} from "../../services/investmentService";
+import {InsertEPGRequest, InsertSecurityTransactionRequest, MSNSummaryResponse} from "../../utils/interfaces";
+import {insertEPG, uploadFile, syncKiteHoldings, insertSecurityTransaction} from "../../services/investmentService";
 import withLoader from "../LoaderHOC.tsx";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
@@ -26,9 +26,10 @@ interface MSNCardProps {
 }
 
 const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}) => {
-    const {state, dispatch, fetchAndSetSummary, AllInfoForEpf} = useMSNContext();
+    const {state, dispatch, fetchAndSetSummary, AllInfoForEpf, fetchAndSetSearchItems} = useMSNContext();
     const [summary, setSummary] = useState<MSNSummaryResponse>();
     const [buyModal, setBuyModal] = useState<boolean>(false);
+    const [searchItems, setSearchItems] = useState<any[]>([]);
     const {setPayload} = useMessage();
 
     useEffect(() => {
@@ -68,6 +69,17 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
 
         }
     }, [state, cardType]);
+
+    // Fetch search items for MF
+    useEffect(() => {
+        if (cardType === "mf") {
+            fetchAndSetSearchItems().then((response) => {
+                setSearchItems(response)
+            }).catch(() => {
+                setSearchItems([]);
+            })
+        }
+    }, [cardType]);
 
     const handleCardClick = () => {
         dispatch({
@@ -166,6 +178,46 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
             </Button>
         </div>
     );
+    const renderAddMFButton = () => (
+        <div onClick={(e) => e.stopPropagation()}>
+            <Button
+                className={moduleStyle.FileUploadButton}
+                variant="contained"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setBuyModal(true)
+                }}
+            ><CustomModal title={`Buy ${cardType}`} open={buyModal} searchItems={searchItems} cardType={cardType} onCancel={() => {
+                setBuyModal(false)
+            }} onSubmit={(formData) => {
+                const requestBody: InsertSecurityTransactionRequest = {
+                    serviceType: "Mutual_Funds",
+                    schemeCode: formData.schemeCode,
+                    date: formData.date,
+                    quantity: parseFloat(formData.quantity),
+                    amount: parseFloat(formData.amount)
+                };
+                
+                insertSecurityTransaction(requestBody).then((response) => {
+                    setPayload({
+                        type: 'success',
+                        message: response.data.Message,
+                    });
+                    // Refresh the summary after adding
+                    fetchAndSetSummary("Mutual_Funds", true);
+                }).catch(() => {
+                    setPayload({
+                        type: 'error',
+                        message: "Error inserting mutual fund transaction",
+                    })
+                })
+                setBuyModal(false)
+            }}/>
+                <AddIcon style={{color: "black"}}/>
+            </Button>
+        </div>
+    );
+
     const renderAddButton = () => (
         <div onClick={(e) => e.stopPropagation()}>
             <Button
@@ -213,8 +265,8 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
     );
 
     const labelMap: any = {
-        "totalValue": "Total Value",
-        "currentValue": "Current",
+        "totalValue": "Invested",
+        "currentValue": "Total Value",
         "changePercent": "Change %",
         "count": "Count",
         "changeAmount": "Change"
@@ -222,7 +274,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
     const renderSummary = () => (
         summary && (
             <>
-                {["totalValue", "currentValue", "changePercent", "changeAmount"].map((key, index) => (
+                {["currentValue", "totalValue", "changePercent", "changeAmount"].map((key, index) => (
                     <div className={moduleStyle.info} key={index}>
                         <Typography
                             className={moduleStyle.dValue}
@@ -265,6 +317,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                     )}
                     {cardType === "stocks" && renderCloudSyncButton()}
                     {(cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
+                    {cardType === "mf" && renderAddMFButton()}
                     {(cardType2 === "ppf" || cardType2 === "gold") && renderAddButton()}
                 </div>
             </div>

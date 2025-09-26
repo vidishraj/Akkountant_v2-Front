@@ -75,7 +75,7 @@ const GlobalSummary = () => {
                             textAlign="center"
                             sx={{fontSize: {xs: '1.25rem', sm: '1.5rem'}}}
                         >
-                            &#8377;{formatCurrency(summary.totalInvestment)}
+                            &#8377;{formatCurrency(summary.currentValue)}
                         </Typography>
                     </Grid>
                 </Grid>
@@ -85,8 +85,8 @@ const GlobalSummary = () => {
                 {/* Details Section */}
                 <Grid container spacing={2} alignItems="center" justifyContent="center" flexWrap={'nowrap'}>
                     {renderSummaryItem(
-                        "Current",
-                        `₹${formatCurrency(summary.currentValue)}`
+                        "Invested",
+                        `₹${formatCurrency(summary.totalInvestment)}`
                     )}
                     {renderSummaryItem(
                         "Change",
