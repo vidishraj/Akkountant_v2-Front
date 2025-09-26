@@ -206,7 +206,7 @@ const InvoiceSigner = () => {
             setDeletingSignature(null);
         }
     };
-    
+
     const handleSignInvoice = async () => {
         if (!selectedInvoice || !selectedSignature) {
             setPayload({
@@ -371,9 +371,9 @@ const InvoiceSigner = () => {
                 <div
                     style={{
                         padding: "20px",
-                        backgroundColor: "#29384D",
+                        backgroundColor: "#121C24",
                         borderRadius: "8px",
-                        border: "1px solid #5B5B7B",
+                        border: "1px solid white",
                         marginBottom: "15px",
                     }}
                 >
@@ -445,12 +445,12 @@ const InvoiceSigner = () => {
                                         backgroundColor:
                                             selectedSignature === getSignatureDataUrl(sig)
                                                 ? "#3A4F6A"
-                                                : "#29384D",
+                                                : "#121C24",
                                         borderRadius: "8px",
                                         border:
                                             selectedSignature === getSignatureDataUrl(sig)
                                                 ? "2px solid #7B68EE"
-                                                : "1px solid #5B5B7B",
+                                                : "1px solid white",
                                         cursor: "pointer",
                                         transition: "all 0.2s",
                                     }}
@@ -574,9 +574,9 @@ const InvoiceSigner = () => {
                         style={{
                             marginTop: "15px",
                             padding: "15px",
-                            backgroundColor: "#29384D",
+                            backgroundColor: "#121C24",
                             borderRadius: "8px",
-                            border: "1px solid #5B5B7B",
+                            border: "1px solid white",
                         }}
                     >
                         <h5 style={{color: "#FAFAFA", marginBottom: "10px"}}>
@@ -730,9 +730,9 @@ const InvoiceSigner = () => {
                         style={{
                             marginTop: "20px",
                             padding: "20px",
-                            backgroundColor: "#29384D",
+                            backgroundColor: "#121C24",
                             borderRadius: "8px",
-                            border: "1px solid #5B5B7B",
+                            border: "1px solid white",
                         }}
                     >
                         <h5 style={{color: "#FAFAFA", marginBottom: "15px"}}>
@@ -877,9 +877,9 @@ const InvoiceSigner = () => {
                 style={{
                     marginTop: "30px",
                     padding: "25px",
-                    backgroundColor: "#29384D",
+                    backgroundColor: "#121C24",
                     borderRadius: "10px",
-                    border: "1px solid #5B5B7B",
+                    border: "1px solid white",
                 }}
             >
                 <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>

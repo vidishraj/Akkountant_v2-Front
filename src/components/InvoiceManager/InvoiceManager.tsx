@@ -286,7 +286,7 @@ const InvoiceManager = ({
                     <div style={{overflowX: "auto"}}>
                         <table style={{width: "100%", borderCollapse: "collapse"}}>
                             <thead>
-                            <tr style={{borderBottom: "2px solid #5B5B7B"}}>
+                            <tr style={{borderBottom: "2px solid #5B5B7"}}>
                                 <th
                                     style={{
                                         color: "#FAFAFA",
@@ -366,7 +366,7 @@ const InvoiceManager = ({
                                 <tr
                                     key={invoice.invoiceNumber}
                                     style={{
-                                        borderBottom: "1px solid #5B5B7B",
+                                        borderBottom: "1px solid #5B5B7",
                                         backgroundColor:
                                             index % 2 === 1
                                                 ? "rgba(91, 91, 123, 0.1)"
@@ -552,9 +552,9 @@ const InvoiceManager = ({
             {/* <div style={{
                 marginTop: '20px', 
                 padding: '15px', 
-                backgroundColor: '#29384D', 
+                backgroundColor: '#121C24',
                 borderRadius: '6px',
-                border: '1px solid #5B5B7B'
+                border: '1px solid white'
             }}>
                 <h4 style={{ color: '#FAFAFA', marginBottom: '10px', fontSize: '0.95rem' }}>Invoice Management Features:</h4>
                 <ul style={{ color: '#B0B0B0', fontSize: '0.8rem', lineHeight: '1.4', margin: 0, paddingLeft: '18px' }}>

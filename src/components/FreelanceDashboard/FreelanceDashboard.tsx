@@ -248,9 +248,9 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                     <div
                         style={{
                             padding: "20px",
-                            backgroundColor: "#29384D",
+                            backgroundColor: "#121C24",
                             borderRadius: "8px",
-                            border: "1px solid #5B5B7B",
+                            border: "1px solid white",
                         }}
                     >
                         <div className={styles.formRow}>
@@ -304,91 +304,25 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                     </h3>
                     {filteredEarnings.length > 0 ? (
                         <div style={{overflowX: "auto"}}>
-                            <table style={{width: "100%", borderCollapse: "collapse"}}>
+                            <table className={styles.dataTable}>
                                 <thead>
-                                <tr style={{borderBottom: "2px solid #5B5B7B"}}>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Date
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Invoice #
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Client
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Project
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "right",
-                                        }}
-                                    >
-                                        Amount
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "center",
-                                        }}
-                                    >
-                                        Status
-                                    </th>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Invoice #</th>
+                                    <th>Client</th>
+                                    <th>Project</th>
+                                    <th style={{textAlign: "right"}}>Amount</th>
+                                    <th style={{textAlign: "center"}}>Status</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 {filteredEarnings.map((earning, index) => (
-                                    <tr
-                                        key={index}
-                                        style={{borderBottom: "1px solid #5B5B7B"}}
-                                    >
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {new Date(earning.date).toLocaleDateString()}
-                                        </td>
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {earning.invoiceNumber}
-                                        </td>
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {earning.clientName}
-                                        </td>
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {earning.projectName}
-                                        </td>
-                                        <td
-                                            style={{
-                                                color: "#FAFAFA",
-                                                padding: "12px",
-                                                textAlign: "right",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
+                                    <tr key={index}>
+                                        <td>{new Date(earning.date).toLocaleDateString()}</td>
+                                        <td>{earning.invoiceNumber}</td>
+                                        <td>{earning.clientName}</td>
+                                        <td>{earning.projectName}</td>
+                                        <td style={{textAlign: "right", fontWeight: "bold"}}>
                                             {earning.status === "paid" ? (
                                                 formatBaseCurrency(
                                                     earning.paidAmount || earning.amount
@@ -418,7 +352,6 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                         <td
                                             style={{
                                                 color: getStatusColor(earning.status),
-                                                padding: "12px",
                                                 textAlign: "center",
                                                 fontWeight: "bold",
                                             }}
@@ -429,16 +362,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                 ))}
                                 </tbody>
                             </table>
-                            <div
-                                style={{
-                                    marginTop: "15px",
-                                    padding: "10px",
-                                    backgroundColor: "rgba(123, 104, 238, 0.1)",
-                                    borderRadius: "4px",
-                                    textAlign: "center",
-                                }}
-                            >
-                                <strong style={{color: "#7B68EE"}}>
+                            <div className={styles.summaryBox}>
+                                <strong>
                                     Total Paid (INR):{" "}
                                     {formatBaseCurrency(
                                         filteredEarnings
@@ -520,8 +445,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                 <YAxis stroke="#FAFAFA"/>
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: "#29384D",
-                                        border: "1px solid #5B5B7B",
+                                        backgroundColor: "#121C24",
+                                        border: "1px solid white",
                                         borderRadius: "4px",
                                         color: "#FAFAFA",
                                     }}
@@ -556,8 +481,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                         <YAxis stroke="#FAFAFA"/>
                                         <Tooltip
                                             contentStyle={{
-                                                backgroundColor: "#29384D",
-                                                border: "1px solid #5B5B7B",
+                                                backgroundColor: "#121C24",
+                                                border: "1px solid white",
                                                 borderRadius: "4px",
                                                 color: "#FAFAFA",
                                             }}
@@ -590,8 +515,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                 <YAxis stroke="#FAFAFA"/>
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: "#29384D",
-                                        border: "1px solid #5B5B7B",
+                                        backgroundColor: "#121C24",
+                                        border: "1px solid white",
                                         borderRadius: "4px",
                                         color: "#FAFAFA",
                                     }}
@@ -613,22 +538,11 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
 
                         {/* Client Information Display */}
                         {selectedClientInfo && (
-                            <div style={{
-                                marginBottom: '20px',
-                                padding: '15px',
-                                backgroundColor: '#29384D',
-                                borderRadius: '8px',
-                                border: '2px solid #7B68EE'
-                            }}>
-                                <h4 style={{color: '#7B68EE', margin: '0 0 10px 0'}}>
+                            <div className={styles.clientInfo}>
+                                <h4>
                                     📊 {selectedClientInfo.client} - Detailed Breakdown
                                 </h4>
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                    gap: '15px',
-                                    color: '#FAFAFA'
-                                }}>
+                                <div className={styles.infoGrid}>
                                     <div>
                                         <strong style={{color: '#32CD32'}}>Total Paid:</strong><br/>
                                         {formatBaseCurrency(selectedClientInfo.paidAmount)}
@@ -655,40 +569,29 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                         {/* Summary Table of All Clients */}
                         <div style={{marginBottom: '20px', overflowX: 'auto'}}>
                             {calculateClientDistribution().length > 0 ? (
-                                <table style={{
-                                    width: '100%',
-                                    borderCollapse: 'collapse',
-                                    backgroundColor: '#29384D',
-                                    borderRadius: '8px'
-                                }}>
+                                <table className={styles.dataTable}>
                                     <thead>
-                                    <tr style={{borderBottom: '2px solid #5B5B7B'}}>
-                                        <th style={{color: '#FAFAFA', padding: '12px', textAlign: 'left'}}>Client</th>
-                                        <th style={{color: '#32CD32', padding: '12px', textAlign: 'right'}}>Paid (INR)
-                                        </th>
-                                        <th style={{color: '#FFD700', padding: '12px', textAlign: 'right'}}>Pending
-                                            (INR)
-                                        </th>
-                                        <th style={{color: '#7B68EE', padding: '12px', textAlign: 'right'}}>Total
-                                            (INR)
-                                        </th>
+                                    <tr>
+                                        <th>Client</th>
+                                        <th style={{color: '#32CD32', textAlign: 'right'}}>Paid (INR)</th>
+                                        <th style={{color: '#FFD700', textAlign: 'right'}}>Pending (INR)</th>
+                                        <th style={{color: '#7B68EE', textAlign: 'right'}}>Total (INR)</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     {calculateClientDistribution().map((client) => (
-                                        <tr key={client.client} style={{borderBottom: '1px solid #5B5B7B'}}>
-                                            <td style={{color: '#FAFAFA', padding: '12px', fontWeight: 'bold'}}>
+                                        <tr key={client.client}>
+                                            <td style={{fontWeight: 'bold'}}>
                                                 {client.client}
                                             </td>
-                                            <td style={{color: '#32CD32', padding: '12px', textAlign: 'right'}}>
+                                            <td style={{color: '#32CD32', textAlign: 'right'}}>
                                                 {formatBaseCurrency(client.paidAmount || 0)}
                                             </td>
-                                            <td style={{color: '#FFD700', padding: '12px', textAlign: 'right'}}>
+                                            <td style={{color: '#FFD700', textAlign: 'right'}}>
                                                 {formatBaseCurrency(client.pendingAmount || 0)}
                                             </td>
                                             <td style={{
                                                 color: '#7B68EE',
-                                                padding: '12px',
                                                 textAlign: 'right',
                                                 fontWeight: 'bold'
                                             }}>
@@ -702,7 +605,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                 <div style={{
                                     padding: '20px',
                                     textAlign: 'center',
-                                    backgroundColor: '#29384D',
+                                    backgroundColor: '#121C24',
                                     borderRadius: '8px',
                                     color: '#FFD700'
                                 }}>
@@ -745,8 +648,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                         </Pie>
                                         <Tooltip
                                             contentStyle={{
-                                                backgroundColor: "#29384D",
-                                                border: "1px solid #5B5B7B",
+                                                backgroundColor: "#121C24",
+                                                border: "1px solid white",
                                                 borderRadius: "4px",
                                                 color: "#FAFAFA",
                                             }}
@@ -796,8 +699,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                             </Pie>
                                             <Tooltip
                                                 contentStyle={{
-                                                    backgroundColor: "#29384D",
-                                                    border: "1px solid #5B5B7B",
+                                                    backgroundColor: "#121C24",
+                                                    border: "1px solid white",
                                                     borderRadius: "4px",
                                                     color: "#FAFAFA",
                                                 }}
@@ -814,7 +717,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        backgroundColor: '#29384D',
+                                        backgroundColor: '#121C24',
                                         borderRadius: '8px',
                                         color: '#FFD700'
                                     }}>
