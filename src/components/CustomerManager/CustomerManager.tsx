@@ -580,7 +580,7 @@ const CustomerManager = () => {
                       </span>
                       <div style={{ color: "#B0B0B0", fontSize: "0.9rem" }}>
                         <div>
-                          Total Earnings: ${customer.totalEarnings.toFixed(2)}
+                          Total Earnings: ₹{customer.totalEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div>Projects: {customer.projectCount}</div>
                         {customer.lastInvoiceDate && (

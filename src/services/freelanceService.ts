@@ -515,8 +515,23 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
         }
     }
 
-    // Add signature section
-    yPosition += 15; // Reduced space before signature
+    // Add signature section with page break check
+    yPosition += 15; // Space before signature
+    
+    // Calculate required space for signature section based on signature data or defaults
+    const signatureHeight = signatureData?.height || 20; // Default 20mm tall signature
+    const signatureSpaceRequired = 15 + signatureHeight + 10; // Space for "Authorized Signature:" text + signature + padding
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const bottomMargin = 20; // Bottom margin
+    const maxY = pageHeight - bottomMargin;
+    
+    // Check if signature section fits on current page
+    if (yPosition + signatureSpaceRequired > maxY) {
+        // Add new page if signature won't fit
+        doc.addPage();
+        yPosition = margin; // Reset to top margin on new page
+    }
+    
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
@@ -525,26 +540,68 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
     // Add signature image if provided, otherwise draw signature line
     if (signatureData?.signatureUrl) {
         try {
-            const signatureY = yPosition + 5;
-            const signatureWidth = 50; // 50mm wide signature
-            const signatureHeight = 20; // 20mm tall signature
-            doc.addImage(signatureData.signatureUrl, 'PNG', margin, signatureY, signatureWidth, signatureHeight);
+            // Use configured values or defaults
+            const signatureX = signatureData.x !== undefined ? signatureData.x : margin;
+            const signatureY = signatureData.y !== undefined ? signatureData.y : yPosition + 5;
+            const signatureWidth = signatureData.width || 50; // Default 50mm wide signature
+            const signatureHeight = signatureData.height || 20; // Default 20mm tall signature
+            
+            // Additional check to ensure signature fits after positioning
+            if (signatureY + signatureHeight > maxY) {
+                doc.addPage();
+                const newPageY = margin;
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                doc.text('Authorized Signature:', margin, newPageY);
+                doc.addImage(signatureData.signatureUrl, 'PNG', signatureX, newPageY + 5, signatureWidth, signatureHeight);
+            } else {
+                doc.addImage(signatureData.signatureUrl, 'PNG', signatureX, signatureY, signatureWidth, signatureHeight);
+            }
         } catch (error) {
             console.warn('Failed to add signature image to PDF:', error);
             // Draw signature line as fallback
             const signatureLineY = yPosition + 15;
             const signatureLineWidth = 60; // 60mm wide line
-            doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
-            doc.setLineWidth(0.5);
-            doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
+            
+            // Check if signature line fits
+            if (signatureLineY > maxY) {
+                doc.addPage();
+                const newPageY = margin + 15;
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                doc.text('Authorized Signature:', margin, margin);
+                doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+                doc.setLineWidth(0.5);
+                doc.line(margin, newPageY, margin + signatureLineWidth, newPageY);
+            } else {
+                doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+                doc.setLineWidth(0.5);
+                doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
+            }
         }
     } else {
         // Draw signature line if no signature provided
         const signatureLineY = yPosition + 15;
         const signatureLineWidth = 60; // 60mm wide line
-        doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
-        doc.setLineWidth(0.5);
-        doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
+        
+        // Check if signature line fits
+        if (signatureLineY > maxY) {
+            doc.addPage();
+            const newPageY = margin + 15;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+            doc.text('Authorized Signature:', margin, margin);
+            doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+            doc.setLineWidth(0.5);
+            doc.line(margin, newPageY, margin + signatureLineWidth, newPageY);
+        } else {
+            doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+            doc.setLineWidth(0.5);
+            doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
+        }
     }
 
     return doc;

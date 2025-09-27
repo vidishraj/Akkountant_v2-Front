@@ -19,12 +19,20 @@ import {
     Button,
     Typography,
     useMediaQuery,
-    useTheme
+    useTheme,
+    TextField,
+    FormControl,
+    InputLabel,
+    Grid,
+    Chip,
+    TableSortLabel
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SaveIcon from '@mui/icons-material/Save';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloseIcon from '@mui/icons-material/Close';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ClearIcon from '@mui/icons-material/Clear';
 import style from './Jobs.module.scss';
 import {useMessage} from '../../contexts/MessageContext';
 import {JobData, fetchJobs, updateJobs, processEmails} from '../../services/jobService';
@@ -154,11 +162,20 @@ const Jobs = () => {
     const [dateModalState, setDateModalState] = useState(false);
     const [editedCells, setEditedCells] = useState<Record<string, any>>({});
     const [selectedText, setSelectedText] = useState<string | null>(null);
+    
+    // Filter and Sort States
+    const [filters, setFilters] = useState<Record<string, any>>({});
+    const [sortBy, setSortBy] = useState('due_date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [showFilters, setShowFilters] = useState(false);
+    const [loading, setLoading] = useState(false);
+    
     const {setPayload} = useMessage();
 
     const fetchJobsData = async (cache: boolean) => {
         try {
-            const data = await fetchJobs(page + 1, rowsPerPage, cache);
+            setLoading(true);
+            const data = await fetchJobs(page + 1, rowsPerPage, cache, filters, sortBy, sortOrder);
             setJobs(data.items);
             setTotalCount(data.pagination.total);
         } catch (error) {
@@ -166,12 +183,14 @@ const Jobs = () => {
                 type: 'error',
                 message: 'Failed to fetch jobs. Please try again!'
             });
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchJobsData(true);
-    }, [page, rowsPerPage]);
+    }, [page, rowsPerPage, filters, sortBy, sortOrder]);
 
     const handleCellEdit = (jobId: string, field: string, value: string) => {
         setEditedCells(prev => ({
@@ -216,6 +235,42 @@ const Jobs = () => {
         handleCellEdit(jobId, 'verdict', numericValue.toString());
     };
 
+    const handleFilterChange = (key: string, value: any) => {
+        setFilters(prev => ({
+            ...prev,
+            [key]: value
+        }));
+        setPage(0); // Reset to first page when filtering
+    };
+
+    const handleClearFilter = (key: string) => {
+        setFilters(prev => {
+            const newFilters = { ...prev };
+            delete newFilters[key];
+            return newFilters;
+        });
+        setPage(0);
+    };
+
+    const handleClearAllFilters = () => {
+        setFilters({});
+        setPage(0);
+    };
+
+    const handleSort = (column: string) => {
+        if (sortBy === column) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(column);
+            setSortOrder('desc');
+        }
+        setPage(0);
+    };
+
+    const getActiveFiltersCount = () => {
+        return Object.keys(filters).filter(key => filters[key] !== '' && filters[key] !== null).length;
+    };
+
     return (
         <Box className={style.jobsContainer}>
             <Box className={style.actionsContainer}>
@@ -258,8 +313,16 @@ const Jobs = () => {
                 <IconButton
                     onClick={() => fetchJobsData(true)}
                     className={style.actionButton}
+                    disabled={loading}
                 >
                     <RefreshIcon/>
+                </IconButton>
+                <IconButton
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={style.actionButton}
+                    color={getActiveFiltersCount() > 0 ? "primary" : "default"}
+                >
+                    <FilterListIcon/>
                 </IconButton>
                 <IconButton
                     onClick={handleSave}
@@ -269,16 +332,169 @@ const Jobs = () => {
                     <SaveIcon/>
                 </IconButton>
             </Box>
+            
+            {/* Filters Section */}
+            {showFilters && (
+                <Box className={style.filtersContainer}>
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={6} md={3}>
+                            <FormControl fullWidth size="small">
+                                <TextField
+                                    label="Search Title/Employer"
+                                    value={filters.title || ''}
+                                    onChange={(e) => handleFilterChange('title', e.target.value)}
+                                    size="small"
+                                    variant="outlined"
+                                />
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Status</InputLabel>
+                                <Select
+                                    value={filters.status || ''}
+                                    onChange={(e) => handleFilterChange('status', e.target.value)}
+                                    label="Status"
+                                >
+                                    <MenuItem value="">All</MenuItem>
+                                    <MenuItem value="Pending">Pending</MenuItem>
+                                    <MenuItem value="Completed">Completed</MenuItem>
+                                    <MenuItem value="Failed">Failed</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Priority</InputLabel>
+                                <Select
+                                    value={filters.priority || ''}
+                                    onChange={(e) => handleFilterChange('priority', e.target.value)}
+                                    label="Priority"
+                                >
+                                    <MenuItem value="">All</MenuItem>
+                                    <MenuItem value="High">High</MenuItem>
+                                    <MenuItem value="Medium">Medium</MenuItem>
+                                    <MenuItem value="Low">Low</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <TextField
+                                label="Min Failures"
+                                type="number"
+                                value={filters.min_failures || ''}
+                                onChange={(e) => handleFilterChange('min_failures', e.target.value)}
+                                size="small"
+                                fullWidth
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Sort By</InputLabel>
+                                <Select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    label="Sort By"
+                                >
+                                    <MenuItem value="due_date">Due Date</MenuItem>
+                                    <MenuItem value="failures">Failures</MenuItem>
+                                    <MenuItem value="created_at">Created Date</MenuItem>
+                                    <MenuItem value="title">Title</MenuItem>
+                                    <MenuItem value="status">Status</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Sort Order</InputLabel>
+                                <Select
+                                    value={sortOrder}
+                                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                                    label="Sort Order"
+                                >
+                                    <MenuItem value="desc">Descending</MenuItem>
+                                    <MenuItem value="asc">Ascending</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Button
+                                onClick={handleClearAllFilters}
+                                startIcon={<ClearIcon />}
+                                variant="outlined"
+                                fullWidth
+                                disabled={getActiveFiltersCount() === 0}
+                            >
+                                Clear All
+                            </Button>
+                        </Grid>
+                    </Grid>
+                    
+                    {/* Active Filters Display */}
+                    {getActiveFiltersCount() > 0 && (
+                        <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            <Typography variant="body2" sx={{ alignSelf: 'center', mr: 1 }}>
+                                Active Filters:
+                            </Typography>
+                            {Object.entries(filters).map(([key, value]) => {
+                                if (!value) return null;
+                                return (
+                                    <Chip
+                                        key={key}
+                                        label={`${key}: ${value}`}
+                                        onDelete={() => handleClearFilter(key)}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                    />
+                                );
+                            })}
+                        </Box>
+                    )}
+                </Box>
+            )}
             <Box className={style.tableWrapper}>
                 <TableContainer component={Paper} className={style.tableContainer}>
                     <Table stickyHeader>
                         <TableHead>
                             <TableRow>
-                                <TableCell>Date</TableCell>
-                                <TableCell>Employer</TableCell>
-                                <TableCell>Role</TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={sortBy === 'email_date'}
+                                        direction={sortBy === 'email_date' ? sortOrder : 'desc'}
+                                        onClick={() => handleSort('email_date')}
+                                    >
+                                        Date
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={sortBy === 'employer'}
+                                        direction={sortBy === 'employer' ? sortOrder : 'desc'}
+                                        onClick={() => handleSort('employer')}
+                                    >
+                                        Employer
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={sortBy === 'role'}
+                                        direction={sortBy === 'role' ? sortOrder : 'desc'}
+                                        onClick={() => handleSort('role')}
+                                    >
+                                        Role
+                                    </TableSortLabel>
+                                </TableCell>
                                 <TableCell>Description</TableCell>
-                                <TableCell>Verdict</TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={sortBy === 'verdict'}
+                                        direction={sortBy === 'verdict' ? sortOrder : 'desc'}
+                                        onClick={() => handleSort('verdict')}
+                                    >
+                                        Verdict
+                                    </TableSortLabel>
+                                </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>

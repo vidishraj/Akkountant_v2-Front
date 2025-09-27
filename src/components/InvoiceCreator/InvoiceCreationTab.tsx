@@ -12,24 +12,24 @@ import {
 import {useMessage} from '../../contexts/MessageContext';
 import {useUser} from '../../contexts/GlobalContext';
 import CustomerDropdown from './CustomerDropdown';
+import TemplateDropdown from './TemplateDropdown';
 import styles from '../../pages/Freelance/Freelance.module.scss';
-
 
 interface InvoiceCreationTabProps {
     onInvoiceDataChange: (data: InvoiceData | null) => void;
     invoiceData: InvoiceData | null;
-    editingInvoiceId?: string; // For editing existing invoices
-    onEditComplete?: () => void; // Callback when editing is complete
-    onInvoiceUpdated?: (invoiceId?: string) => void; // Callback to refresh dashboard data after create/update
+    editingInvoiceId?: string;
+    onEditComplete?: () => void;
+    onInvoiceUpdated?: (invoiceId?: string) => void;
 }
 
 const InvoiceCreationTab = ({
-                                onInvoiceDataChange,
-                                invoiceData,
-                                editingInvoiceId,
-                                onEditComplete,
-                                onInvoiceUpdated
-                            }: InvoiceCreationTabProps) => {
+    onInvoiceDataChange,
+    invoiceData,
+    editingInvoiceId,
+    onEditComplete,
+    onInvoiceUpdated
+}: InvoiceCreationTabProps) => {
     const [isValidJson, setIsValidJson] = useState(true);
     const [jsonError, setJsonError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -48,14 +48,72 @@ const InvoiceCreationTab = ({
     const {setPayload} = useMessage();
     const {invoiceJsonDraft, setInvoiceJsonDraft} = useUser();
 
-    // Default invoice structure with helper comments
+    // Function to create JSON with inline comments
+    const createCommentedJsonString = (data: InvoiceData) => {
+        return `{
+  "invoiceNumber": "${data.invoiceNumber}",                    // REQUIRED: Unique identifier (e.g., "INV-2024-001")
+  "projectName": "${data.projectName}",                        // REQUIRED: Brief description of project/work
+  "issueDate": "${data.issueDate}",                            // Date issued - format: YYYY-MM-DD (auto-set to today)
+  "dueDate": "${data.dueDate}",                                // Payment due date - format: YYYY-MM-DD (e.g., "2024-12-31")
+  "customerId": "${data.customerId}",                          // REQUIRED: Customer ID from database (select from dropdown)
+  "currency": "${data.currency}",                              // ENUM: "USD" | "INR" | "GBP" | "EUR" | "AUD"
+  "from": {                                                     // Your business information (sender details)
+    "name": "${data.from.name}",                               // REQUIRED: Your business name or full name
+    "email": "${data.from.email}",                             // Your email (can hide with "*from.email": "email@domain.com")
+    "address": "${data.from.address}",                         // Your complete address (can include \\n for line breaks)
+    "phone": "${data.from.phone}"                              // Your phone (can hide with "*from.phone": "+1234567890")
+  },
+  "to": {                                                       // Customer information (recipient details)
+    "name": "${data.to.name}",                                 // REQUIRED: Client contact person name
+    "email": "${data.to.email}",                               // Client email (can hide with "*to.email": "client@domain.com")
+    "address": "${data.to.address}",                           // Client address (can include \\n for line breaks)
+    "company": "${data.to.company}"                            // Client company (can hide with "*to.company": "Company Name")
+  },
+  "customFields": [                                             // Optional fields (max 8) - prefix key with "*" to hide from PDF
+    {
+      "key": "${data.customFields?.[0]?.key || 'Purchase Order'}",          // Field label (max 50 chars) - visible on invoice
+      "value": "${data.customFields?.[0]?.value || ''}"                     // Field value (max 200 chars) - can be empty
+    },
+    {
+      "key": "${data.customFields?.[1]?.key || '*Internal Reference'}",     // Hidden field - prefix with "*" to hide from PDF
+      "value": "${data.customFields?.[1]?.value || ''}"                     // Internal notes/references not shown to client
+    }
+  ],
+  "items": [                                                    // REQUIRED: Invoice line items (at least 1 required)
+    {
+      "description": "${data.items[0]?.description || ''}",               // REQUIRED: Description of service/product
+      "quantity": ${data.items[0]?.quantity || 1},                        // Quantity as number (e.g., 1, 2.5, 10)
+      "rate": ${data.items[0]?.rate || 0},                                // Rate per unit (e.g., 50, 75.50, 1000)
+      "amount": ${data.items[0]?.amount || 0}                             // AUTO-CALCULATED: quantity × rate (do not set manually)
+    }
+  ],
+  "subtotal": ${data.subtotal},                                // AUTO-CALCULATED: Sum of all item amounts (do not set manually)
+  "tax": {                                                      // Tax configuration
+    "rate": ${data.tax?.rate || 0},                                             // Tax rate as percentage (e.g., 8.5 for 8.5%, 0 for no tax)
+    "amount": ${data.tax?.amount || 0}                                          // AUTO-CALCULATED: subtotal × (rate ÷ 100) (do not set manually)
+  },
+  "total": ${data.total},                                      // AUTO-CALCULATED: subtotal + tax.amount (do not set manually)
+  "notes": "${data.notes}",                                    // Additional notes to appear on invoice (optional)
+  "terms": "${data.terms}",                                    // Payment terms and conditions (optional)
+  "status": "${data.status}",                                  // ENUM: "draft" | "sent" | "paid" | "overdue"
+  "payment": {                                                  // Payment info - REQUIRED if status is "paid"
+    "paymentMethod": "${data.payment?.paymentMethod || ''}",                     // Examples: "bank_transfer", "check", "cash", "paypal"
+    "amountReceived": ${data.payment?.amountReceived || 0},                     // Amount received - must be > 0 if status is "paid"
+    "breakdown": ${JSON.stringify(data.payment?.breakdown || {}, null, 4).replace(/\n/g, '\n    ')},     // Optional payment breakdown for partial payments
+    "paymentDate": "${data.payment?.paymentDate || ''}",                        // Date received - format: YYYY-MM-DD (required for paid status)
+    "notes": "${data.payment?.notes || ''}"                                      // Payment-related notes (optional)
+  }
+}`;
+    };
+
+    // Default invoice structure with comprehensive field explanations
     const defaultInvoiceStructure: InvoiceData = {
         invoiceNumber: '',
         projectName: '',
         issueDate: new Date().toISOString().split('T')[0],
         dueDate: '',
-        customerId: '', // Required - must select customer first
-        currency: 'USD', // Options: USD, INR, GBP, EUR, AUD
+        customerId: '',
+        currency: 'USD',
         from: {
             name: '',
             email: '',
@@ -94,7 +152,7 @@ const InvoiceCreationTab = ({
         total: 0,
         notes: '',
         terms: '',
-        status: 'draft', // Options: draft, sent, paid, overdue
+        status: 'draft',
         payment: {
             paymentMethod: '',
             amountReceived: 0,
@@ -106,11 +164,9 @@ const InvoiceCreationTab = ({
 
     useEffect(() => {
         if (editingInvoiceId) {
-            // Load existing invoice for editing
             loadInvoiceForEdit(editingInvoiceId);
             setIsEditMode(true);
         } else if (!invoiceJsonDraft) {
-            // Generate invoice number on mount only if jsonString is empty
             const generateInvoiceNumber = () => {
                 const date = new Date();
                 const year = date.getFullYear();
@@ -124,14 +180,13 @@ const InvoiceCreationTab = ({
                 invoiceNumber: generateInvoiceNumber()
             };
 
-            const initialJsonString = JSON.stringify(initialData, null, 2);
+            const initialJsonString = createCommentedJsonString(initialData);
             setInvoiceJsonDraft(initialJsonString);
             validateAndSetJson(initialJsonString);
         }
         loadTemplates();
     }, [editingInvoiceId]);
 
-    // Separate effect to validate jsonString when it changes from context
     useEffect(() => {
         if (invoiceJsonDraft) {
             validateAndSetJson(invoiceJsonDraft);
@@ -151,37 +206,32 @@ const InvoiceCreationTab = ({
         }
     };
 
-
     const validateAndSetJson = (jsonStr: string) => {
         try {
-            const parsed = JSON.parse(jsonStr);
+            const cleanJsonStr = jsonStr.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+            const parsed = JSON.parse(cleanJsonStr);
             const errors: string[] = [];
 
-            // Basic validation for required fields with specific errors
             if (!parsed.invoiceNumber) errors.push('invoiceNumber is required');
             if (!parsed.projectName) errors.push('projectName is required');
             if (!parsed.from?.name) errors.push('from.name is required');
             if (!parsed.to?.name) errors.push('to.name is required');
             if (!parsed.currency) errors.push('currency is required');
 
-            // Validate customer selection requirement
             if (!parsed.customerId) {
                 errors.push('customerId is required - Please select a customer before creating an invoice');
             }
 
-            // Validate currency with specific values
             const validCurrencies = ['USD', 'INR', 'GBP', 'EUR', 'AUD'];
             if (parsed.currency && !validCurrencies.includes(parsed.currency)) {
                 errors.push(`currency must be one of: ${validCurrencies.join(', ')}`);
             }
 
-            // Validate status if provided
             const validStatuses = ['draft', 'sent', 'paid', 'overdue'];
             if (parsed.status && !validStatuses.includes(parsed.status)) {
                 errors.push(`status must be one of: ${validStatuses.join(', ')}`);
             }
 
-            // Validate payment info for paid invoices
             if (parsed.status === 'paid') {
                 if (!parsed.payment) {
                     errors.push('payment object is required for invoices marked as paid');
@@ -195,7 +245,6 @@ const InvoiceCreationTab = ({
                 }
             }
 
-            // Validate items array
             if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
                 errors.push('items array is required and must contain at least one item');
             } else {
@@ -210,7 +259,6 @@ const InvoiceCreationTab = ({
                 });
             }
 
-            // Validate and process custom fields
             if (parsed.customFields) {
                 if (!Array.isArray(parsed.customFields)) {
                     errors.push('customFields must be an array');
@@ -219,12 +267,11 @@ const InvoiceCreationTab = ({
                         errors.push('customFields cannot exceed 8 items (current limit)');
                     }
 
-                    // Process custom fields to handle asterisk prefix
                     parsed.customFields = parsed.customFields.map((field: { key: string; value: string }) => {
                         if (typeof field.key === 'string' && field.key.startsWith('*')) {
                             return {
                                 ...field,
-                                key: field.key.substring(1), // Remove asterisk
+                                key: field.key.substring(1),
                                 hidden: true
                             };
                         }
@@ -234,7 +281,6 @@ const InvoiceCreationTab = ({
                         };
                     });
 
-                    // Validate each custom field
                     parsed.customFields.forEach((field: any, index: number) => {
                         if (!field.key || typeof field.key !== 'string') {
                             errors.push(`customFields[${index}].key is required and must be a string`);
@@ -250,7 +296,6 @@ const InvoiceCreationTab = ({
                 }
             }
 
-            // Set detailed error message
             if (errors.length > 0) {
                 setJsonError(`Validation errors:\n• ${errors.join('\n• ')}`);
                 setIsValidJson(false);
@@ -258,7 +303,6 @@ const InvoiceCreationTab = ({
                 return;
             }
 
-            // Calculate totals
             if (parsed.items && Array.isArray(parsed.items)) {
                 let subtotal = 0;
                 parsed.items.forEach((item: { quantity: number; rate: number; amount: number }) => {
@@ -278,7 +322,6 @@ const InvoiceCreationTab = ({
                 parsed.total = parsed.subtotal + (parsed.tax?.amount || 0);
             }
 
-            // Handle hidden core fields (check if JSON contains fields with * prefix)
             const hiddenCoreFields: { [key: string]: boolean } = {};
             const coreFieldsToCheck = ['from.email', 'from.phone', 'to.email', 'to.company'];
 
@@ -286,30 +329,21 @@ const InvoiceCreationTab = ({
                 const hiddenFieldKey = `*${fieldPath}`;
                 const [section, field] = fieldPath.split('.');
 
-                // Check for flat field format like "*from.email": "value"
                 if (parsed[hiddenFieldKey]) {
                     hiddenCoreFields[fieldPath] = true;
-
-                    // Move the value to the normal location
                     if (!parsed[section]) parsed[section] = {};
                     parsed[section][field] = parsed[hiddenFieldKey];
                     delete parsed[hiddenFieldKey];
                 }
-                // Check for nested format like "*from": { "email": "value" }
                 else if (parsed[`*${section}`] && parsed[`*${section}`][field]) {
                     hiddenCoreFields[fieldPath] = true;
-
-                    // Move the value to the normal location
                     if (!parsed[section]) parsed[section] = {};
                     parsed[section][field] = parsed[`*${section}`][field];
-
-                    // Clean up the nested structure if it's now empty
                     delete parsed[`*${section}`][field];
                     if (Object.keys(parsed[`*${section}`]).length === 0) {
                         delete parsed[`*${section}`];
                     }
                 }
-                // Also check if it exists in the JSON string for cases where the value is empty
                 else if (jsonStr.includes(`"${hiddenFieldKey}"`)) {
                     hiddenCoreFields[fieldPath] = true;
                 }
@@ -334,7 +368,6 @@ const InvoiceCreationTab = ({
         setInvoiceJsonDraft(value);
         validateAndSetJson(value);
     };
-
 
     const saveTemplate = async () => {
         if (!templateName.trim()) {
@@ -363,7 +396,6 @@ const InvoiceCreationTab = ({
 
         try {
             setLoading(true);
-
             const result = await saveInvoiceTemplate(
                 templateName,
                 invoiceData,
@@ -382,8 +414,7 @@ const InvoiceCreationTab = ({
                 message: saveAsDefault ? 'Template saved and set as customer default' : result.message
             });
 
-            // Reload templates to get the updated list
-            await loadTemplates(); // Cache automatically cleared
+            await loadTemplates();
         } catch (error) {
             setPayload({
                 type: 'error',
@@ -403,22 +434,19 @@ const InvoiceCreationTab = ({
                 ...template.templateData,
                 invoiceNumber: `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
                 issueDate: new Date().toISOString().split('T')[0],
-                status: 'draft'
+                status: 'draft' as const
             };
 
-            const templateJsonString = JSON.stringify(templateWithNewInvoiceNumber, null, 2);
+            const templateJsonString = createCommentedJsonString(templateWithNewInvoiceNumber);
             setInvoiceJsonDraft(templateJsonString);
             validateAndSetJson(templateJsonString);
             setShowTemplateActions(true);
 
-            // Auto-select the customer if the template has a customerId
             if (template.customerId) {
                 setSelectedCustomerForDefault(template.customerId);
             } else if (templateWithNewInvoiceNumber.customerId) {
                 setSelectedCustomerForDefault(templateWithNewInvoiceNumber.customerId);
             }
-
-            // Template loading feedback is provided by UI changes, no toast needed
         }
     };
 
@@ -436,7 +464,7 @@ const InvoiceCreationTab = ({
                 });
                 setSelectedTemplate('');
                 setShowTemplateActions(false);
-                await loadTemplates(); // Cache automatically cleared
+                await loadTemplates();
             } catch (error) {
                 setPayload({
                     type: 'error',
@@ -488,7 +516,7 @@ const InvoiceCreationTab = ({
                 message: result.message
             });
 
-            await loadTemplates(); // Cache automatically cleared
+            await loadTemplates();
         } catch (error) {
             setPayload({
                 type: 'error',
@@ -500,13 +528,12 @@ const InvoiceCreationTab = ({
         }
     };
 
-
     const resetToDefault = () => {
         const newData = {
             ...defaultInvoiceStructure,
             invoiceNumber: `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
         };
-        const newJsonString = JSON.stringify(newData, null, 2);
+        const newJsonString = createCommentedJsonString(newData);
         setInvoiceJsonDraft(newJsonString);
         validateAndSetJson(newJsonString);
     };
@@ -520,17 +547,14 @@ const InvoiceCreationTab = ({
     const loadInvoiceForEdit = async (invoiceId: string) => {
         try {
             setLoading(true);
-            const invoice = await fetchInvoiceById(invoiceId); // Cache automatically cleared
+            const invoice = await fetchInvoiceById(invoiceId);
             const invoiceJsonString = JSON.stringify(invoice, null, 2);
             setInvoiceJsonDraft(invoiceJsonString);
             validateAndSetJson(invoiceJsonString);
 
-            // Auto-select the customer from the loaded invoice
             if (invoice.customerId) {
                 setSelectedCustomerForDefault(invoice.customerId);
             }
-
-            // Invoice loading feedback is provided by UI changes, no toast needed
         } catch (error) {
             setPayload({
                 type: 'error',
@@ -546,18 +570,15 @@ const InvoiceCreationTab = ({
         setSelectedCustomerForDefault(customerId);
 
         if (customerId) {
-            // Update the invoice data with the selected customer ID
-            const currentData = invoiceJsonDraft ? JSON.parse(invoiceJsonDraft) : defaultInvoiceStructure;
+            const currentData = invoiceJsonDraft ? JSON.parse(invoiceJsonDraft.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')) : defaultInvoiceStructure;
             const updatedData = {
                 ...currentData,
                 customerId: customerId
             };
 
-            const updatedJsonString = JSON.stringify(updatedData, null, 2);
+            const updatedJsonString = createCommentedJsonString(updatedData);
             setInvoiceJsonDraft(updatedJsonString);
             validateAndSetJson(updatedJsonString);
-
-            // Customer selection feedback is provided by UI changes, no toast needed
         }
     };
 
@@ -579,7 +600,6 @@ const InvoiceCreationTab = ({
                     message: 'Invoice updated successfully!'
                 });
 
-                // Trigger refresh to get updated invoice data
                 if (onInvoiceUpdated) {
                     onInvoiceUpdated(editingInvoiceId);
                 }
@@ -591,9 +611,7 @@ const InvoiceCreationTab = ({
                     type: 'success',
                     message: 'Invoice created successfully!'
                 });
-                // Trigger dashboard refresh for new invoices
                 onInvoiceUpdated?.();
-                // Reset to new invoice
                 resetToDefault();
             }
         } catch (error) {
@@ -606,6 +624,7 @@ const InvoiceCreationTab = ({
             setLoading(false);
         }
     };
+
     return (
         <div>
             {/* Quick Start & Actions */}
@@ -645,29 +664,22 @@ const InvoiceCreationTab = ({
                     </div>
                 </div>
 
+                {/* Template and Customer Selection Row */}
                 <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
+                    <div className={styles.formGroup} style={{flex: 1, minWidth: 0}}>
                         <label className={styles.formLabel}>Load Saved Template</label>
-                        <select
-                            className={styles.formInput}
+                        <TemplateDropdown
                             value={selectedTemplate}
-                            onChange={(e) => {
-                                setSelectedTemplate(e.target.value);
-                                if (e.target.value) {
-                                    loadTemplate(e.target.value);
+                            onChange={(templateId) => {
+                                setSelectedTemplate(templateId);
+                                if (templateId) {
+                                    loadTemplate(templateId);
                                 }
                             }}
-                            style={{width: '100%', minWidth: 0}}
-                        >
-                            <option value="">Select a template...</option>
-                            {templates.map(template => (
-                                <option key={template.id} value={template.id}
-                                        title={`${template.name}${template.customerId ? ' (Customer Template)' : ''} - ${new Date(template.createdAt).toLocaleDateString()}`}>
-                                    {template.name.length > 30 ? `${template.name.substring(0, 30)}...` : template.name}
-                                    {template.customerId && ' (CT)'}
-                                </option>
-                            ))}
-                        </select>
+                            templates={templates}
+                            className={styles.formInput}
+                            placeholder="Select a template..."
+                        />
                         {templates.length === 0 && (
                             <div style={{
                                 marginTop: '6px',
@@ -682,43 +694,56 @@ const InvoiceCreationTab = ({
                         )}
                     </div>
 
-                    {/* Template Actions */}
-                    {selectedTemplate && showTemplateActions && (
-                        <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>Template Actions</label>
-                            <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
-                                <button
-                                    className={styles.secondaryBtn}
-                                    onClick={() => handleEditTemplate(selectedTemplate)}
-                                    style={{padding: '6px 10px', fontSize: '0.85rem'}}
-                                    disabled={loading}
-                                >
-                                    Edit Template
-                                </button>
-                                <button
-                                    className={styles.dangerBtn}
-                                    onClick={() => handleDeleteTemplate(selectedTemplate)}
-                                    style={{padding: '6px 10px', fontSize: '0.85rem'}}
-                                    disabled={loading}
-                                >
-                                    Delete Template
-                                </button>
-                            </div>
-                            {templates.find(t => t.id === selectedTemplate)?.customerId && (
-                                <div style={{
-                                    marginTop: '6px',
-                                    padding: '6px',
-                                    backgroundColor: 'rgba(50, 205, 50, 0.1)',
-                                    borderRadius: '4px',
-                                    fontSize: '0.8rem',
-                                    color: '#32CD32'
-                                }}>
-                                    🔗 This is a customer-specific template
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    <div className={styles.formGroup} style={{flex: 1, minWidth: 0}}>
+                        <label className={styles.formLabel}>🏢 Select Customer (Required) *</label>
+                        <CustomerDropdown
+                            value={selectedCustomerForDefault}
+                            onChange={handleCustomerSelection}
+                            className={styles.formInput}
+                        />
+                    </div>
                 </div>
+
+                {/* Template Actions */}
+                {selectedTemplate && showTemplateActions && (
+                    <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(255, 255, 255, 0.2)'}}>
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Template Actions</label>
+                                <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
+                                    <button
+                                        className={styles.secondaryBtn}
+                                        onClick={() => handleEditTemplate(selectedTemplate)}
+                                        style={{padding: '6px 10px', fontSize: '0.85rem'}}
+                                        disabled={loading}
+                                    >
+                                        Edit Template
+                                    </button>
+                                    <button
+                                        className={styles.dangerBtn}
+                                        onClick={() => handleDeleteTemplate(selectedTemplate)}
+                                        style={{padding: '6px 10px', fontSize: '0.85rem'}}
+                                        disabled={loading}
+                                    >
+                                        Delete Template
+                                    </button>
+                                </div>
+                                {templates.find(t => t.id === selectedTemplate)?.customerId && (
+                                    <div style={{
+                                        marginTop: '6px',
+                                        padding: '6px',
+                                        backgroundColor: 'rgba(50, 205, 50, 0.1)',
+                                        borderRadius: '4px',
+                                        fontSize: '0.8rem',
+                                        color: '#32CD32'
+                                    }}>
+                                        🔗 This is a customer-specific template
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Edit Template Modal */}
                 {editingTemplate && (
@@ -885,26 +910,6 @@ const InvoiceCreationTab = ({
 
             </div>
 
-            {/* Customer Selection - Required */}
-            <div className={styles.invoiceForm} style={{marginBottom: '15px'}}>
-                <h3 style={{color: '#FAFAFA', marginBottom: '12px'}}>🏢 Customer Selection (Required)</h3>
-                <div className={styles.formRow}>
-                    <div className={styles.formGroup} style={{flex: 1}}>
-                        <label className={styles.formLabel}>Select Customer *</label>
-                        <CustomerDropdown
-                            value={selectedCustomerForDefault}
-                            onChange={handleCustomerSelection}
-                            className={`${styles.formInput} ${!selectedCustomerForDefault ? 'error' : ''}`}
-                        />
-                        {!selectedCustomerForDefault && (
-                            <div style={{color: '#DC143C', fontSize: '0.8rem', marginTop: '4px'}}>
-                                Customer selection is required to create an invoice
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
             <div className={styles.invoiceForm}>
                 <h3 style={{color: '#FAFAFA', marginBottom: '15px'}}>Invoice JSON Editor</h3>
 
@@ -923,11 +928,10 @@ const InvoiceCreationTab = ({
                 <div style={{position: 'relative'}}>
                     <div style={{
                         display: 'flex',
-                        border: !isValidJson ? '2px solid #DC143C' : '1px solid #5B5B7B',
+                        border: !isValidJson ? '2px solid #ff6b6b' : '1px solid #5B5B7B',
                         borderRadius: '4px',
                         overflow: 'hidden'
                     }}>
-                        {/* Line numbers */}
                         <div style={{
                             backgroundColor: '#1E1E2E',
                             padding: '12px 8px',
@@ -940,14 +944,14 @@ const InvoiceCreationTab = ({
                             userSelect: 'none',
                             minWidth: '50px'
                         }}>
-                            {invoiceJsonDraft.split('\n').map((_, index) => (
+                            {invoiceJsonDraft?.split('\n').map((_, index) => (
                                 <div key={index}>{index + 1}</div>
                             ))}
                         </div>
 
                         <textarea
                             className={`${styles.formInput}`}
-                            value={invoiceJsonDraft}
+                            value={invoiceJsonDraft || ''}
                             onChange={(e) => handleJsonChange(e.target.value)}
                             rows={25}
                             style={{
@@ -966,7 +970,6 @@ const InvoiceCreationTab = ({
                     </div>
                 </div>
 
-                {/* JSON Helper Guide */}
                 <div style={{
                     marginTop: '15px',
                     padding: '15px',
@@ -1039,20 +1042,6 @@ const InvoiceCreationTab = ({
                         </div>
                     </div>
                 </div>
-
-                {/* <div style={{marginTop: '10px', padding: '10px', backgroundColor: '#29384D', borderRadius: '4px'}}>
-                    <h4 style={{color: '#FAFAFA', marginBottom: '8px', fontSize: '0.95rem'}}>JSON Structure Guide:</h4>
-                    <ul style={{color: '#B0B0B0', fontSize: '0.8rem', margin: 0, paddingLeft: '18px', lineHeight: '1.4'}}>
-                        <li><strong>invoiceNumber:</strong> Unique invoice identifier (required)</li>
-                        <li><strong>projectName:</strong> Name of the project/work being invoiced (required)</li>
-                        <li><strong>issueDate, dueDate:</strong> Dates in YYYY-MM-DD format</li>
-                        <li><strong>from:</strong> Your details (name, email, address, phone)</li>
-                        <li><strong>to:</strong> Client details (name, email, address, company)</li>
-                        <li><strong>items:</strong> Array of line items with description, quantity, rate</li>
-                        <li><strong>tax:</strong> Tax rate as percentage (e.g., 8.5 for 8.5%)</li>
-                        <li><strong>notes, terms:</strong> Additional text for the invoice</li>
-                    </ul>
-                </div> */}
             </div>
 
             {/* Action Buttons */}

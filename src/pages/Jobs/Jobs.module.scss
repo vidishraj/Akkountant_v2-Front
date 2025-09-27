@@ -20,6 +20,84 @@
   flex-shrink: 0;
 }
 
+.filtersContainer {
+  background-color: #29384D;
+  padding: 20px;
+  margin: 0 10px 20px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a4a5c;
+
+  :global {
+    .MuiTextField-root,
+    .MuiFormControl-root {
+      .MuiInputLabel-root {
+        color: #FAFAFA;
+        
+        &.Mui-focused {
+          color: #7b68ee;
+        }
+      }
+
+      .MuiOutlinedInput-root {
+        color: #FAFAFA;
+        
+        .MuiOutlinedInput-notchedOutline {
+          border-color: #5a6a7c;
+        }
+
+        &:hover .MuiOutlinedInput-notchedOutline {
+          border-color: #FAFAFA;
+        }
+
+        &.Mui-focused .MuiOutlinedInput-notchedOutline {
+          border-color: #7b68ee;
+        }
+      }
+
+      .MuiSelect-select {
+        color: #FAFAFA;
+      }
+
+      .MuiSelect-icon {
+        color: #FAFAFA;
+      }
+    }
+
+    .MuiButton-outlined {
+      color: #FAFAFA;
+      border-color: #5a6a7c;
+
+      &:hover {
+        border-color: #FAFAFA;
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+
+      &:disabled {
+        color: #666;
+        border-color: #333;
+      }
+    }
+
+    .MuiChip-root {
+      background-color: rgba(123, 104, 238, 0.2);
+      color: #FAFAFA;
+      border-color: #7b68ee;
+
+      .MuiChip-deleteIcon {
+        color: #FAFAFA;
+
+        &:hover {
+          color: #ff6b6b;
+        }
+      }
+    }
+
+    .MuiTypography-root {
+      color: #FAFAFA;
+    }
+  }
+}
+
 .actionButton {
   color: #FAFAFA !important;
   background-color: #29384D !important;
@@ -62,6 +140,26 @@
       position: sticky;
       top: 0;
       z-index: 1;
+    }
+
+    .MuiTableSortLabel-root {
+      color: #FAFAFA !important;
+      
+      &:hover {
+        color: #7b68ee !important;
+      }
+      
+      &.Mui-active {
+        color: #7b68ee !important;
+        
+        .MuiTableSortLabel-icon {
+          color: #7b68ee !important;
+        }
+      }
+      
+      .MuiTableSortLabel-icon {
+        color: #FAFAFA !important;
+      }
     }
 
     .MuiTableBody-root .MuiTableRow-root:hover {

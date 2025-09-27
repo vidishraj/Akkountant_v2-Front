@@ -32,9 +32,21 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                                                                  }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-    const {state, fetchAndSetUserSecurities, getServiceType, fetchAndSetSummary} = useMSNContext();
+    const {state, fetchAndSetUserSecurities, getServiceType, fetchAndSetSummary, fetchAndSetSearchItems} = useMSNContext();
     const {setPayload} = useMessage()
     const [modalState, setModalState] = useState<boolean>(false)
+    const [searchItems, setSearchItems] = useState<any[]>([])
+
+    // Fetch search items when modal opens for MF
+    React.useEffect(() => {
+        if (modalState && state.selectedCard.mf) {
+            fetchAndSetSearchItems().then((response) => {
+                setSearchItems(response)
+            }).catch(() => {
+                setSearchItems([]);
+            })
+        }
+    }, [modalState, state.selectedCard.mf])
     return (
         <Dialog
             open={open}
@@ -127,10 +139,10 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                                  // Insert MF
                                  setModalState(false)
                                  const requestBody: InsertEPGRequest = {
-                                     schemeCode: data['scheme_id'],
+                                     schemeCode: formData.schemeCode || data['scheme_id'],
                                      date: formData.date,
                                      quantity: formData.quantity,
-                                     amount: formData.nav
+                                     amount: formData.amount
                                  };
                                  insertEPG("Mutual_Funds", requestBody).then((response) => {
                                      setPayload({
@@ -149,6 +161,7 @@ const ObjectDetailsDialog: React.FC<ObjectDetailsDialogProps> = ({
                                  setModalState(false)
                              }}
                              cardType={"mf"}
+                             searchItems={searchItems}
                              maxNav={100}/>
             </DialogContent>
             {state.selectedCard.mf &&

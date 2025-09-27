@@ -104,6 +104,24 @@ const GlobalInvestmentsCharts = () => {
                         "& .MuiChartsAxis-bottom .MuiChartsAxis-line": {stroke: "#FAFAFA", strokeWidth: 1.4},
                         "& .MuiChartsAxis-left .MuiChartsAxis-line": {stroke: "#FAFAFA", strokeWidth: 1},
                         "& .MuiChartsAxis-left .MuiChartsAxis-tickLabel": {fill: "#FAFAFA"},
+                        // Tooltip styling
+                        "& .MuiChartsTooltip-root": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
+                        },
+                        "& .MuiChartsTooltip-table": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
+                        },
+                        "& .MuiChartsTooltip-paper": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
+                            border: "1px solid #fafafa !important",
+                        },
+                        "& .MuiPaper-root": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
+                        },
                     }}
                     height={isMobile ? 300 : 300}
                 />
@@ -124,6 +142,26 @@ const GlobalInvestmentsCharts = () => {
                     slotProps={{
                         legend: {
                             labelStyle: {fill: '#FAFAFA'},
+                        },
+                    }}
+                    sx={{
+                        // Tooltip styling
+                        "& .MuiChartsTooltip-root": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
+                        },
+                        "& .MuiChartsTooltip-table": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
+                        },
+                        "& .MuiChartsTooltip-paper": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
+                            border: "1px solid #fafafa !important",
+                        },
+                        "& .MuiPaper-root": {
+                            backgroundColor: "#121c24 !important",
+                            color: "#fafafa !important",
                         },
                     }}
                 />

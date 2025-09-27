@@ -149,16 +149,19 @@ const CustomModal: React.FC<Props> = ({
                                 </InputLabel>
                                 <ReactSearchAutocomplete
                                     styling={{
-                                        backgroundColor: "#29384D",
-                                        color: "#FAFAFA !important",
-                                        border: errors.selectedMF ? "1px solid #f44336" : "1px solid rgba(255, 255, 255, 0.23)",
-                                        iconColor: "white",
+                                        backgroundColor: "#121c24",
+                                        color: "#FAFAFA",
+                                        border: errors.selectedMF ? "1px solid #f44336" : "1px solid #fafafa",
+                                        iconColor: "#fafafa",
                                         borderRadius: '4px',
-                                        lineColor: "white",
-                                        hoverBackgroundColor: "#121c24",
+                                        lineColor: "#fafafa",
+                                        hoverBackgroundColor: "#29384d",
                                         zIndex: 999,
                                         fontSize: '16px',
-                                        height: '56px'
+                                        height: '56px',
+                                        boxShadow: 'none',
+                                        clearIconMargin: '3px 8px 0 0',
+                                        searchIconMargin: '0 0 0 8px'
                                     }}
                                     resultStringKeyName="name"
                                     items={searchItems}

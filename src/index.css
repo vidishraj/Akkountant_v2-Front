@@ -97,6 +97,23 @@ button:focus-visible {
     outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Global tooltip styling for MUI Charts and other tooltips */
+.MuiChartsTooltip-root,
+.MuiChartsTooltip-paper,
+.MuiChartsTooltip-table,
+.MuiTooltip-tooltip,
+.MuiPaper-root[role="tooltip"] {
+    background-color: #121c24 !important;
+    color: #fafafa !important;
+    border: 1px solid #fafafa !important;
+    border-radius: 4px !important;
+}
+
+.MuiChartsTooltip-table th,
+.MuiChartsTooltip-table td {
+    color: #fafafa !important;
+}
+
 /* Light mode styles */
 @media (prefers-color-scheme: light) {
     :root {

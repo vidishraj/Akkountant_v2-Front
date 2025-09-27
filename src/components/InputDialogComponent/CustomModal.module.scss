@@ -30,17 +30,36 @@
   .MuiInputBase-root {
     color: #fafafa !important;
     font-size: 1rem;
+    background-color: #121c24 !important;
   }
 
-  .inputFi {
+  .MuiOutlinedInput-root {
+    background-color: #121c24 !important;
+    
+    .MuiOutlinedInput-notchedOutline {
+      border-color: #fafafa !important;
+    }
+    
+    &:hover .MuiOutlinedInput-notchedOutline {
+      border-color: #fafafa !important;
+    }
+    
+    &.Mui-focused .MuiOutlinedInput-notchedOutline {
+      border-color: #7b68ee !important;
+    }
+  }
+
+  .MuiInputLabel-root {
     color: #fafafa !important;
+    
+    &.Mui-focused {
+      color: #7b68ee !important;
+    }
   }
 
-  .testLabel {
-    color: #fafafa !important;
+  .MuiFormHelperText-root {
+    color: #f44336 !important;
   }
-
-
 }
 
 .dialogActions {

@@ -7,21 +7,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background-color: #29384D;
-  border: 1px solid #5B5B7B;
+  padding: 10px;
+  background-color: #121c24;
+  border: 1px solid #fafafa;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 36px;
+  font-size: 0.9rem;
+  min-height: 38px; /* Match the height of formInput */
+  box-sizing: border-box;
+  
+  /* Match formInput focus styles exactly */
+  &:focus-within {
+    outline: none;
+    border-color: #7b68ee;
+    box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
+  }
 
-  &:hover:not(.disabled) {
-    border-color: #7B68EE;
-    background-color: #334155;
+  /* Subtle hover effect that doesn't change the core appearance */
+  &:hover:not(.disabled):not(:focus-within) {
+    border-color: rgba(123, 104, 238, 0.5);
   }
 
   &.open {
-    border-color: #7B68EE;
+    border-color: #7b68ee;
+    box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -29,7 +38,7 @@
   &.disabled {
     cursor: not-allowed;
     opacity: 0.6;
-    background-color: #1E293B;
+    background-color: #121c24;
   }
 }
 
@@ -51,10 +60,11 @@
 .customerName {
   color: #FAFAFA;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 0.9rem; /* Match formInput font-size exactly */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .customerCompany {
@@ -68,6 +78,8 @@
 .placeholder {
   color: #B0B0B0;
   font-style: italic;
+  font-size: 0.9rem; /* Match formInput font-size exactly */
+  line-height: 1.2;
 }
 
 .dropdownActions {
@@ -118,8 +130,8 @@
   top: 100%;
   left: 0;
   right: 0;
-  background-color: #29384D;
-  border: 1px solid #7B68EE;
+  background-color: #121c24;
+  border: 1px solid #fafafa;
   border-top: none;
   border-radius: 0 0 4px 4px;
   max-height: 250px;
@@ -130,15 +142,15 @@
 
 .searchContainer {
   padding: 8px;
-  border-bottom: 1px solid #5B5B7B;
-  background-color: #334155;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: #121c24;
 }
 
 .searchInput {
   width: 100%;
   padding: 6px 10px;
-  background-color: #1E293B;
-  border: 1px solid #5B5B7B;
+  background-color: #121c24;
+  border: 1px solid #fafafa;
   border-radius: 4px;
   color: #FAFAFA;
   font-size: 13px;
@@ -164,11 +176,11 @@
   }
 
   &::-webkit-scrollbar-track {
-    background: #1E293B;
+    background: #121c24;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #5B5B7B;
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 3px;
 
     &:hover {
@@ -184,10 +196,10 @@
   padding: 8px 12px;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  border-bottom: 1px solid rgba(91, 91, 123, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
   &:hover {
-    background-color: #334155;
+    background-color: rgba(41, 56, 77, 0.3);
   }
 
   &.selected {

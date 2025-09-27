@@ -58,15 +58,33 @@ export async function processEmails(dateTo: string, dateFrom: string,
 }
 
 /**
- * Fetches jobs with pagination
+ * Fetches jobs with pagination, filters, and sorting
  */
-export async function fetchJobs(page: number, limit: number,
-                                clearCache = false): Promise<JobsResponse> {
-    const options = withRequestId('api/jobs', clearCache ? withCacheCleared() : {
-        params: {page, limit},
+export async function fetchJobs(
+    page: number, 
+    limit: number,
+    clearCache = false,
+    filters: Record<string, any> = {},
+    sortBy = 'due_date',
+    sortOrder = 'desc'
+): Promise<JobsResponse> {
+    // Build query parameters
+    const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: limit.toString(),
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        ...Object.fromEntries(
+            Object.entries(filters).filter(([_, v]) => v !== null && v !== '' && v !== undefined)
+        )
     });
+
+    const options = withRequestId('api/jobs', clearCache ? withCacheCleared() : {
+        params: Object.fromEntries(params),
+    });
+    
     const response = await queueRequest(() =>
-        axios.get(`jobApplications?page=${page}&per_page=${limit}`, options)
+        axios.get(`getsJobs?${params}`, options)
     );
     return response.data;
 }

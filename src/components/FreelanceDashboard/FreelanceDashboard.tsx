@@ -149,12 +149,12 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
     const getStatusColor = (status: string) => {
         switch (status) {
             case "paid":
-                return "#32CD32";
+                return "#4ADE80"; // Better green for dark theme
             case "overdue":
-                return "#DC143C";
+                return "#EF4444"; // Better red for dark theme
             default:
                 // Treat any non-paid status as pending
-                return "#FFD700";
+                return "#F59E0B"; // Better orange/amber for dark theme
         }
     };
 
@@ -544,11 +544,11 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                 </h4>
                                 <div className={styles.infoGrid}>
                                     <div>
-                                        <strong style={{color: '#32CD32'}}>Total Paid:</strong><br/>
+                                        <strong style={{color: '#4ADE80'}}>Total Paid:</strong><br/>
                                         {formatBaseCurrency(selectedClientInfo.paidAmount)}
                                     </div>
                                     <div>
-                                        <strong style={{color: '#FFD700'}}>Pending:</strong><br/>
+                                        <strong style={{color: '#F59E0B'}}>Pending:</strong><br/>
                                         {formatBaseCurrency(selectedClientInfo.pendingAmount)}
                                     </div>
                                     <div>
@@ -573,8 +573,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                     <thead>
                                     <tr>
                                         <th>Client</th>
-                                        <th style={{color: '#32CD32', textAlign: 'right'}}>Paid (INR)</th>
-                                        <th style={{color: '#FFD700', textAlign: 'right'}}>Pending (INR)</th>
+                                        <th style={{color: '#4ADE80', textAlign: 'right'}}>Paid (INR)</th>
+                                        <th style={{color: '#F59E0B', textAlign: 'right'}}>Pending (INR)</th>
                                         <th style={{color: '#7B68EE', textAlign: 'right'}}>Total (INR)</th>
                                     </tr>
                                     </thead>
@@ -584,10 +584,10 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                             <td style={{fontWeight: 'bold'}}>
                                                 {client.client}
                                             </td>
-                                            <td style={{color: '#32CD32', textAlign: 'right'}}>
+                                            <td style={{color: '#4ADE80', textAlign: 'right'}}>
                                                 {formatBaseCurrency(client.paidAmount || 0)}
                                             </td>
-                                            <td style={{color: '#FFD700', textAlign: 'right'}}>
+                                            <td style={{color: '#F59E0B', textAlign: 'right'}}>
                                                 {formatBaseCurrency(client.pendingAmount || 0)}
                                             </td>
                                             <td style={{
@@ -607,7 +607,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                     textAlign: 'center',
                                     backgroundColor: '#121C24',
                                     borderRadius: '8px',
-                                    color: '#FFD700'
+                                    color: '#F59E0B'
                                 }}>
                                     ⚠️ Client distribution data not available. Make sure your backend includes the
                                     earningsByClientCombined field.
@@ -719,7 +719,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                         justifyContent: 'center',
                                         backgroundColor: '#121C24',
                                         borderRadius: '8px',
-                                        color: '#FFD700'
+                                        color: '#F59E0B'
                                     }}>
                                         📊 Waiting for earningsByClientCombined data from backend
                                     </div>

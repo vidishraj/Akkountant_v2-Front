@@ -159,6 +159,13 @@ const CustomerDropdown: React.FC<CustomerDropdownProps> = ({
             <div 
                 className={`${styles.dropdownTrigger} ${isOpen ? styles.open : ''} ${disabled ? styles.disabled : ''}`}
                 onClick={handleToggleDropdown}
+                tabIndex={disabled ? -1 : 0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggleDropdown();
+                    }
+                }}
             >
                 <div className={styles.selectedValue}>
                     {selectedCustomer ? (

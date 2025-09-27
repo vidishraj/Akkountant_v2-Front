@@ -4,12 +4,15 @@ import {
     DialogTitle,
     DialogContent,
     Typography, Card, Box, TablePagination, useMediaQuery, Button, IconButton,
+    TextField, FormControl, InputLabel, Select, MenuItem, Grid, Chip, Collapse
 } from "@mui/material";
 import {Job} from '../../utils/interfaces.ts';
 import {fetchJobsTable, startJob} from '../../services/investmentService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ClearIcon from '@mui/icons-material/Clear';
 import styles from "../TransactionCardComponent/TransactionCard.module.scss";
 import style from "../../pages/Transactions/Transaction.module.scss";
 import filterStyles from '../TransactionFilterComponent/TransactionFilter.module.scss'
@@ -25,12 +28,20 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const [selectedJob, setSelectedJob] = useState<string>("");
     const {setPayload} = useMessage();
     const [pages, setPages] = useState<number>(0);
+    
+    // Filter and Sort States
+    const [filters, setFilters] = useState<Record<string, any>>({});
+    const [sortBy, setSortBy] = useState('due_date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [showFilters, setShowFilters] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const isMobile = useMediaQuery("(max-width:600px)");
 
     const fetchJobs = async (cacheState: boolean) => {
         try {
-            const jobsData = await fetchJobsTable(pages + 1, cacheState);
+            setLoading(true);
+            const jobsData = await fetchJobsTable(pages + 1, cacheState, filters, sortBy, sortOrder);
             setJobs(jobsData.jobs);
             setResults(jobsData.results);
         } catch (err) {
@@ -39,12 +50,14 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 type: "error",
                 message: "Failed to fetch jobs. Please try again!",
             });
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchJobs(false);
-    }, [pages]);
+    }, [pages, filters, sortBy, sortOrder]);
 
     const handleJobSelection = (e: any) => {
         setSelectedJob(e.target.value);
@@ -70,6 +83,32 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
         });
     }
 
+    const handleFilterChange = (key: string, value: any) => {
+        setFilters(prev => ({
+            ...prev,
+            [key]: value
+        }));
+        setPages(0); // Reset to first page when filtering
+    };
+
+    const handleClearFilter = (key: string) => {
+        setFilters(prev => {
+            const newFilters = { ...prev };
+            delete newFilters[key];
+            return newFilters;
+        });
+        setPages(0);
+    };
+
+    const handleClearAllFilters = () => {
+        setFilters({});
+        setPages(0);
+    };
+
+    const getActiveFiltersCount = () => {
+        return Object.keys(filters).filter(key => filters[key] !== '' && filters[key] !== null).length;
+    };
+
     return (
         <Dialog open={open} onClose={onClose} fullScreen={isMobile} PaperProps={{
             sx: {
@@ -87,38 +126,239 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 </IconButton>
             </DialogTitle>
             <DialogContent>
-                <div style={{display: "flex", alignItems: "center", justifyContent: "space-evenly", flexWrap: 'wrap'}}>
-                    <select value={selectedJob} onChange={handleJobSelection}
-                            className={filterStyles.select}>
-                        <option value="" disabled>Select a job</option>
-                        {Object.entries(jobs).map(([key, value]) => (
-                            <option key={key} value={key}>
-                                {value}
-                            </option>
-                        ))}
-                    </select>
-                    <button onClick={handleJobSubmit} disabled={!selectedJob}>Start job</button>
-                    <Button
-                        className={styles.refresh}
-                        variant="contained"
-                        sx={{
-                            mt: 2,
-                            py: 1,
-                            backgroundColor: '#FAFAFA',
-                            color: 'black',
-                            fontSize: {xs: '0.8rem', sm: '1rem'},
-                            '&:hover': {
-                                backgroundColor: '#e0e0e0',
-                            },
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            fetchJobs(true)
-                        }}
-                    >
-                        <RefreshIcon/>
-                    </Button>
+                {/* Control Bar */}
+                <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: 'wrap', marginBottom: '20px'}}>
+                    <div style={{display: "flex", alignItems: "center", gap: "15px", flexWrap: 'wrap'}}>
+                        <select value={selectedJob} onChange={handleJobSelection}
+                                className={filterStyles.select}>
+                            <option value="" disabled>Select a job</option>
+                            {Object.entries(jobs).map(([key, value]) => (
+                                <option key={key} value={key}>
+                                    {value}
+                                </option>
+                            ))}
+                        </select>
+                        <button onClick={handleJobSubmit} disabled={!selectedJob}>Start job</button>
+                    </div>
+                    
+                    <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
+                        <IconButton 
+                            onClick={() => setShowFilters(!showFilters)}
+                            sx={{ 
+                                color: getActiveFiltersCount() > 0 ? '#7b68ee' : '#FAFAFA',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                            }}
+                        >
+                            <FilterListIcon />
+                        </IconButton>
+                        <IconButton
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                fetchJobs(true)
+                            }}
+                            disabled={loading}
+                            sx={{ 
+                                color: '#FAFAFA',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
+                                '&:disabled': { color: '#666' }
+                            }}
+                        >
+                            <RefreshIcon/>
+                        </IconButton>
+                    </div>
                 </div>
+
+                {/* Filters Section */}
+                <Collapse in={showFilters}>
+                    <Box sx={{ 
+                        backgroundColor: '#121c24', 
+                        padding: 3, 
+                        borderRadius: 2, 
+                        marginBottom: 3,
+                        border: '1px solid #fafafa'
+                    }}>
+                        <Grid container spacing={2} alignItems="center">
+                            <Grid item xs={12} sm={6} md={3}>
+                                <TextField
+                                    label="Search Title"
+                                    value={filters.title || ''}
+                                    onChange={(e) => handleFilterChange('title', e.target.value)}
+                                    size="small"
+                                    fullWidth
+                                    sx={{
+                                        '& .MuiInputLabel-root': { color: '#FAFAFA' },
+                                        '& .MuiInputLabel-root.Mui-focused': { color: '#7b68ee' },
+                                        '& .MuiOutlinedInput-root': {
+                                            color: '#FAFAFA',
+                                            '& fieldset': { borderColor: '#5a6a7c' },
+                                            '&:hover fieldset': { borderColor: '#FAFAFA' },
+                                            '&.Mui-focused fieldset': { borderColor: '#7b68ee' },
+                                        }
+                                    }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={3}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Status</InputLabel>
+                                    <Select
+                                        value={filters.status || ''}
+                                        onChange={(e) => handleFilterChange('status', e.target.value)}
+                                        label="Status"
+                                        sx={{
+                                            color: '#FAFAFA',
+                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
+                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
+                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
+                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
+                                        }}
+                                    >
+                                        <MenuItem value="">All</MenuItem>
+                                        <MenuItem value="Pending">Pending</MenuItem>
+                                        <MenuItem value="Completed">Completed</MenuItem>
+                                        <MenuItem value="Failed">Failed</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={3}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Priority</InputLabel>
+                                    <Select
+                                        value={filters.priority || ''}
+                                        onChange={(e) => handleFilterChange('priority', e.target.value)}
+                                        label="Priority"
+                                        sx={{
+                                            color: '#FAFAFA',
+                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
+                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
+                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
+                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
+                                        }}
+                                    >
+                                        <MenuItem value="">All</MenuItem>
+                                        <MenuItem value="High">High</MenuItem>
+                                        <MenuItem value="Medium">Medium</MenuItem>
+                                        <MenuItem value="Low">Low</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={3}>
+                                <TextField
+                                    label="Min Failures"
+                                    type="number"
+                                    value={filters.min_failures || ''}
+                                    onChange={(e) => handleFilterChange('min_failures', e.target.value)}
+                                    size="small"
+                                    fullWidth
+                                    sx={{
+                                        '& .MuiInputLabel-root': { color: '#FAFAFA' },
+                                        '& .MuiInputLabel-root.Mui-focused': { color: '#7b68ee' },
+                                        '& .MuiOutlinedInput-root': {
+                                            color: '#FAFAFA',
+                                            '& fieldset': { borderColor: '#5a6a7c' },
+                                            '&:hover fieldset': { borderColor: '#FAFAFA' },
+                                            '&.Mui-focused fieldset': { borderColor: '#7b68ee' },
+                                        }
+                                    }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={3}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Sort By</InputLabel>
+                                    <Select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        label="Sort By"
+                                        sx={{
+                                            color: '#FAFAFA',
+                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
+                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
+                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
+                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
+                                        }}
+                                    >
+                                        <MenuItem value="due_date">Due Date</MenuItem>
+                                        <MenuItem value="failures">Failures</MenuItem>
+                                        <MenuItem value="created_at">Created Date</MenuItem>
+                                        <MenuItem value="title">Title</MenuItem>
+                                        <MenuItem value="status">Status</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={3}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Sort Order</InputLabel>
+                                    <Select
+                                        value={sortOrder}
+                                        onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                                        label="Sort Order"
+                                        sx={{
+                                            color: '#FAFAFA',
+                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
+                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
+                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
+                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
+                                        }}
+                                    >
+                                        <MenuItem value="desc">Descending</MenuItem>
+                                        <MenuItem value="asc">Ascending</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={3}>
+                                <Button
+                                    onClick={handleClearAllFilters}
+                                    startIcon={<ClearIcon />}
+                                    variant="outlined"
+                                    fullWidth
+                                    disabled={getActiveFiltersCount() === 0}
+                                    sx={{
+                                        color: '#FAFAFA',
+                                        borderColor: '#5a6a7c',
+                                        '&:hover': {
+                                            borderColor: '#FAFAFA',
+                                            backgroundColor: 'rgba(255, 255, 255, 0.08)'
+                                        },
+                                        '&:disabled': {
+                                            color: '#666',
+                                            borderColor: '#333'
+                                        }
+                                    }}
+                                >
+                                    Clear All
+                                </Button>
+                            </Grid>
+                        </Grid>
+                        
+                        {/* Active Filters Display */}
+                        {getActiveFiltersCount() > 0 && (
+                            <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                <Typography variant="body2" sx={{ alignSelf: 'center', mr: 1, color: '#FAFAFA' }}>
+                                    Active Filters:
+                                </Typography>
+                                {Object.entries(filters).map(([key, value]) => {
+                                    if (!value) return null;
+                                    return (
+                                        <Chip
+                                            key={key}
+                                            label={`${key}: ${value}`}
+                                            onDelete={() => handleClearFilter(key)}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: 'rgba(123, 104, 238, 0.2)',
+                                                color: '#FAFAFA',
+                                                border: '1px solid #7b68ee',
+                                                '& .MuiChip-deleteIcon': {
+                                                    color: '#FAFAFA',
+                                                    '&:hover': { color: '#ff6b6b' }
+                                                }
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </Box>
+                        )}
+                    </Box>
+                </Collapse>
 
                 <div className={style.transactionCards} style={{minHeight: isMobile ? '400px' : '550px'}}>
                     {results.map((job) => (

@@ -156,13 +156,13 @@ const InvoiceManager = ({
     const getStatusColor = (status: string) => {
         switch (status) {
             case "paid":
-                return "#32CD32";
+                return "#4ADE80"; // Better green for dark theme
             case "sent":
-                return "#FFD700";
+                return "#F59E0B"; // Better orange/amber for dark theme
             case "overdue":
-                return "#DC143C";
+                return "#EF4444"; // Better red for dark theme
             default:
-                return "#B0B0B0"; // draft
+                return "#94A3B8"; // Better gray for dark theme
         }
     };
 
@@ -286,7 +286,7 @@ const InvoiceManager = ({
                     <div style={{overflowX: "auto"}}>
                         <table style={{width: "100%", borderCollapse: "collapse"}}>
                             <thead>
-                            <tr style={{borderBottom: "2px solid #5B5B7"}}>
+                            <tr style={{borderBottom: "2px solid #5B5B7B"}}>
                                 <th
                                     style={{
                                         color: "#FAFAFA",
@@ -366,7 +366,7 @@ const InvoiceManager = ({
                                 <tr
                                     key={invoice.invoiceNumber}
                                     style={{
-                                        borderBottom: "1px solid #5B5B7",
+                                        borderBottom: "1px solid rgba(91, 91, 123, 0.3)",
                                         backgroundColor:
                                             index % 2 === 1
                                                 ? "rgba(91, 91, 123, 0.1)"
@@ -408,7 +408,7 @@ const InvoiceManager = ({
                                         {invoice.status === "paid" && invoice.payment?.amountReceived && (
                                             <div style={{
                                                 fontSize: "0.8rem",
-                                                color: "#32CD32",
+                                                color: "#4ADE80",
                                                 fontWeight: "normal",
                                                 marginTop: "2px"
                                             }}>

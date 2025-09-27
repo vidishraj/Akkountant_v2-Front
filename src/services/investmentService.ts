@@ -222,16 +222,29 @@ export async function fetchSecurityTransactions(
 
 export async function fetchJobsTable(
     page: number,
-    clearCache = false
+    clearCache = false,
+    filters: Record<string, any> = {},
+    sortBy = 'due_date',
+    sortOrder = 'desc'
 ): Promise<JobsResponse> {
+    // Build query parameters
+    const params = new URLSearchParams({
+        page: page.toString(),
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        ...Object.fromEntries(
+            Object.entries(filters).filter(([_, v]) => v !== null && v !== '' && v !== undefined)
+        )
+    });
+
     const options = withRequestId(
         'fetchJobsTable',
         clearCache
-            ? withCacheCleared({params: {page}})
-            : {params: {page}}
+            ? withCacheCleared({params: Object.fromEntries(params)})
+            : {params: Object.fromEntries(params)}
     );
 
-    const response = await queueRequest(() => axios.get('/getsJobs', options));
+    const response = await queueRequest(() => axios.get(`/getsJobs?${params}`, options));
     return response.data;
 }
 

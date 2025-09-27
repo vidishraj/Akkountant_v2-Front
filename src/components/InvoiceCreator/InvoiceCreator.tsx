@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { InvoiceData } from '../../utils/interfaces';
 import InvoiceCreationTab from './InvoiceCreationTab';
-import InvoiceHTMLPreview from './InvoiceHTMLPreview';
 import InvoicePDFPreview from './InvoicePDFPreview';
 import styles from '../../pages/Freelance/Freelance.module.scss';
 
-type InvoiceSubTab = 'creation' | 'html-preview' | 'pdf-preview';
+type InvoiceSubTab = 'creation' | 'pdf-preview';
 
 interface InvoiceCreatorProps {
     editingInvoiceId?: string;
@@ -33,8 +32,6 @@ const InvoiceCreator = ({ editingInvoiceId, onEditComplete, onInvoiceUpdated }: 
                         onInvoiceUpdated={onInvoiceUpdated}
                     />
                 );
-            case 'html-preview':
-                return <InvoiceHTMLPreview invoiceData={invoiceData} />;
             case 'pdf-preview':
                 return <InvoicePDFPreview invoiceData={invoiceData} />;
             default:
@@ -52,7 +49,6 @@ const InvoiceCreator = ({ editingInvoiceId, onEditComplete, onInvoiceUpdated }: 
 
     const subTabs = [
         { key: 'creation' as InvoiceSubTab, label: 'Create Invoice', icon: '✏️' },
-        { key: 'html-preview' as InvoiceSubTab, label: 'HTML Preview', icon: '🌐' },
         { key: 'pdf-preview' as InvoiceSubTab, label: 'PDF Preview', icon: '📄' }
     ];
 

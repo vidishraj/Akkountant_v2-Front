@@ -120,7 +120,7 @@ p.freelanceContainer {
 .formRow {
   display: flex;
   gap: 20px;
-  align-items: end;
+  align-items: center;
   flex-wrap: wrap;
 }
 
@@ -150,6 +150,8 @@ p.freelanceContainer {
   background-color: #121c24;
   color: #fafafa;
   font-size: 0.9rem;
+  min-height: 38px;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
@@ -157,10 +159,15 @@ p.freelanceContainer {
     box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
   }
 
+  &:hover:not(:focus) {
+    border-color: rgba(123, 104, 238, 0.5);
+  }
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
+
 }
 
 .itemsContainer {
@@ -596,4 +603,331 @@ p.freelanceContainer {
   border: 1px solid #7b68ee;
   border-radius: 4px;
   text-align: center;
+}
+
+// Invoice Creation Tab Styles
+.invoiceCreationContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  
+  h3 {
+    color: #fafafa;
+    margin: 0;
+    font-size: 1.5rem;
+  }
+}
+
+.headerActions {
+  display: flex;
+  gap: 10px;
+}
+
+.helpButton {
+  background-color: #7b68ee;
+  color: #fafafa;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #29384d;
+  }
+}
+
+.section {
+  background-color: #121c24;
+  border: 1px solid #fafafa;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.sectionTitle {
+  margin-bottom: 15px;
+  
+  h4 {
+    color: #fafafa;
+    margin: 0 0 10px 0;
+    font-size: 1.2rem;
+  }
+}
+
+.helpText {
+  background-color: rgba(123, 104, 238, 0.1);
+  border: 1px solid #7b68ee;
+  border-radius: 4px;
+  padding: 10px;
+  color: #fafafa;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+.templateControls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.templateSelect {
+  background-color: #121c24;
+  color: #fafafa;
+  border: 1px solid #fafafa;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  min-width: 200px;
+  
+  &:focus {
+    outline: none;
+    border-color: #7b68ee;
+    box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
+  }
+}
+
+.saveTemplateButton, .resetButton, .formatButton {
+  background-color: #7b68ee;
+  color: #fafafa;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  
+  &:hover:not(:disabled) {
+    background-color: #29384d;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.templateActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.editTemplateButton, .deleteTemplateButton {
+  background-color: transparent;
+  color: #fafafa;
+  border: 1px solid #fafafa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  
+  &:hover {
+    background-color: #29384d;
+    border-color: #29384d;
+  }
+}
+
+.deleteTemplateButton {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+  
+  &:hover {
+    background-color: #ff6b6b;
+    color: #fafafa;
+  }
+}
+
+.jsonEditorContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jsonEditor {
+  background-color: #121c24;
+  color: #fafafa;
+  border: 1px solid #fafafa;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  resize: vertical;
+  
+  &:focus {
+    outline: none;
+    border-color: #7b68ee;
+    box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
+  }
+}
+
+.jsonError {
+  border-color: #dc143c !important;
+  box-shadow: 0 0 0 2px rgba(220, 20, 60, 0.2) !important;
+}
+
+.fieldHelpGuide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.helpSection {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 15px;
+  
+  h5 {
+    color: #7b68ee;
+    margin: 0 0 10px 0;
+    font-size: 1rem;
+  }
+  
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    
+    li {
+      color: #fafafa;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+      
+      code {
+        background-color: rgba(123, 104, 238, 0.2);
+        color: #7b68ee;
+        padding: 2px 4px;
+        border-radius: 2px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+      }
+    }
+  }
+}
+
+.primaryButton {
+  background-color: #7b68ee;
+  color: #fafafa;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  
+  &:hover:not(:disabled) {
+    background-color: #29384d;
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.secondaryButton {
+  background-color: transparent;
+  color: #fafafa;
+  border: 1px solid #fafafa;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+  
+  &:hover:not(:disabled) {
+    background-color: #29384d;
+    border-color: #29384d;
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+// Modal styles
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background-color: #121c24;
+  border: 1px solid #fafafa;
+  border-radius: 8px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  
+  h3 {
+    color: #fafafa;
+    margin: 0 0 20px 0;
+    font-size: 1.3rem;
+  }
+}
+
+.formGroup {
+  margin-bottom: 20px;
+  
+  label {
+    display: block;
+    color: #fafafa;
+    font-weight: 500;
+    margin-bottom: 8px;
+    
+    input[type="checkbox"] {
+      margin-right: 8px;
+    }
+  }
+}
+
+.input {
+  width: 100%;
+  background-color: #121c24;
+  color: #fafafa;
+  border: 1px solid #fafafa;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 0.9rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #7b68ee;
+    box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
+  }
+}
+
+.modalActions {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+  margin-top: 20px;
 }
