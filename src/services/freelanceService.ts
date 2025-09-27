@@ -515,21 +515,26 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
         }
     }
 
-    // Add signature section with page break check
+    // Add signature section with smart page break check
     yPosition += 15; // Space before signature
     
-    // Calculate required space for signature section based on signature data or defaults
-    const signatureHeight = signatureData?.height || 20; // Default 20mm tall signature
-    const signatureSpaceRequired = 15 + signatureHeight + 10; // Space for "Authorized Signature:" text + signature + padding
     const pageHeight = doc.internal.pageSize.getHeight();
     const bottomMargin = 20; // Bottom margin
     const maxY = pageHeight - bottomMargin;
     
-    // Check if signature section fits on current page
-    if (yPosition + signatureSpaceRequired > maxY) {
-        // Add new page if signature won't fit
-        doc.addPage();
-        yPosition = margin; // Reset to top margin on new page
+    // Only add page break logic if using default positioning (not custom Y position)
+    const usingCustomY = signatureData?.y !== undefined;
+    const signatureHeight = signatureData?.height || 20; // Default 20mm tall signature
+    
+    if (!usingCustomY) {
+        // Only check for page break when using automatic positioning
+        const signatureSpaceRequired = 7 + signatureHeight; // "Authorized Signature:" text + signature height
+        
+        // Only add new page if signature truly won't fit
+        if (yPosition + signatureSpaceRequired > maxY) {
+            doc.addPage();
+            yPosition = margin; // Reset to top margin on new page
+        }
     }
     
     doc.setFontSize(10);
@@ -546,8 +551,8 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
             const signatureWidth = signatureData.width || 50; // Default 50mm wide signature
             const signatureHeight = signatureData.height || 20; // Default 20mm tall signature
             
-            // Additional check to ensure signature fits after positioning
-            if (signatureY + signatureHeight > maxY) {
+            // Only check page overflow for custom positioning
+            if (usingCustomY && signatureY + signatureHeight > maxY) {
                 doc.addPage();
                 const newPageY = margin;
                 doc.setFontSize(10);
@@ -564,8 +569,8 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
             const signatureLineY = yPosition + 15;
             const signatureLineWidth = 60; // 60mm wide line
             
-            // Check if signature line fits
-            if (signatureLineY > maxY) {
+            // Only check page break for fallback line if not using custom Y
+            if (!usingCustomY && signatureLineY > maxY) {
                 doc.addPage();
                 const newPageY = margin + 15;
                 doc.setFontSize(10);
@@ -586,8 +591,8 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
         const signatureLineY = yPosition + 15;
         const signatureLineWidth = 60; // 60mm wide line
         
-        // Check if signature line fits
-        if (signatureLineY > maxY) {
+        // Only check page break if truly necessary
+        if (!usingCustomY && signatureLineY > maxY) {
             doc.addPage();
             const newPageY = margin + 15;
             doc.setFontSize(10);
