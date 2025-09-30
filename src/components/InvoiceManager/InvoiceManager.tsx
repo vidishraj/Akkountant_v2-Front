@@ -46,6 +46,10 @@ const InvoiceManager = ({
         }
     }, [isActive]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter, sortBy]);
+
     const handleRefresh = () => {
         loadInvoices();
         onInvoiceUpdated?.();
@@ -196,7 +200,12 @@ const InvoiceManager = ({
             }
         });
 
-    const totalPages = Math.ceil(totalInvoices / itemsPerPage);
+    const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+    
+    const paginatedInvoices = filteredInvoices.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     return (
         <div>
@@ -276,7 +285,7 @@ const InvoiceManager = ({
                     <div className={styles.loadingSpinner}>
                         <div>Loading invoices...</div>
                     </div>
-                ) : filteredInvoices.length === 0 ? (
+                ) : paginatedInvoices.length === 0 ? (
                     <div className={styles.emptyState}>
                         {invoices.length === 0
                             ? "No invoices found. Create your first invoice!"
@@ -362,7 +371,7 @@ const InvoiceManager = ({
                             </tr>
                             </thead>
                             <tbody>
-                            {filteredInvoices.map((invoice, index) => (
+                            {paginatedInvoices.map((invoice, index) => (
                                 <tr
                                     key={invoice.invoiceNumber}
                                     style={{

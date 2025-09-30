@@ -475,7 +475,10 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                     Unpaid Invoices by Currency
                                 </h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={dashboardData.unpaidByCurrency}>
+                                    <BarChart data={dashboardData.unpaidByCurrency.map(item => ({
+                                        ...item,
+                                        inrAmount: getINRConversion(item.amount, item.currency)
+                                    }))}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B"/>
                                         <XAxis dataKey="currency" stroke="#FAFAFA"/>
                                         <YAxis stroke="#FAFAFA"/>
@@ -486,15 +489,15 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
                                                 borderRadius: "4px",
                                                 color: "#FAFAFA",
                                             }}
-                                            formatter={(value: number, _name: string, props: {
-                                                payload?: { currency?: string }
+                                            formatter={(_value: number, _name: string, props: {
+                                                payload?: { currency?: string, amount?: number }
                                             }) => [
-                                                formatWithINRConversion(value, props.payload?.currency || 'USD'),
+                                                formatWithINRConversion(props.payload?.amount || 0, props.payload?.currency || 'USD'),
                                                 "Unpaid Amount",
                                             ]}
                                         />
                                         <Bar
-                                            dataKey="amount"
+                                            dataKey="inrAmount"
                                             fill="#FFD700"
                                             radius={[4, 4, 0, 0]}
                                         />
