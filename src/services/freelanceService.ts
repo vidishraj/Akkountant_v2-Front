@@ -119,14 +119,33 @@ export async function fetchInvoiceById(
 }
 
 /**
- * Fetch all invoices with pagination.
+ * Fetch all invoices with pagination, filtering, sorting, and search.
  */
 export async function fetchAllInvoices(
     page = 1,
-    limit = 10
+    limit = 10,
+    status?: string,
+    sortBy?: string,
+    sortOrder?: 'asc' | 'desc',
+    search?: string
 ): Promise<FetchInvoicesResponse> {
+    const params: Record<string, string | number> = {page, limit};
+    
+    if (status && status !== 'all') {
+        params.status = status;
+    }
+    if (sortBy) {
+        params.sort_by = sortBy;
+    }
+    if (sortOrder) {
+        params.sort_order = sortOrder;
+    }
+    if (search) {
+        params.search = search;
+    }
+
     const options = withRequestId('api/freelance/invoices', withCacheCleared({
-        params: {page, limit}
+        params
     }));
     const response = await queueRequest(() =>
         axios.get('freelance/invoices', options)

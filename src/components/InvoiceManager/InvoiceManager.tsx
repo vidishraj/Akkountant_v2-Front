@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useCallback} from "react";
 import {InvoiceData} from "../../utils/interfaces";
 import {
     fetchAllInvoices,
@@ -29,16 +29,27 @@ const InvoiceManager = ({
     const [totalInvoices, setTotalInvoices] = useState(0);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    const [sortBy, setSortBy] = useState<"date" | "amount" | "status" | "client">(
-        "date"
+    const [sortBy, setSortBy] = useState<"created_at" | "issue_date" | "total" | "status" | "to_name">(
+        "created_at"
     );
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
     const {setPayload} = useMessage();
 
     const itemsPerPage = 10;
 
+    // Debounce search term
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Load invoices when page, filters, or search changes
     useEffect(() => {
         loadInvoices();
-    }, [currentPage, refreshTrigger]);
+    }, [currentPage, refreshTrigger, statusFilter, sortBy, sortOrder, debouncedSearchTerm]);
 
     useEffect(() => {
         if (isActive) {
@@ -46,19 +57,27 @@ const InvoiceManager = ({
         }
     }, [isActive]);
 
+    // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, sortBy]);
+    }, [statusFilter, sortBy, sortOrder, debouncedSearchTerm]);
 
     const handleRefresh = () => {
         loadInvoices();
         onInvoiceUpdated?.();
     };
 
-    const loadInvoices = async () => {
+    const loadInvoices = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await fetchAllInvoices(currentPage, itemsPerPage);
+            const response = await fetchAllInvoices(
+                currentPage,
+                itemsPerPage,
+                statusFilter,
+                sortBy,
+                sortOrder,
+                debouncedSearchTerm || undefined
+            );
             setInvoices(response.invoices);
             setTotalInvoices(response.total_count);
         } catch (error) {
@@ -70,7 +89,7 @@ const InvoiceManager = ({
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentPage, itemsPerPage, statusFilter, sortBy, sortOrder, debouncedSearchTerm]);
 
     const handleDeleteInvoice = async (
         invoiceId: string,
@@ -170,42 +189,8 @@ const InvoiceManager = ({
         }
     };
 
-    const filteredInvoices = invoices
-        .filter((invoice) => {
-            const matchesSearch =
-                searchTerm === "" ||
-                invoice.invoiceNumber
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                invoice.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                invoice.to.name.toLowerCase().includes(searchTerm.toLowerCase());
-
-            const matchesStatus =
-                statusFilter === "all" || invoice.status === statusFilter;
-
-            return matchesSearch && matchesStatus;
-        })
-        .sort((a, b) => {
-            switch (sortBy) {
-                case "amount":
-                    return b.total - a.total;
-                case "status":
-                    return (a.status || "draft").localeCompare(b.status || "draft");
-                case "client":
-                    return a.to.name.localeCompare(b.to.name);
-                default: // date
-                    return (
-                        new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
-                    );
-            }
-        });
-
-    const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
-    
-    const paginatedInvoices = filteredInvoices.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    // Backend handles filtering, sorting, and pagination
+    const totalPages = Math.ceil(totalInvoices / itemsPerPage);
 
     return (
         <div>
@@ -222,7 +207,7 @@ const InvoiceManager = ({
                     <h3 style={{color: "#FAFAFA", margin: 0}}>📋 Invoice Management</h3>
                     <div style={{display: "flex", alignItems: "center", gap: "15px"}}>
             <span style={{color: "#B0B0B0", fontSize: "0.9rem"}}>
-              {filteredInvoices.length} of {totalInvoices} invoices
+              {totalInvoices} invoices
             </span>
                         <button
                             className={styles.secondaryBtn}
@@ -266,14 +251,26 @@ const InvoiceManager = ({
                             value={sortBy}
                             onChange={(e) =>
                                 setSortBy(
-                                    e.target.value as "date" | "amount" | "status" | "client"
+                                    e.target.value as "created_at" | "issue_date" | "total" | "status" | "to_name"
                                 )
                             }
                         >
-                            <option value="date">Issue Date</option>
-                            <option value="amount">Amount</option>
+                            <option value="created_at">Date Created</option>
+                            <option value="issue_date">Issue Date</option>
+                            <option value="total">Amount</option>
                             <option value="status">Status</option>
-                            <option value="client">Client Name</option>
+                            <option value="to_name">Client Name</option>
+                        </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Sort Order</label>
+                        <select
+                            className={styles.formInput}
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+                        >
+                            <option value="desc">Descending</option>
+                            <option value="asc">Ascending</option>
                         </select>
                     </div>
                 </div>
@@ -285,7 +282,7 @@ const InvoiceManager = ({
                     <div className={styles.loadingSpinner}>
                         <div>Loading invoices...</div>
                     </div>
-                ) : paginatedInvoices.length === 0 ? (
+                ) : invoices.length === 0 ? (
                     <div className={styles.emptyState}>
                         {invoices.length === 0
                             ? "No invoices found. Create your first invoice!"
@@ -371,7 +368,7 @@ const InvoiceManager = ({
                             </tr>
                             </thead>
                             <tbody>
-                            {paginatedInvoices.map((invoice, index) => (
+                            {invoices.map((invoice, index) => (
                                 <tr
                                     key={invoice.invoiceNumber}
                                     style={{
@@ -543,7 +540,7 @@ const InvoiceManager = ({
                             alignItems: "center",
                         }}
                     >
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of {totalPages} • {totalInvoices} total invoices
           </span>
                     <button
                         className={styles.secondaryBtn}
