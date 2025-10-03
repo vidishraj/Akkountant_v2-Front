@@ -12,6 +12,53 @@ export interface JobData {
     verdict: 1 | 2 | 3;
 }
 
+export interface JobSummary {
+    title: string;
+    priority: string;
+    pending_count: number;
+    overdue_count: number;
+    completed_count: number;
+    failed_count: number;
+    is_disabled: boolean;
+}
+
+export interface JobDetail {
+    id: number;
+    title: string;
+    result: string;
+    priority: string;
+    status: 'Pending' | 'Overdue' | 'Completed' | 'Failed';
+    due_date: string;
+    failures: number;
+    user_id: string;
+    job_type_disabled: boolean;
+}
+
+export interface JobSummaryResponse {
+    status: string;
+    data: JobSummary[];
+}
+
+export interface JobDetailResponse {
+    status: string;
+    data: {
+        jobs: JobDetail[];
+        pagination: {
+            page: number;
+            per_page: number;
+            total: number;
+            pages: number;
+            has_next: boolean;
+            has_prev: boolean;
+        };
+    };
+}
+
+export interface CancelJobResponse {
+    status: string;
+    message: string;
+}
+
 export interface JobsResponse {
     items: JobData[];
     pagination: {
@@ -98,4 +145,67 @@ export async function updateJobs(updates: JobUpdate[]): Promise<void> {
     await queueRequest(() =>
         axios.post('jobUpdate', {updates}, options)
     );
+}
+
+/**
+ * Fetch jobs summary for all job types
+ */
+export async function fetchJobsSummary(clearCache = false): Promise<JobSummaryResponse> {
+    const options = withRequestId('api/jobs/summary', clearCache ? withCacheCleared() : {});
+    
+    const response = await queueRequest(() =>
+        axios.get('jobs/summary', options)
+    );
+    return response.data;
+}
+
+/**
+ * Fetch jobs by title and status with pagination
+ */
+export async function fetchJobsByTitleStatus(
+    title: string,
+    status: string,
+    page = 1,
+    perPage = 10,
+    clearCache = false
+): Promise<JobDetailResponse> {
+    const params = new URLSearchParams({
+        title,
+        status,
+        page: page.toString(),
+        per_page: perPage.toString()
+    });
+
+    const options = withRequestId('api/jobs/by-title-status', clearCache ? withCacheCleared() : {
+        params: Object.fromEntries(params),
+    });
+    
+    const response = await queueRequest(() =>
+        axios.get(`jobs/by-title-status?${params}`, options)
+    );
+    return response.data;
+}
+
+/**
+ * Cancel a single job
+ */
+export async function cancelJob(jobId: number): Promise<CancelJobResponse> {
+    const options = withRequestId(`api/jobs/${jobId}/cancel`, {});
+    
+    const response = await queueRequest(() =>
+        axios.delete(`jobs/${jobId}/cancel`, options)
+    );
+    return response.data;
+}
+
+/**
+ * Cancel multiple jobs at once
+ */
+export async function cancelJobsBulk(jobIds: number[]): Promise<CancelJobResponse> {
+    const options = withRequestId('api/jobs/cancel-bulk', {});
+    
+    const response = await queueRequest(() =>
+        axios.post('jobs/cancel-bulk', { job_ids: jobIds }, options)
+    );
+    return response.data;
 } 

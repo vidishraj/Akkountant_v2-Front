@@ -30,3 +30,31 @@
     background-color: #f44336;
     color: white;
 }
+
+/* Fix close button visibility */
+.Toastify__close-button {
+    color: white !important;
+    opacity: 1 !important;
+}
+
+.Toastify__close-button:hover {
+    color: #ddd !important;
+}
+
+/* Ensure close button is visible on all toast types */
+.Toastify__toast--success .Toastify__close-button,
+.Toastify__toast--warning .Toastify__close-button,
+.Toastify__toast--error .Toastify__close-button,
+.Toastify__toast--info .Toastify__close-button,
+.Toastify__toast--default .Toastify__close-button {
+    color: white !important;
+    opacity: 1 !important;
+}
+
+.Toastify__toast--success .Toastify__close-button:hover,
+.Toastify__toast--warning .Toastify__close-button:hover,
+.Toastify__toast--error .Toastify__close-button:hover,
+.Toastify__toast--info .Toastify__close-button:hover,
+.Toastify__toast--default .Toastify__close-button:hover {
+    color: #ddd !important;
+}

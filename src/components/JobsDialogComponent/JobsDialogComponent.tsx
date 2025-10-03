@@ -3,416 +3,610 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    Typography, Card, Box, TablePagination, useMediaQuery, Button, IconButton,
-    TextField, FormControl, InputLabel, Select, MenuItem, Grid, Chip, Collapse
+    Typography,
+    IconButton,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Collapse,
+    Chip,
+    Button,
+    Checkbox,
+    TablePagination,
+    useMediaQuery,
+    Box,
+    Tooltip,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel
 } from "@mui/material";
-import {Job} from '../../utils/interfaces.ts';
-import {fetchJobsTable, startJob} from '../../services/investmentService.ts';
+import {
+    fetchJobsSummary,
+    fetchJobsByTitleStatus,
+    cancelJob,
+    cancelJobsBulk,
+    JobSummary,
+    JobDetail
+} from '../../services/jobService.ts';
+import { startJob, fetchJobsTable } from '../../services/investmentService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import ClearIcon from '@mui/icons-material/Clear';
-import styles from "../TransactionCardComponent/TransactionCard.module.scss";
-import style from "../../pages/Transactions/Transaction.module.scss";
-import filterStyles from '../TransactionFilterComponent/TransactionFilter.module.scss'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import CancelIcon from '@mui/icons-material/Cancel';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface JobsDialogProps {
     open: boolean,
     onClose: () => void
 }
 
+interface ExpandedJobType {
+    title: string;
+    status: string;
+    page: number;
+    jobs: JobDetail[];
+    totalJobs: number;
+    selectedJobs: Set<number>;
+    loading: boolean;
+}
+
 const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
-    const [results, setResults] = useState<Job[]>([]);
-    const [jobs, setJobs] = useState<Record<string, string>>({});
+    const [jobsSummary, setJobsSummary] = useState<JobSummary[]>([]);
+    const [expandedJobs, setExpandedJobs] = useState<Record<string, ExpandedJobType>>({});
+    const [loading, setLoading] = useState(false);
+    const [availableJobs, setAvailableJobs] = useState<Record<string, string>>({});
     const [selectedJob, setSelectedJob] = useState<string>("");
     const {setPayload} = useMessage();
-    const [pages, setPages] = useState<number>(0);
-    
-    // Filter and Sort States
-    const [filters, setFilters] = useState<Record<string, any>>({});
-    const [sortBy, setSortBy] = useState('due_date');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-    const [showFilters, setShowFilters] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const isMobile = useMediaQuery("(max-width:900px)");
 
-    const isMobile = useMediaQuery("(max-width:600px)");
-
-    const fetchJobs = async (cacheState: boolean) => {
+    const loadJobsSummary = async (clearCache = false) => {
         try {
             setLoading(true);
-            const jobsData = await fetchJobsTable(pages + 1, cacheState, filters, sortBy, sortOrder);
-            setJobs(jobsData.jobs);
-            setResults(jobsData.results);
-        } catch (err) {
-            console.error("Error fetching jobs", err);
+            const response = await fetchJobsSummary(clearCache);
+            if (response.status === 'success') {
+                setJobsSummary(response.data);
+            }
+        } catch (error) {
             setPayload({
                 type: "error",
-                message: "Failed to fetch jobs. Please try again!",
+                message: "Failed to load jobs summary. Please try again!",
             });
+            console.error("Error fetching jobs summary:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchJobs(false);
-    }, [pages, filters, sortBy, sortOrder]);
-
-    const handleJobSelection = (e: any) => {
-        setSelectedJob(e.target.value);
-    }
-
-    const handleJobSubmit = async () => {
-        if (!selectedJob) {
-            setPayload({type: 'error', message: "Please select a job before submitting"});
-            return;
+    const loadAvailableJobs = async () => {
+        try {
+            const jobsData = await fetchJobsTable(1, false, {}, 'due_date', 'desc');
+            setAvailableJobs(jobsData.jobs);
+        } catch (error) {
+            console.error("Error fetching available jobs:", error);
         }
-        startJob(selectedJob).then((res) => {
-            if (res.status === 200) {
-                setPayload({
-                    type: "success",
-                    message: "Job inserted",
-                });
+    };
+
+    useEffect(() => {
+        if (open) {
+            loadJobsSummary();
+            loadAvailableJobs();
+        }
+    }, [open]);
+
+    const loadJobDetails = async (title: string, status: string, page = 1) => {
+        const key = `${title}-${status}`;
+        
+        try {
+            setExpandedJobs(prev => ({
+                ...prev,
+                [key]: { 
+                    title,
+                    status,
+                    page,
+                    jobs: [],
+                    totalJobs: 0,
+                    selectedJobs: new Set(),
+                    loading: true
+                }
+            }));
+
+            const response = await fetchJobsByTitleStatus(title, status, page, 10);
+            if (response.status === 'success') {
+                setExpandedJobs(prev => ({
+                    ...prev,
+                    [key]: {
+                        title,
+                        status,
+                        page,
+                        jobs: response.data.jobs,
+                        totalJobs: response.data.pagination.total,
+                        selectedJobs: new Set(),
+                        loading: false
+                    }
+                }));
             }
-        }).catch(() => {
+        } catch (error) {
             setPayload({
                 type: "error",
-                message: "Failed to insert job. Please try again!",
+                message: `Failed to load ${status.toLowerCase()} jobs for ${title}`,
             });
-        });
-    }
+            console.error("Error fetching job details:", error);
+            setExpandedJobs(prev => ({
+                ...prev,
+                [key]: { 
+                    ...prev[key],
+                    loading: false
+                }
+            }));
+        }
+    };
 
-    const handleFilterChange = (key: string, value: any) => {
-        setFilters(prev => ({
+    const handleExpandToggle = (title: string, status: string) => {
+        const key = `${title}-${status}`;
+        
+        if (expandedJobs[key]) {
+            // Remove from expanded jobs
+            setExpandedJobs(prev => {
+                const newState = { ...prev };
+                delete newState[key];
+                return newState;
+            });
+        } else {
+            // Add to expanded jobs and load data
+            loadJobDetails(title, status);
+        }
+    };
+
+    const handleJobSelection = (jobId: number, title: string, status: string) => {
+        const key = `${title}-${status}`;
+        setExpandedJobs(prev => {
+            const currentData = prev[key];
+            if (!currentData || !currentData.selectedJobs) return prev;
+            
+            return {
+                ...prev,
+                [key]: {
+                    ...currentData,
+                    selectedJobs: currentData.selectedJobs.has(jobId)
+                        ? new Set([...currentData.selectedJobs].filter(id => id !== jobId))
+                        : new Set([...currentData.selectedJobs, jobId])
+                }
+            };
+        });
+    };
+
+    const handleSelectAll = (title: string, status: string) => {
+        const key = `${title}-${status}`;
+        const jobData = expandedJobs[key];
+        if (!jobData || !jobData.jobs || !jobData.selectedJobs) return;
+
+        const allSelected = jobData.jobs.every(job => jobData.selectedJobs.has(job.id));
+        setExpandedJobs(prev => ({
             ...prev,
-            [key]: value
+            [key]: {
+                ...prev[key],
+                selectedJobs: allSelected 
+                    ? new Set()
+                    : new Set(jobData.jobs.map(job => job.id))
+            }
         }));
-        setPages(0); // Reset to first page when filtering
     };
 
-    const handleClearFilter = (key: string) => {
-        setFilters(prev => {
-            const newFilters = { ...prev };
-            delete newFilters[key];
-            return newFilters;
-        });
-        setPages(0);
+    const handleCancelJob = async (jobId: number, title: string, status: string) => {
+        try {
+            const response = await cancelJob(jobId);
+            if (response.status === 'success') {
+                setPayload({
+                    type: "success",
+                    message: response.message,
+                });
+                // Reload both summary and job details
+                loadJobsSummary();
+                loadJobDetails(title, status, expandedJobs[`${title}-${status}`]?.page || 1);
+            }
+        } catch (error) {
+            setPayload({
+                type: "error",
+                message: "Failed to cancel job",
+            });
+            console.error("Error canceling job:", error);
+        }
     };
 
-    const handleClearAllFilters = () => {
-        setFilters({});
-        setPages(0);
+    const handleBulkCancel = async (title: string, status: string) => {
+        const key = `${title}-${status}`;
+        const selectedIds = Array.from(expandedJobs[key]?.selectedJobs || []);
+        
+        if (selectedIds.length === 0) {
+            setPayload({
+                type: "warning",
+                message: "Please select jobs to cancel",
+            });
+            return;
+        }
+
+        try {
+            const response = await cancelJobsBulk(selectedIds);
+            if (response.status === 'success') {
+                setPayload({
+                    type: "success",
+                    message: `${response.message} (${selectedIds.length} jobs)`,
+                });
+                // Reload both summary and job details
+                loadJobsSummary();
+                loadJobDetails(title, status, expandedJobs[key]?.page || 1);
+            }
+        } catch (error) {
+            setPayload({
+                type: "error",
+                message: "Failed to cancel selected jobs",
+            });
+            console.error("Error canceling jobs:", error);
+        }
     };
 
-    const getActiveFiltersCount = () => {
-        return Object.keys(filters).filter(key => filters[key] !== '' && filters[key] !== null).length;
+    const handlePageChange = (title: string, status: string, newPage: number) => {
+        loadJobDetails(title, status, newPage + 1);
     };
+
+    const handleJobCreation = async () => {
+        if (!selectedJob) {
+            setPayload({
+                type: "warning",
+                message: "Please select a job to start",
+            });
+            return;
+        }
+
+        try {
+            const response = await startJob(selectedJob);
+            if (response.status === 200) {
+                setPayload({
+                    type: "success",
+                    message: "Job started successfully",
+                });
+                setSelectedJob("");
+                // Refresh the jobs summary to show the new job
+                loadJobsSummary(true);
+            }
+        } catch (error) {
+            setPayload({
+                type: "error",
+                message: "Failed to start job. Please try again!",
+            });
+            console.error("Error starting job:", error);
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'completed': return '#4CAF50';
+            case 'pending': return '#FF9800';
+            case 'overdue': return '#F44336';
+            case 'failed': return '#9C27B0';
+            default: return '#757575';
+        }
+    };
+
+    const getStatusCounts = (job: JobSummary) => [
+        { status: 'Pending', count: job.pending_count },
+        { status: 'Overdue', count: job.overdue_count },
+        { status: 'Completed', count: job.completed_count },
+        { status: 'Failed', count: job.failed_count }
+    ].filter(item => item.count > 0);
+
+    const canCancelJobs = (status: string) => 
+        status.toLowerCase() === 'pending' || status.toLowerCase() === 'overdue';
 
     return (
-        <Dialog open={open} onClose={onClose} fullScreen={isMobile} PaperProps={{
-            sx: {
-                backgroundColor: "#121C24",
-                color: "#FAFAFA",
-                borderRadius: 2,
-                // padding: 3,
-                width: '100%',
-            },
-        }}>
-            <DialogTitle align={'center'} display={'flex'} alignItems={'centre'} justifyContent={'space-between'}>
-                <Typography variant="inherit">Jobs Dashboard</Typography>
-                <IconButton onClick={onClose}>
-                    <CloseIcon style={{color: 'white'}}/>
-                </IconButton>
-            </DialogTitle>
-            <DialogContent>
-                {/* Control Bar */}
-                <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: 'wrap', marginBottom: '20px'}}>
-                    <div style={{display: "flex", alignItems: "center", gap: "15px", flexWrap: 'wrap'}}>
-                        <select value={selectedJob} onChange={handleJobSelection}
-                                className={filterStyles.select}>
-                            <option value="" disabled>Select a job</option>
-                            {Object.entries(jobs).map(([key, value]) => (
-                                <option key={key} value={key}>
-                                    {value}
-                                </option>
-                            ))}
-                        </select>
-                        <button onClick={handleJobSubmit} disabled={!selectedJob}>Start job</button>
-                    </div>
-                    
-                    <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
-                        <IconButton 
-                            onClick={() => setShowFilters(!showFilters)}
-                            sx={{ 
-                                color: getActiveFiltersCount() > 0 ? '#7b68ee' : '#FAFAFA',
-                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+        <Dialog 
+            open={open} 
+            onClose={onClose} 
+            fullScreen={isMobile} 
+            maxWidth="xl"
+            PaperProps={{
+                sx: {
+                    backgroundColor: "#121C24",
+                    color: "#FAFAFA",
+                    borderRadius: 2,
+                    width: '95%',
+                    height: '90%'
+                },
+            }}
+        >
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h6">Jobs Management Dashboard</Typography>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    {/* Job Creation Section */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>
+                                Select Job
+                            </InputLabel>
+                            <Select
+                                value={selectedJob}
+                                onChange={(e) => setSelectedJob(e.target.value)}
+                                label="Select Job"
+                                sx={{
+                                    color: '#FAFAFA',
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
+                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
+                                    '& .MuiSvgIcon-root': { color: '#FAFAFA' }
+                                }}
+                            >
+                                {Object.entries(availableJobs).map(([key, value]) => (
+                                    <MenuItem key={key} value={key}>
+                                        {value}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Button
+                            variant="contained"
+                            onClick={handleJobCreation}
+                            disabled={!selectedJob || loading}
+                            size="small"
+                            sx={{
+                                backgroundColor: '#7b68ee',
+                                '&:hover': { backgroundColor: '#6a5acd' },
+                                '&:disabled': { backgroundColor: '#555' }
                             }}
                         >
-                            <FilterListIcon />
-                        </IconButton>
-                        <IconButton
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                fetchJobs(true)
-                            }}
-                            disabled={loading}
-                            sx={{ 
-                                color: '#FAFAFA',
-                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
-                                '&:disabled': { color: '#666' }
-                            }}
-                        >
-                            <RefreshIcon/>
-                        </IconButton>
-                    </div>
-                </div>
-
-                {/* Filters Section */}
-                <Collapse in={showFilters}>
-                    <Box sx={{ 
-                        backgroundColor: '#121c24', 
-                        padding: 3, 
-                        borderRadius: 2, 
-                        marginBottom: 3,
-                        border: '1px solid #fafafa'
-                    }}>
-                        <Grid container spacing={2} alignItems="center">
-                            <Grid item xs={12} sm={6} md={3}>
-                                <TextField
-                                    label="Search Title"
-                                    value={filters.title || ''}
-                                    onChange={(e) => handleFilterChange('title', e.target.value)}
-                                    size="small"
-                                    fullWidth
-                                    sx={{
-                                        '& .MuiInputLabel-root': { color: '#FAFAFA' },
-                                        '& .MuiInputLabel-root.Mui-focused': { color: '#7b68ee' },
-                                        '& .MuiOutlinedInput-root': {
-                                            color: '#FAFAFA',
-                                            '& fieldset': { borderColor: '#5a6a7c' },
-                                            '&:hover fieldset': { borderColor: '#FAFAFA' },
-                                            '&.Mui-focused fieldset': { borderColor: '#7b68ee' },
-                                        }
-                                    }}
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Status</InputLabel>
-                                    <Select
-                                        value={filters.status || ''}
-                                        onChange={(e) => handleFilterChange('status', e.target.value)}
-                                        label="Status"
-                                        sx={{
-                                            color: '#FAFAFA',
-                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
-                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
-                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
-                                        }}
-                                    >
-                                        <MenuItem value="">All</MenuItem>
-                                        <MenuItem value="Pending">Pending</MenuItem>
-                                        <MenuItem value="Completed">Completed</MenuItem>
-                                        <MenuItem value="Failed">Failed</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Priority</InputLabel>
-                                    <Select
-                                        value={filters.priority || ''}
-                                        onChange={(e) => handleFilterChange('priority', e.target.value)}
-                                        label="Priority"
-                                        sx={{
-                                            color: '#FAFAFA',
-                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
-                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
-                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
-                                        }}
-                                    >
-                                        <MenuItem value="">All</MenuItem>
-                                        <MenuItem value="High">High</MenuItem>
-                                        <MenuItem value="Medium">Medium</MenuItem>
-                                        <MenuItem value="Low">Low</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <TextField
-                                    label="Min Failures"
-                                    type="number"
-                                    value={filters.min_failures || ''}
-                                    onChange={(e) => handleFilterChange('min_failures', e.target.value)}
-                                    size="small"
-                                    fullWidth
-                                    sx={{
-                                        '& .MuiInputLabel-root': { color: '#FAFAFA' },
-                                        '& .MuiInputLabel-root.Mui-focused': { color: '#7b68ee' },
-                                        '& .MuiOutlinedInput-root': {
-                                            color: '#FAFAFA',
-                                            '& fieldset': { borderColor: '#5a6a7c' },
-                                            '&:hover fieldset': { borderColor: '#FAFAFA' },
-                                            '&.Mui-focused fieldset': { borderColor: '#7b68ee' },
-                                        }
-                                    }}
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Sort By</InputLabel>
-                                    <Select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        label="Sort By"
-                                        sx={{
-                                            color: '#FAFAFA',
-                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
-                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
-                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
-                                        }}
-                                    >
-                                        <MenuItem value="due_date">Due Date</MenuItem>
-                                        <MenuItem value="failures">Failures</MenuItem>
-                                        <MenuItem value="created_at">Created Date</MenuItem>
-                                        <MenuItem value="title">Title</MenuItem>
-                                        <MenuItem value="status">Status</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>Sort Order</InputLabel>
-                                    <Select
-                                        value={sortOrder}
-                                        onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                                        label="Sort Order"
-                                        sx={{
-                                            color: '#FAFAFA',
-                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
-                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
-                                            '& .MuiSvgIcon-root': { color: '#FAFAFA' }
-                                        }}
-                                    >
-                                        <MenuItem value="desc">Descending</MenuItem>
-                                        <MenuItem value="asc">Ascending</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <Button
-                                    onClick={handleClearAllFilters}
-                                    startIcon={<ClearIcon />}
-                                    variant="outlined"
-                                    fullWidth
-                                    disabled={getActiveFiltersCount() === 0}
-                                    sx={{
-                                        color: '#FAFAFA',
-                                        borderColor: '#5a6a7c',
-                                        '&:hover': {
-                                            borderColor: '#FAFAFA',
-                                            backgroundColor: 'rgba(255, 255, 255, 0.08)'
-                                        },
-                                        '&:disabled': {
-                                            color: '#666',
-                                            borderColor: '#333'
-                                        }
-                                    }}
-                                >
-                                    Clear All
-                                </Button>
-                            </Grid>
-                        </Grid>
-                        
-                        {/* Active Filters Display */}
-                        {getActiveFiltersCount() > 0 && (
-                            <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                <Typography variant="body2" sx={{ alignSelf: 'center', mr: 1, color: '#FAFAFA' }}>
-                                    Active Filters:
-                                </Typography>
-                                {Object.entries(filters).map(([key, value]) => {
-                                    if (!value) return null;
-                                    return (
-                                        <Chip
-                                            key={key}
-                                            label={`${key}: ${value}`}
-                                            onDelete={() => handleClearFilter(key)}
-                                            size="small"
-                                            sx={{
-                                                backgroundColor: 'rgba(123, 104, 238, 0.2)',
-                                                color: '#FAFAFA',
-                                                border: '1px solid #7b68ee',
-                                                '& .MuiChip-deleteIcon': {
-                                                    color: '#FAFAFA',
-                                                    '&:hover': { color: '#ff6b6b' }
-                                                }
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </Box>
-                        )}
+                            Start Job
+                        </Button>
                     </Box>
-                </Collapse>
-
-                <div className={style.transactionCards} style={{minHeight: isMobile ? '400px' : '550px'}}>
-                    {results.map((job) => (
-                        <Card className={styles.card}>
-                            <Box className={styles.description} style={{minWidth: '30%', textAlign: 'center'}}>
-                                <Typography className={styles.description__text}>
-                                    {job.Title}
-                                </Typography>
-                                <Typography className={styles.description__date}>
-                                    {new Date(job.DueTime).toLocaleString()}
-                                </Typography>
-                            </Box>
-                            <Box className={styles.description} style={{minWidth: '20%', textAlign: 'center'}}>
-                                <Typography className={styles.description__text}>
-                                    {job.Status}
-                                </Typography>
-                                <Typography className={styles.description__date}>
-                                    {job.Failures}
-                                </Typography>
-                            </Box>
-                            <Box className={styles.amount}
-                                 style={{
-                                     justifyContent: isMobile ? 'unset' : 'center',
-                                     overflowX: 'auto',
-                                     color: '#FAFAFA',
-                                     textAlign: 'center',
-                                     minWidth: '40%'
-                                 }}>
-                                <Typography
-                                >
-                                    {job.Result ? job.Result : "JOB PENDING"}
-                                </Typography>
-                            </Box>
-                        </Card>
-                    ))}
+                    
+                    <IconButton
+                        onClick={() => loadJobsSummary(true)}
+                        disabled={loading}
+                        sx={{ color: '#FAFAFA' }}
+                    >
+                        <RefreshIcon />
+                    </IconButton>
+                    <IconButton onClick={onClose} sx={{ color: '#FAFAFA' }}>
+                        <CloseIcon />
+                    </IconButton>
                 </div>
-                <div className={style.paginationContainer}>
-
-                    <TablePagination
-                        component="div"
-                        rowsPerPageOptions={[10]}
-                        className={style.pagination}
-                        page={pages}
-                        count={100}
-                        rowsPerPage={10}
-                        onPageChange={(_, newPage) => {
-                            setPages(newPage)
-                        }}
-                    />
-                </div>
+            </DialogTitle>
+            
+            <DialogContent sx={{ padding: 0 }}>
+                <TableContainer component={Paper} sx={{ backgroundColor: '#121C24', height: '100%' }}>
+                    <Table stickyHeader>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                    Job Type
+                                </TableCell>
+                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                    Priority
+                                </TableCell>
+                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                    Status Summary
+                                </TableCell>
+                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                    Status
+                                </TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {jobsSummary.map((job) => (
+                                <React.Fragment key={job.title}>
+                                    <TableRow sx={{ backgroundColor: '#1A252F' }}>
+                                        <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                            {job.title}
+                                        </TableCell>
+                                        <TableCell sx={{ color: '#FAFAFA' }}>
+                                            <Chip
+                                                label={job.priority}
+                                                color={job.priority === 'High' ? 'error' : job.priority === 'Medium' ? 'warning' : 'default'}
+                                                size="small"
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ color: '#FAFAFA' }}>
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                                {getStatusCounts(job).map(({ status, count }) => (
+                                                    <Chip
+                                                        key={status}
+                                                        label={`${status}: ${count}`}
+                                                        size="small"
+                                                        sx={{
+                                                            backgroundColor: getStatusColor(status),
+                                                            color: 'white',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                        onClick={() => handleExpandToggle(job.title, status)}
+                                                    />
+                                                ))}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell sx={{ color: '#FAFAFA' }}>
+                                            <Chip
+                                                label={job.is_disabled ? 'Disabled' : 'Enabled'}
+                                                size="small"
+                                                color={job.is_disabled ? 'error' : 'success'}
+                                                variant={job.is_disabled ? 'filled' : 'outlined'}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                    
+                                    {/* Sub-tables for each status */}
+                                    {getStatusCounts(job).map(({ status }) => {
+                                        const key = `${job.title}-${status}`;
+                                        const jobData = expandedJobs[key];
+                                        
+                                        return (
+                                            <TableRow key={key}>
+                                                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
+                                                    <Collapse in={!!jobData} timeout="auto" unmountOnExit>
+                                                        <Box sx={{ margin: 1, backgroundColor: '#0F1419', borderRadius: 1, border: '1px solid #34495E' }}>
+                                                            <Box sx={{ 
+                                                                display: 'flex', 
+                                                                justifyContent: 'space-between', 
+                                                                alignItems: 'center',
+                                                                padding: 2,
+                                                                borderBottom: '1px solid #34495E'
+                                                            }}>
+                                                                <Typography variant="h6" sx={{ color: '#FAFAFA' }}>
+                                                                    {job.title} - {status} Jobs
+                                                                </Typography>
+                                                                
+                                                                {canCancelJobs(status) && jobData && (
+                                                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                                                        <Button
+                                                                            startIcon={<DeleteIcon />}
+                                                                            variant="outlined"
+                                                                            color="error"
+                                                                            size="small"
+                                                                            onClick={() => handleBulkCancel(job.title, status)}
+                                                                            disabled={(jobData?.selectedJobs?.size || 0) === 0}
+                                                                        >
+                                                                            Cancel Selected ({jobData?.selectedJobs?.size || 0})
+                                                                        </Button>
+                                                                    </Box>
+                                                                )}
+                                                                
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() => handleExpandToggle(job.title, status)}
+                                                                    sx={{ color: '#FAFAFA' }}
+                                                                >
+                                                                    <KeyboardArrowUpIcon />
+                                                                </IconButton>
+                                                            </Box>
+                                                            
+                                                            {jobData && (
+                                                                <>
+                                                                    <Table size="small">
+                                                                        <TableHead>
+                                                                            <TableRow>
+                                                                                {canCancelJobs(status) && (
+                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>
+                                                                                        <Checkbox
+                                                                                            checked={jobData?.jobs?.length > 0 && jobData.jobs.every(j => jobData?.selectedJobs?.has(j.id))}
+                                                                                            indeterminate={(jobData?.selectedJobs?.size || 0) > 0 && (jobData?.selectedJobs?.size || 0) < (jobData?.jobs?.length || 0)}
+                                                                                            onChange={() => handleSelectAll(job.title, status)}
+                                                                                            sx={{ color: '#FAFAFA' }}
+                                                                                        />
+                                                                                    </TableCell>
+                                                                                )}
+                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>ID</TableCell>
+                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Priority</TableCell>
+                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Due Date</TableCell>
+                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Failures</TableCell>
+                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Result</TableCell>
+                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Status</TableCell>
+                                                                                {canCancelJobs(status) && (
+                                                                                    <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Actions</TableCell>
+                                                                                )}
+                                                                            </TableRow>
+                                                                        </TableHead>
+                                                                        <TableBody>
+                                                                            {jobData.loading ? (
+                                                                                <TableRow>
+                                                                                    <TableCell 
+                                                                                        colSpan={canCancelJobs(status) ? 8 : 6} 
+                                                                                        sx={{ color: '#FAFAFA', textAlign: 'center' }}
+                                                                                    >
+                                                                                        Loading...
+                                                                                    </TableCell>
+                                                                                </TableRow>
+                                                                            ) : jobData.jobs.map((jobDetail) => (
+                                                                                <TableRow key={jobDetail.id}>
+                                                                                    {canCancelJobs(status) && (
+                                                                                        <TableCell>
+                                                                                            <Checkbox
+                                                                                                checked={jobData?.selectedJobs?.has(jobDetail.id) || false}
+                                                                                                onChange={() => handleJobSelection(jobDetail.id, job.title, status)}
+                                                                                                sx={{ color: '#FAFAFA' }}
+                                                                                            />
+                                                                                        </TableCell>
+                                                                                    )}
+                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>{jobDetail.id}</TableCell>
+                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>{jobDetail.priority}</TableCell>
+                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>
+                                                                                        {new Date(jobDetail.due_date).toLocaleString()}
+                                                                                    </TableCell>
+                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>{jobDetail.failures}</TableCell>
+                                                                                    <TableCell sx={{ color: '#FAFAFA', maxWidth: 200 }}>
+                                                                                        <Tooltip title={jobDetail.result || 'No result yet'}>
+                                                                                            <Typography
+                                                                                                noWrap
+                                                                                                sx={{
+                                                                                                    overflow: 'hidden',
+                                                                                                    textOverflow: 'ellipsis',
+                                                                                                    maxWidth: 200
+                                                                                                }}
+                                                                                            >
+                                                                                                {jobDetail.result || 'Pending...'}
+                                                                                            </Typography>
+                                                                                        </Tooltip>
+                                                                                    </TableCell>
+                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>
+                                                                                        <Chip
+                                                                                            label={jobDetail.job_type_disabled ? 'Type Disabled' : 'Type Enabled'}
+                                                                                            size="small"
+                                                                                            color={jobDetail.job_type_disabled ? 'error' : 'success'}
+                                                                                            variant={jobDetail.job_type_disabled ? 'filled' : 'outlined'}
+                                                                                        />
+                                                                                    </TableCell>
+                                                                                    {canCancelJobs(status) && (
+                                                                                        <TableCell>
+                                                                                            <IconButton
+                                                                                                size="small"
+                                                                                                color="error"
+                                                                                                onClick={() => handleCancelJob(jobDetail.id, job.title, status)}
+                                                                                            >
+                                                                                                <CancelIcon />
+                                                                                            </IconButton>
+                                                                                        </TableCell>
+                                                                                    )}
+                                                                                </TableRow>
+                                                                            ))}
+                                                                        </TableBody>
+                                                                    </Table>
+                                                                    
+                                                                    {/* Pagination for job details */}
+                                                                    <TablePagination
+                                                                        component="div"
+                                                                        count={jobData.totalJobs}
+                                                                        page={jobData.page - 1}
+                                                                        onPageChange={(_, newPage) => handlePageChange(job.title, status, newPage)}
+                                                                        rowsPerPage={10}
+                                                                        rowsPerPageOptions={[10]}
+                                                                        sx={{
+                                                                            color: '#FAFAFA',
+                                                                            '& .MuiTablePagination-actions': {
+                                                                                color: '#FAFAFA'
+                                                                            },
+                                                                            '& .MuiIconButton-root': {
+                                                                                color: '#FAFAFA'
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </>
+                                                            )}
+                                                        </Box>
+                                                    </Collapse>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             </DialogContent>
-
         </Dialog>
-    )
-}
+    );
+};
 
-export default JobsDialog
+export default JobsDialog;
