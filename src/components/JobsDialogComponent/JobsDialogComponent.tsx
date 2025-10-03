@@ -33,11 +33,10 @@ import {
     JobSummary,
     JobDetail
 } from '../../services/jobService.ts';
-import { startJob, fetchJobsTable } from '../../services/investmentService.ts';
+import {startJob, fetchJobsTable} from '../../services/investmentService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -102,11 +101,11 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
 
     const loadJobDetails = async (title: string, status: string, page = 1) => {
         const key = `${title}-${status}`;
-        
+
         try {
             setExpandedJobs(prev => ({
                 ...prev,
-                [key]: { 
+                [key]: {
                     title,
                     status,
                     page,
@@ -140,7 +139,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             console.error("Error fetching job details:", error);
             setExpandedJobs(prev => ({
                 ...prev,
-                [key]: { 
+                [key]: {
                     ...prev[key],
                     loading: false
                 }
@@ -150,11 +149,11 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
 
     const handleExpandToggle = (title: string, status: string) => {
         const key = `${title}-${status}`;
-        
+
         if (expandedJobs[key]) {
             // Remove from expanded jobs
             setExpandedJobs(prev => {
-                const newState = { ...prev };
+                const newState = {...prev};
                 delete newState[key];
                 return newState;
             });
@@ -169,7 +168,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
         setExpandedJobs(prev => {
             const currentData = prev[key];
             if (!currentData || !currentData.selectedJobs) return prev;
-            
+
             return {
                 ...prev,
                 [key]: {
@@ -192,7 +191,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             ...prev,
             [key]: {
                 ...prev[key],
-                selectedJobs: allSelected 
+                selectedJobs: allSelected
                     ? new Set()
                     : new Set(jobData.jobs.map(job => job.id))
             }
@@ -223,7 +222,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const handleBulkCancel = async (title: string, status: string) => {
         const key = `${title}-${status}`;
         const selectedIds = Array.from(expandedJobs[key]?.selectedJobs || []);
-        
+
         if (selectedIds.length === 0) {
             setPayload({
                 type: "warning",
@@ -287,29 +286,34 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
 
     const getStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
-            case 'completed': return '#4CAF50';
-            case 'pending': return '#FF9800';
-            case 'overdue': return '#F44336';
-            case 'failed': return '#9C27B0';
-            default: return '#757575';
+            case 'completed':
+                return '#4CAF50';
+            case 'pending':
+                return '#FF9800';
+            case 'overdue':
+                return '#F44336';
+            case 'failed':
+                return '#9C27B0';
+            default:
+                return '#757575';
         }
     };
 
     const getStatusCounts = (job: JobSummary) => [
-        { status: 'Pending', count: job.pending_count },
-        { status: 'Overdue', count: job.overdue_count },
-        { status: 'Completed', count: job.completed_count },
-        { status: 'Failed', count: job.failed_count }
+        {status: 'Pending', count: job.pending_count},
+        {status: 'Overdue', count: job.overdue_count},
+        {status: 'Completed', count: job.completed_count},
+        {status: 'Failed', count: job.failed_count}
     ].filter(item => item.count > 0);
 
-    const canCancelJobs = (status: string) => 
+    const canCancelJobs = (status: string) =>
         status.toLowerCase() === 'pending' || status.toLowerCase() === 'overdue';
 
     return (
-        <Dialog 
-            open={open} 
-            onClose={onClose} 
-            fullScreen={isMobile} 
+        <Dialog
+            open={open}
+            onClose={onClose}
+            fullScreen={isMobile}
             maxWidth="xl"
             PaperProps={{
                 sx: {
@@ -321,13 +325,13 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 },
             }}
         >
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <DialogTitle sx={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                 <Typography variant="h6">Jobs Management Dashboard</Typography>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                     {/* Job Creation Section */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <InputLabel sx={{ color: '#FAFAFA', '&.Mui-focused': { color: '#7b68ee' } }}>
+                    <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                        <FormControl size="small" sx={{minWidth: 150}}>
+                            <InputLabel sx={{color: '#FAFAFA', '&.Mui-focused': {color: '#7b68ee'}}}>
                                 Select Job
                             </InputLabel>
                             <Select
@@ -336,10 +340,10 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                 label="Select Job"
                                 sx={{
                                     color: '#FAFAFA',
-                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5a6a7c' },
-                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#FAFAFA' },
-                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b68ee' },
-                                    '& .MuiSvgIcon-root': { color: '#FAFAFA' }
+                                    '& .MuiOutlinedInput-notchedOutline': {borderColor: '#5a6a7c'},
+                                    '&:hover .MuiOutlinedInput-notchedOutline': {borderColor: '#FAFAFA'},
+                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {borderColor: '#7b68ee'},
+                                    '& .MuiSvgIcon-root': {color: '#FAFAFA'}
                                 }}
                             >
                                 {Object.entries(availableJobs).map(([key, value]) => (
@@ -356,42 +360,42 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                             size="small"
                             sx={{
                                 backgroundColor: '#7b68ee',
-                                '&:hover': { backgroundColor: '#6a5acd' },
-                                '&:disabled': { backgroundColor: '#555' }
+                                '&:hover': {backgroundColor: '#6a5acd'},
+                                '&:disabled': {backgroundColor: '#555'}
                             }}
                         >
                             Start Job
                         </Button>
                     </Box>
-                    
+
                     <IconButton
                         onClick={() => loadJobsSummary(true)}
                         disabled={loading}
-                        sx={{ color: '#FAFAFA' }}
+                        sx={{color: '#FAFAFA'}}
                     >
-                        <RefreshIcon />
+                        <RefreshIcon/>
                     </IconButton>
-                    <IconButton onClick={onClose} sx={{ color: '#FAFAFA' }}>
-                        <CloseIcon />
+                    <IconButton onClick={onClose} sx={{color: '#FAFAFA'}}>
+                        <CloseIcon/>
                     </IconButton>
                 </div>
             </DialogTitle>
-            
-            <DialogContent sx={{ padding: 0 }}>
-                <TableContainer component={Paper} sx={{ backgroundColor: '#121C24', height: '100%' }}>
+
+            <DialogContent sx={{padding: 0}}>
+                <TableContainer component={Paper} sx={{backgroundColor: '#121C24', height: '100%'}}>
                     <Table stickyHeader>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
                                     Job Type
                                 </TableCell>
-                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
                                     Priority
                                 </TableCell>
-                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
                                     Status Summary
                                 </TableCell>
-                                <TableCell sx={{ backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold' }}>
+                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
                                     Status
                                 </TableCell>
                             </TableRow>
@@ -399,20 +403,20 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                         <TableBody>
                             {jobsSummary.map((job) => (
                                 <React.Fragment key={job.title}>
-                                    <TableRow sx={{ backgroundColor: '#1A252F' }}>
-                                        <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                    <TableRow sx={{backgroundColor: '#1A252F'}}>
+                                        <TableCell sx={{color: '#FAFAFA', fontWeight: 'bold', fontSize: '1.1rem'}}>
                                             {job.title}
                                         </TableCell>
-                                        <TableCell sx={{ color: '#FAFAFA' }}>
+                                        <TableCell sx={{color: '#FAFAFA'}}>
                                             <Chip
                                                 label={job.priority}
                                                 color={job.priority === 'High' ? 'error' : job.priority === 'Medium' ? 'warning' : 'default'}
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ color: '#FAFAFA' }}>
-                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                                {getStatusCounts(job).map(({ status, count }) => (
+                                        <TableCell sx={{color: '#FAFAFA'}}>
+                                            <Box sx={{display: 'flex', flexWrap: 'wrap', gap: 1}}>
+                                                {getStatusCounts(job).map(({status, count}) => (
                                                     <Chip
                                                         key={status}
                                                         label={`${status}: ${count}`}
@@ -427,7 +431,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                                 ))}
                                             </Box>
                                         </TableCell>
-                                        <TableCell sx={{ color: '#FAFAFA' }}>
+                                        <TableCell sx={{color: '#FAFAFA'}}>
                                             <Chip
                                                 label={job.is_disabled ? 'Disabled' : 'Enabled'}
                                                 size="small"
@@ -436,84 +440,114 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                             />
                                         </TableCell>
                                     </TableRow>
-                                    
+
                                     {/* Sub-tables for each status */}
-                                    {getStatusCounts(job).map(({ status }) => {
+                                    {getStatusCounts(job).map(({status}) => {
                                         const key = `${job.title}-${status}`;
                                         const jobData = expandedJobs[key];
-                                        
+
                                         return (
                                             <TableRow key={key}>
-                                                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
+                                                <TableCell style={{paddingBottom: 0, paddingTop: 0}} colSpan={4}>
                                                     <Collapse in={!!jobData} timeout="auto" unmountOnExit>
-                                                        <Box sx={{ margin: 1, backgroundColor: '#0F1419', borderRadius: 1, border: '1px solid #34495E' }}>
-                                                            <Box sx={{ 
-                                                                display: 'flex', 
-                                                                justifyContent: 'space-between', 
+                                                        <Box sx={{
+                                                            margin: 1,
+                                                            backgroundColor: '#0F1419',
+                                                            borderRadius: 1,
+                                                            border: '1px solid #34495E'
+                                                        }}>
+                                                            <Box sx={{
+                                                                display: 'flex',
+                                                                justifyContent: 'space-between',
                                                                 alignItems: 'center',
                                                                 padding: 2,
                                                                 borderBottom: '1px solid #34495E'
                                                             }}>
-                                                                <Typography variant="h6" sx={{ color: '#FAFAFA' }}>
+                                                                <Typography variant="h6" sx={{color: '#FAFAFA'}}>
                                                                     {job.title} - {status} Jobs
                                                                 </Typography>
-                                                                
+
                                                                 {canCancelJobs(status) && jobData && (
-                                                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                                                    <Box sx={{display: 'flex', gap: 1}}>
                                                                         <Button
-                                                                            startIcon={<DeleteIcon />}
+                                                                            startIcon={<DeleteIcon/>}
                                                                             variant="outlined"
                                                                             color="error"
                                                                             size="small"
                                                                             onClick={() => handleBulkCancel(job.title, status)}
                                                                             disabled={(jobData?.selectedJobs?.size || 0) === 0}
                                                                         >
-                                                                            Cancel Selected ({jobData?.selectedJobs?.size || 0})
+                                                                            Cancel Selected
+                                                                            ({jobData?.selectedJobs?.size || 0})
                                                                         </Button>
                                                                     </Box>
                                                                 )}
-                                                                
+
                                                                 <IconButton
                                                                     size="small"
                                                                     onClick={() => handleExpandToggle(job.title, status)}
-                                                                    sx={{ color: '#FAFAFA' }}
+                                                                    sx={{color: '#FAFAFA'}}
                                                                 >
-                                                                    <KeyboardArrowUpIcon />
+                                                                    <KeyboardArrowUpIcon/>
                                                                 </IconButton>
                                                             </Box>
-                                                            
+
                                                             {jobData && (
                                                                 <>
                                                                     <Table size="small">
                                                                         <TableHead>
                                                                             <TableRow>
                                                                                 {canCancelJobs(status) && (
-                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>
+                                                                                    <TableCell sx={{color: '#FAFAFA'}}>
                                                                                         <Checkbox
                                                                                             checked={jobData?.jobs?.length > 0 && jobData.jobs.every(j => jobData?.selectedJobs?.has(j.id))}
                                                                                             indeterminate={(jobData?.selectedJobs?.size || 0) > 0 && (jobData?.selectedJobs?.size || 0) < (jobData?.jobs?.length || 0)}
                                                                                             onChange={() => handleSelectAll(job.title, status)}
-                                                                                            sx={{ color: '#FAFAFA' }}
+                                                                                            sx={{color: '#FAFAFA'}}
                                                                                         />
                                                                                     </TableCell>
                                                                                 )}
-                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>ID</TableCell>
-                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Priority</TableCell>
-                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Due Date</TableCell>
-                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Failures</TableCell>
-                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Result</TableCell>
-                                                                                <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Status</TableCell>
+                                                                                <TableCell sx={{
+                                                                                    color: '#FAFAFA',
+                                                                                    fontWeight: 'bold'
+                                                                                }}>ID</TableCell>
+                                                                                <TableCell sx={{
+                                                                                    color: '#FAFAFA',
+                                                                                    fontWeight: 'bold'
+                                                                                }}>Priority</TableCell>
+                                                                                <TableCell sx={{
+                                                                                    color: '#FAFAFA',
+                                                                                    fontWeight: 'bold'
+                                                                                }}>Due Date</TableCell>
+                                                                                <TableCell sx={{
+                                                                                    color: '#FAFAFA',
+                                                                                    fontWeight: 'bold'
+                                                                                }}>Failures</TableCell>
+                                                                                <TableCell sx={{
+                                                                                    color: '#FAFAFA',
+                                                                                    fontWeight: 'bold'
+                                                                                }}>Result</TableCell>
+                                                                                <TableCell sx={{
+                                                                                    color: '#FAFAFA',
+                                                                                    fontWeight: 'bold'
+                                                                                }}>Status</TableCell>
                                                                                 {canCancelJobs(status) && (
-                                                                                    <TableCell sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>Actions</TableCell>
+                                                                                    <TableCell sx={{
+                                                                                        color: '#FAFAFA',
+                                                                                        fontWeight: 'bold'
+                                                                                    }}>Actions</TableCell>
                                                                                 )}
                                                                             </TableRow>
                                                                         </TableHead>
                                                                         <TableBody>
                                                                             {jobData.loading ? (
                                                                                 <TableRow>
-                                                                                    <TableCell 
-                                                                                        colSpan={canCancelJobs(status) ? 8 : 6} 
-                                                                                        sx={{ color: '#FAFAFA', textAlign: 'center' }}
+                                                                                    <TableCell
+                                                                                        colSpan={canCancelJobs(status) ? 8 : 6}
+                                                                                        sx={{
+                                                                                            color: '#FAFAFA',
+                                                                                            textAlign: 'center'
+                                                                                        }}
                                                                                     >
                                                                                         Loading...
                                                                                     </TableCell>
@@ -525,18 +559,25 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                                                                             <Checkbox
                                                                                                 checked={jobData?.selectedJobs?.has(jobDetail.id) || false}
                                                                                                 onChange={() => handleJobSelection(jobDetail.id, job.title, status)}
-                                                                                                sx={{ color: '#FAFAFA' }}
+                                                                                                sx={{color: '#FAFAFA'}}
                                                                                             />
                                                                                         </TableCell>
                                                                                     )}
-                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>{jobDetail.id}</TableCell>
-                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>{jobDetail.priority}</TableCell>
-                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>
+                                                                                    <TableCell
+                                                                                        sx={{color: '#FAFAFA'}}>{jobDetail.id}</TableCell>
+                                                                                    <TableCell
+                                                                                        sx={{color: '#FAFAFA'}}>{jobDetail.priority}</TableCell>
+                                                                                    <TableCell sx={{color: '#FAFAFA'}}>
                                                                                         {new Date(jobDetail.due_date).toLocaleString()}
                                                                                     </TableCell>
-                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>{jobDetail.failures}</TableCell>
-                                                                                    <TableCell sx={{ color: '#FAFAFA', maxWidth: 200 }}>
-                                                                                        <Tooltip title={jobDetail.result || 'No result yet'}>
+                                                                                    <TableCell
+                                                                                        sx={{color: '#FAFAFA'}}>{jobDetail.failures}</TableCell>
+                                                                                    <TableCell sx={{
+                                                                                        color: '#FAFAFA',
+                                                                                        maxWidth: 200
+                                                                                    }}>
+                                                                                        <Tooltip
+                                                                                            title={jobDetail.result || 'No result yet'}>
                                                                                             <Typography
                                                                                                 noWrap
                                                                                                 sx={{
@@ -549,7 +590,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                                                                             </Typography>
                                                                                         </Tooltip>
                                                                                     </TableCell>
-                                                                                    <TableCell sx={{ color: '#FAFAFA' }}>
+                                                                                    <TableCell sx={{color: '#FAFAFA'}}>
                                                                                         <Chip
                                                                                             label={jobDetail.job_type_disabled ? 'Type Disabled' : 'Type Enabled'}
                                                                                             size="small"
@@ -564,7 +605,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                                                                                 color="error"
                                                                                                 onClick={() => handleCancelJob(jobDetail.id, job.title, status)}
                                                                                             >
-                                                                                                <CancelIcon />
+                                                                                                <CancelIcon/>
                                                                                             </IconButton>
                                                                                         </TableCell>
                                                                                     )}
@@ -572,7 +613,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                                                             ))}
                                                                         </TableBody>
                                                                     </Table>
-                                                                    
+
                                                                     {/* Pagination for job details */}
                                                                     <TablePagination
                                                                         component="div"
