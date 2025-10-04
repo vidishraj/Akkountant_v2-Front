@@ -568,7 +568,15 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                                                                     <TableCell
                                                                                         sx={{color: '#FAFAFA'}}>{jobDetail.priority}</TableCell>
                                                                                     <TableCell sx={{color: '#FAFAFA'}}>
-                                                                                        {new Date(jobDetail.due_date).toLocaleString()}
+                                                                                        {new Date(jobDetail.due_date).toLocaleString(undefined, {
+                                                                                            year: 'numeric',
+                                                                                            month: 'short',
+                                                                                            day: 'numeric',
+                                                                                            hour: '2-digit',
+                                                                                            minute: '2-digit',
+                                                                                            second: '2-digit',
+                                                                                            timeZoneName: 'short'
+                                                                                        })}
                                                                                     </TableCell>
                                                                                     <TableCell
                                                                                         sx={{color: '#FAFAFA'}}>{jobDetail.failures}</TableCell>
