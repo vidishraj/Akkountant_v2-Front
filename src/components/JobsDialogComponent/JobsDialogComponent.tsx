@@ -63,7 +63,8 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const [availableJobs, setAvailableJobs] = useState<Record<string, string>>({});
     const [selectedJob, setSelectedJob] = useState<string>("");
     const {setPayload} = useMessage();
-    const isMobile = useMediaQuery("(max-width:900px)");
+    const isMobile = useMediaQuery("(max-width:768px)");
+    const isTablet = useMediaQuery("(max-width:1024px)");
 
     const loadJobsSummary = async (clearCache = false) => {
         try {
@@ -206,9 +207,9 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     type: "success",
                     message: response.message,
                 });
-                // Reload both summary and job details
-                loadJobsSummary();
-                loadJobDetails(title, status, expandedJobs[`${title}-${status}`]?.page || 1);
+                // Reload both summary and job details with cache cleared
+                await loadJobsSummary(true);
+                await loadJobDetails(title, status, expandedJobs[`${title}-${status}`]?.page || 1);
             }
         } catch (error) {
             setPayload({
@@ -238,9 +239,9 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     type: "success",
                     message: `${response.message} (${selectedIds.length} jobs)`,
                 });
-                // Reload both summary and job details
-                loadJobsSummary();
-                loadJobDetails(title, status, expandedJobs[key]?.page || 1);
+                // Reload both summary and job details with cache cleared
+                await loadJobsSummary(true);
+                await loadJobDetails(title, status, expandedJobs[key]?.page || 1);
             }
         } catch (error) {
             setPayload({
@@ -325,12 +326,32 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                 },
             }}
         >
-            <DialogTitle sx={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                <Typography variant="h6">Jobs Management Dashboard</Typography>
-                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+            <DialogTitle sx={{
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'stretch', sm: 'center' }, 
+                justifyContent: 'space-between',
+                gap: { xs: 2, sm: 0 },
+                padding: { xs: 2, sm: 3 }
+            }}>
+                <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ flexShrink: 0 }}>
+                    Jobs Management Dashboard
+                </Typography>
+                <Box sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    gap: { xs: 1, sm: 2 },
+                    flexWrap: 'wrap'
+                }}>
                     {/* Job Creation Section */}
-                    <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-                        <FormControl size="small" sx={{minWidth: 150}}>
+                    <Box sx={{
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        width: { xs: '100%', sm: 'auto' }
+                    }}>
+                        <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 }, flex: { xs: 1, sm: 'none' } }}>
                             <InputLabel sx={{color: '#FAFAFA', '&.Mui-focused': {color: '#7b68ee'}}}>
                                 Select Job
                             </InputLabel>
@@ -361,41 +382,73 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                             sx={{
                                 backgroundColor: '#7b68ee',
                                 '&:hover': {backgroundColor: '#6a5acd'},
-                                '&:disabled': {backgroundColor: '#555'}
+                                '&:disabled': {backgroundColor: '#555'},
+                                whiteSpace: 'nowrap'
                             }}
                         >
-                            Start Job
+                            {isMobile ? 'Start' : 'Start Job'}
                         </Button>
                     </Box>
 
-                    <IconButton
-                        onClick={() => loadJobsSummary(true)}
-                        disabled={loading}
-                        sx={{color: '#FAFAFA'}}
-                    >
-                        <RefreshIcon/>
-                    </IconButton>
-                    <IconButton onClick={onClose} sx={{color: '#FAFAFA'}}>
-                        <CloseIcon/>
-                    </IconButton>
-                </div>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <IconButton
+                            onClick={() => loadJobsSummary(true)}
+                            disabled={loading}
+                            sx={{color: '#FAFAFA'}}
+                            size={isMobile ? "small" : "medium"}
+                        >
+                            <RefreshIcon/>
+                        </IconButton>
+                        <IconButton 
+                            onClick={onClose} 
+                            sx={{color: '#FAFAFA'}}
+                            size={isMobile ? "small" : "medium"}
+                        >
+                            <CloseIcon/>
+                        </IconButton>
+                    </Box>
+                </Box>
             </DialogTitle>
 
-            <DialogContent sx={{padding: 0}}>
-                <TableContainer component={Paper} sx={{backgroundColor: '#121C24', height: '100%'}}>
-                    <Table stickyHeader>
+            <DialogContent sx={{padding: 0, overflow: 'auto'}}>
+                <TableContainer component={Paper} sx={{backgroundColor: '#121C24', height: '100%', overflowX: 'auto'}}>
+                    <Table stickyHeader sx={{ minWidth: { xs: 600, sm: 800 } }}>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
+                                <TableCell sx={{
+                                    backgroundColor: '#2C3E50', 
+                                    color: '#FAFAFA', 
+                                    fontWeight: 'bold',
+                                    minWidth: { xs: 80, sm: 120 },
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                }}>
                                     Job Type
                                 </TableCell>
-                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
+                                <TableCell sx={{
+                                    backgroundColor: '#2C3E50', 
+                                    color: '#FAFAFA', 
+                                    fontWeight: 'bold',
+                                    minWidth: { xs: 60, sm: 80 },
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                }}>
                                     Priority
                                 </TableCell>
-                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
+                                <TableCell sx={{
+                                    backgroundColor: '#2C3E50', 
+                                    color: '#FAFAFA', 
+                                    fontWeight: 'bold',
+                                    minWidth: { xs: 120, sm: 180 },
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                }}>
                                     Status Summary
                                 </TableCell>
-                                <TableCell sx={{backgroundColor: '#2C3E50', color: '#FAFAFA', fontWeight: 'bold'}}>
+                                <TableCell sx={{
+                                    backgroundColor: '#2C3E50', 
+                                    color: '#FAFAFA', 
+                                    fontWeight: 'bold',
+                                    minWidth: { xs: 60, sm: 100 },
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                }}>
                                     Status
                                 </TableCell>
                             </TableRow>
@@ -404,39 +457,48 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                             {jobsSummary.map((job) => (
                                 <React.Fragment key={job.title}>
                                     <TableRow sx={{backgroundColor: '#1A252F'}}>
-                                        <TableCell sx={{color: '#FAFAFA', fontWeight: 'bold', fontSize: '1.1rem'}}>
+                                        <TableCell sx={{
+                                            color: '#FAFAFA', 
+                                            fontWeight: 'bold', 
+                                            fontSize: { xs: '0.875rem', sm: '1rem', md: '1.1rem' },
+                                            padding: { xs: 1, sm: 2 }
+                                        }}>
                                             {job.title}
                                         </TableCell>
-                                        <TableCell sx={{color: '#FAFAFA'}}>
+                                        <TableCell sx={{color: '#FAFAFA', padding: { xs: 1, sm: 2 }}}>
                                             <Chip
                                                 label={job.priority}
                                                 color={job.priority === 'High' ? 'error' : job.priority === 'Medium' ? 'warning' : 'default'}
-                                                size="small"
+                                                size={isMobile ? "small" : "small"}
+                                                sx={{ fontSize: { xs: '0.6rem', sm: '0.75rem' } }}
                                             />
                                         </TableCell>
-                                        <TableCell sx={{color: '#FAFAFA'}}>
-                                            <Box sx={{display: 'flex', flexWrap: 'wrap', gap: 1}}>
+                                        <TableCell sx={{color: '#FAFAFA', padding: { xs: 1, sm: 2 }}}>
+                                            <Box sx={{display: 'flex', flexWrap: 'wrap', gap: { xs: 0.5, sm: 1 }}}>
                                                 {getStatusCounts(job).map(({status, count}) => (
                                                     <Chip
                                                         key={status}
-                                                        label={`${status}: ${count}`}
+                                                        label={isMobile ? `${status.charAt(0)}:${count}` : `${status}: ${count}`}
                                                         size="small"
                                                         sx={{
                                                             backgroundColor: getStatusColor(status),
                                                             color: 'white',
-                                                            cursor: 'pointer'
+                                                            cursor: 'pointer',
+                                                            fontSize: { xs: '0.6rem', sm: '0.75rem' },
+                                                            height: { xs: 20, sm: 24 }
                                                         }}
                                                         onClick={() => handleExpandToggle(job.title, status)}
                                                     />
                                                 ))}
                                             </Box>
                                         </TableCell>
-                                        <TableCell sx={{color: '#FAFAFA'}}>
+                                        <TableCell sx={{color: '#FAFAFA', padding: { xs: 1, sm: 2 }}}>
                                             <Chip
                                                 label={job.is_disabled ? 'Disabled' : 'Enabled'}
                                                 size="small"
                                                 color={job.is_disabled ? 'error' : 'success'}
                                                 variant={job.is_disabled ? 'filled' : 'outlined'}
+                                                sx={{ fontSize: { xs: '0.6rem', sm: '0.75rem' } }}
                                             />
                                         </TableCell>
                                     </TableRow>
