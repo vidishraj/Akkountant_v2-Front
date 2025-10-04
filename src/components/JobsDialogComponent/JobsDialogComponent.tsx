@@ -123,7 +123,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     [key]: {
                         title,
                         status,
-                        page,
+                        page: page,
                         jobs: response.data.jobs,
                         totalJobs: response.data.pagination.total,
                         selectedJobs: new Set(),
@@ -199,6 +199,9 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     };
 
     const handleCancelJob = async (jobId: number, title: string, status: string) => {
+        const key = `${title}-${status}`;
+        const currentJobData = expandedJobs[key];
+        
         try {
             const response = await cancelJob(jobId);
             if (response.status === 'success') {
@@ -206,9 +209,22 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     type: "success",
                     message: response.message,
                 });
-                // Reload both summary and job details with cache cleared
+                
+                // Reload summary first
                 await loadJobsSummary(true);
-                await loadJobDetails(title, status, expandedJobs[`${title}-${status}`]?.page || 1);
+                
+                // Calculate what page to load after deletion
+                const currentPage = currentJobData?.page || 1;
+                const currentJobsCount = currentJobData?.jobs?.length || 0;
+                
+                // If this was the only job on current page and not the first page, go back one page
+                let pageToLoad = currentPage;
+                if (currentJobsCount === 1 && currentPage > 1) {
+                    pageToLoad = currentPage - 1;
+                }
+                
+                // Reload job details for the appropriate page
+                await loadJobDetails(title, status, pageToLoad);
             }
         } catch (error) {
             setPayload({
@@ -222,6 +238,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const handleBulkCancel = async (title: string, status: string) => {
         const key = `${title}-${status}`;
         const selectedIds = Array.from(expandedJobs[key]?.selectedJobs || []);
+        const currentJobData = expandedJobs[key];
 
         if (selectedIds.length === 0) {
             setPayload({
@@ -238,9 +255,23 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     type: "success",
                     message: `${response.message} (${selectedIds.length} jobs)`,
                 });
-                // Reload both summary and job details with cache cleared
+                
+                // Reload summary first
                 await loadJobsSummary(true);
-                await loadJobDetails(title, status, expandedJobs[key]?.page || 1);
+                
+                // Calculate what page to load after bulk deletion
+                const currentPage = currentJobData?.page || 1;
+                const currentJobsCount = currentJobData?.jobs?.length || 0;
+                const cancelledCount = selectedIds.length;
+                
+                // If we're cancelling all jobs on current page and not on first page, go back one page
+                let pageToLoad = currentPage;
+                if (cancelledCount >= currentJobsCount && currentPage > 1) {
+                    pageToLoad = currentPage - 1;
+                }
+                
+                // Reload job details for the appropriate page
+                await loadJobDetails(title, status, pageToLoad);
             }
         } catch (error) {
             setPayload({
