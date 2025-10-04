@@ -64,7 +64,6 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const [selectedJob, setSelectedJob] = useState<string>("");
     const {setPayload} = useMessage();
     const isMobile = useMediaQuery("(max-width:768px)");
-    const isTablet = useMediaQuery("(max-width:1024px)");
 
     const loadJobsSummary = async (clearCache = false) => {
         try {
