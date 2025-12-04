@@ -1,0 +1,483 @@
+.jobScannerContainer {
+  display: flex;
+  flex-direction: column;
+  background-color: #121C24;
+  width: 100%;
+  color: #FAFAFA;
+  overflow: hidden;
+  min-height: calc(100vh - 64px);
+  
+  // Global styles to ensure all text is white
+  :global {
+    * {
+      color: #FAFAFA;
+    }
+    
+    .MuiMenuItem-root {
+      background-color: #29384D !important;
+      color: #FAFAFA !important;
+      
+      &:hover {
+        background-color: #3a4a5c !important;
+      }
+      
+      &.Mui-selected {
+        background-color: rgba(123, 104, 238, 0.2) !important;
+        
+        &:hover {
+          background-color: rgba(123, 104, 238, 0.3) !important;
+        }
+      }
+    }
+    
+    .MuiPaper-root {
+      background-color: #29384D !important;
+    }
+    
+    .MuiList-root {
+      background-color: #29384D !important;
+    }
+  }
+}
+
+.statsContainer {
+  display: flex;
+  gap: 1rem;
+  padding: 20px;
+  overflow-x: auto;
+  flex-wrap: wrap;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+  }
+}
+
+.statCard {
+  flex: 1;
+  min-width: 150px;
+  background-color: #29384D !important;
+  color: #FAFAFA !important;
+  border: 1px solid #3a4a5c !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(123, 104, 238, 0.3) !important;
+  }
+  
+  :global {
+    .MuiCardContent-root {
+      text-align: center;
+      padding: 24px 16px !important;
+    }
+  }
+}
+
+.statCardContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.statIcon {
+  font-size: 2.5rem !important;
+  color: #7b68ee;
+  margin-bottom: 0.5rem;
+}
+
+.statNumber {
+  color: #FAFAFA !important;
+  font-weight: bold !important;
+  font-size: 2rem !important;
+  margin: 0 !important;
+}
+
+.statLabel {
+  color: #B0B0B0 !important;
+  font-size: 0.875rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.actionsContainer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1%;
+  margin-bottom: 10px;
+  margin-top: 10px;
+  margin-right: 10px;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+
+  @media (max-width: 600px) {
+    justify-content: center;
+  }
+}
+
+.scanButton {
+  background-color: #7b68ee !important;
+  color: #FAFAFA !important;
+  
+  &:hover {
+    background-color: #6a5acd !important;
+  }
+  
+  &:disabled {
+    background-color: #4a4a6a !important;
+  }
+}
+
+.iconButton {
+  color: #FAFAFA !important;
+  border: 1px solid #5a6a7c !important;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: #FAFAFA !important;
+  }
+  
+  &:disabled {
+    color: #666 !important;
+    border-color: #333 !important;
+  }
+}
+
+.progressBar {
+  margin: 0 10px 10px 10px;
+  
+  :global {
+    .MuiLinearProgress-bar {
+      background-color: #7b68ee;
+    }
+  }
+}
+
+.filtersContainer {
+  background-color: #29384D;
+  padding: 20px;
+  margin: 0 10px 20px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a4a5c;
+
+  :global {
+    .MuiTextField-root,
+    .MuiFormControl-root {
+      .MuiInputLabel-root {
+        color: #FAFAFA !important;
+        
+        &.Mui-focused {
+          color: #7b68ee !important;
+        }
+      }
+
+      .MuiOutlinedInput-root {
+        color: #FAFAFA !important;
+        
+        input {
+          color: #FAFAFA !important;
+        }
+        
+        .MuiOutlinedInput-notchedOutline {
+          border-color: #5a6a7c;
+        }
+
+        &:hover .MuiOutlinedInput-notchedOutline {
+          border-color: #FAFAFA;
+        }
+
+        &.Mui-focused .MuiOutlinedInput-notchedOutline {
+          border-color: #7b68ee;
+        }
+      }
+
+      .MuiSelect-select {
+        color: #FAFAFA !important;
+      }
+
+      .MuiSelect-icon {
+        color: #FAFAFA !important;
+      }
+      
+      .MuiInputBase-input {
+        color: #FAFAFA !important;
+      }
+      
+      // For menu items in dropdowns
+      .MuiMenuItem-root {
+        color: #FAFAFA !important;
+      }
+    }
+
+    .MuiButton-outlined {
+      color: #FAFAFA !important;
+      border-color: #5a6a7c;
+
+      &:hover {
+        border-color: #FAFAFA;
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+    }
+  }
+}
+
+.tableContainer {
+  margin: 0 10px;
+  background-color: #29384D !important;
+  overflow-x: auto;
+  flex: 1;
+
+  :global {
+    .MuiTable-root {
+      .MuiTableHead-root {
+        .MuiTableRow-root {
+          .MuiTableCell-root {
+            background-color: #1e2a38;
+            color: #FAFAFA;
+            font-weight: bold;
+            border-bottom: 2px solid #3a4a5c;
+            
+            .MuiTableSortLabel-root {
+              color: #FAFAFA;
+              
+              &:hover {
+                color: #7b68ee;
+              }
+              
+              &.Mui-active {
+                color: #7b68ee;
+                
+                .MuiTableSortLabel-icon {
+                  color: #7b68ee !important;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      .MuiTableBody-root {
+        .MuiTableRow-root {
+          &:hover {
+            background-color: rgba(123, 104, 238, 0.1);
+          }
+
+          .MuiTableCell-root {
+            color: #FAFAFA !important;
+            border-bottom: 1px solid #3a4a5c;
+          }
+          
+          // Ensure chips have proper text color
+          .MuiChip-root {
+            color: #FFFFFF !important;
+            
+            .MuiChip-label {
+              color: #FFFFFF !important;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.unreadRow {
+  background-color: rgba(123, 104, 238, 0.05) !important;
+  
+  &:hover {
+    background-color: rgba(123, 104, 238, 0.15) !important;
+  }
+}
+
+.actionButton {
+  color: #7b68ee !important;
+  
+  &:hover {
+    background-color: rgba(123, 104, 238, 0.2) !important;
+  }
+}
+
+.deleteButton {
+  color: #E74C3C !important;
+  
+  &:hover {
+    background-color: rgba(231, 76, 60, 0.2) !important;
+  }
+}
+
+.pagination {
+  background-color: #29384D;
+  color: #FAFAFA !important;
+  margin: 0 10px 10px 10px;
+  border-radius: 0 0 8px 8px;
+
+  :global {
+    .MuiTablePagination-toolbar {
+      color: #FAFAFA !important;
+    }
+
+    .MuiTablePagination-selectLabel,
+    .MuiTablePagination-displayedRows,
+    .MuiTablePagination-select {
+      color: #FAFAFA !important;
+    }
+    
+    .MuiTablePagination-input {
+      color: #FAFAFA !important;
+      
+      .MuiTablePagination-select {
+        color: #FAFAFA !important;
+      }
+    }
+
+    .MuiTablePagination-actions {
+      .MuiIconButton-root {
+        color: #FAFAFA !important;
+        
+        &.Mui-disabled {
+          color: #666 !important;
+        }
+      }
+    }
+
+    .MuiSelect-icon {
+      color: #FAFAFA !important;
+    }
+    
+    // Ensure select input text is white
+    .MuiInputBase-root {
+      color: #FAFAFA !important;
+    }
+  }
+}
+
+.modalTitle {
+  background-color: #1e2a38 !important;
+  border-bottom: 1px solid #3a4a5c !important;
+  
+  :global {
+    .MuiTypography-root {
+      color: #FAFAFA;
+    }
+  }
+}
+
+.modalContent {
+  background-color: #121C24 !important;
+  padding: 24px !important;
+  
+  :global {
+    .MuiTextField-root,
+    .MuiFormControl-root {
+      .MuiInputLabel-root {
+        color: #FAFAFA !important;
+        
+        &.Mui-focused {
+          color: #7b68ee !important;
+        }
+        
+        &.Mui-disabled {
+          color: #999 !important;
+        }
+      }
+
+      .MuiOutlinedInput-root {
+        color: #FAFAFA !important;
+        
+        input {
+          color: #FAFAFA !important;
+        }
+        
+        .MuiOutlinedInput-notchedOutline {
+          border-color: #5a6a7c;
+        }
+
+        &:hover .MuiOutlinedInput-notchedOutline {
+          border-color: #FAFAFA;
+        }
+
+        &.Mui-focused .MuiOutlinedInput-notchedOutline {
+          border-color: #7b68ee;
+        }
+        
+        &.Mui-disabled {
+          color: #999 !important;
+          
+          input {
+            color: #FAFAFA !important;
+            -webkit-text-fill-color: #FAFAFA !important;
+          }
+          
+          .MuiOutlinedInput-notchedOutline {
+            border-color: #444;
+          }
+        }
+      }
+
+      .MuiSelect-select {
+        color: #FAFAFA !important;
+        -webkit-text-fill-color: #FAFAFA !important;
+      }
+
+      .MuiSelect-icon {
+        color: #FAFAFA !important;
+      }
+      
+      .MuiInputBase-input {
+        color: #FAFAFA !important;
+        -webkit-text-fill-color: #FAFAFA !important;
+      }
+      
+      // Specific styling for disabled selects
+      &.Mui-disabled {
+        .MuiSelect-select {
+          color: #FAFAFA !important;
+          -webkit-text-fill-color: #FAFAFA !important;
+        }
+        
+        .MuiOutlinedInput-input {
+          color: #FAFAFA !important;
+          -webkit-text-fill-color: #FAFAFA !important;
+        }
+        
+        .MuiInputBase-input {
+          color: #FAFAFA !important;
+          -webkit-text-fill-color: #FAFAFA !important;
+        }
+      }
+    }
+    
+    .MuiTypography-root {
+      color: #FAFAFA !important;
+    }
+    
+    .MuiButton-outlined {
+      color: #FAFAFA !important;
+      border-color: #5a6a7c;
+      
+      &:hover {
+        border-color: #7b68ee;
+        background-color: rgba(123, 104, 238, 0.1);
+      }
+    }
+  }
+}
+
+.modalActions {
+  background-color: #1e2a38 !important;
+  border-top: 1px solid #3a4a5c !important;
+  padding: 16px 24px !important;
+  
+  :global {
+    .MuiButton-outlined {
+      color: #FAFAFA;
+      border-color: #5a6a7c;
+      
+      &:hover {
+        border-color: #FAFAFA;
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+    }
+  }
+}

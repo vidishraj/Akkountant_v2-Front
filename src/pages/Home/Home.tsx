@@ -6,6 +6,7 @@ import Lottie from "lottie-react";
 import homeInvestmentsAnimation from "../../assets/lottieFiles/homeInvestmentsAnimation.json";
 import homeTransactionsAnimation from "../../assets/lottieFiles/homeTransactionsAnimation.json";
 import homeJobsAnimation from "../../assets/lottieFiles/homeJobsAnimation.json";
+import jobAppAnimation from "../../assets/lottieFiles/jobApp.json";
 
 const Home = () => {
     const [searchParams] = useSearchParams()
@@ -73,6 +74,21 @@ const Home = () => {
             width={100}
           />
           <div className={style.freelanceTag}>Freelance</div>
+        </div>
+        <div
+          className={style.jobScannerContainer}
+          onClick={() => {
+            navigate("/job-scanner");
+          }}
+        >
+          <Lottie
+            animationData={jobAppAnimation}
+            loop={true}
+            autoPlay={true}
+            height={100}
+            width={100}
+          />
+          <div className={style.jobScannerTag}>Job Scanner</div>
         </div>
       </div>
     );

@@ -133,6 +133,17 @@ const Header = () => {
                     Freelance
                   </Link>
                 </Button>
+                <Button
+                  sx={{ mx: 1 }}
+                  onClick={() => {
+                    navigate("/job-scanner");
+                  }}
+                  className={styles.links}
+                >
+                  <Link style={{ color: "#FAFAFA" }} to={"/job-scanner"}>
+                    Job Scanner
+                  </Link>
+                </Button>
               </>
             )}
           </Box>
@@ -260,6 +271,15 @@ const Header = () => {
               sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
             >
               <ListItemText primary="Freelance" sx={{ color: "white" }} />
+            </ListItem>
+            <ListItem
+              onClick={() => {
+                navigate("/job-scanner");
+                setMobileMenuOpen(false);
+              }}
+              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
+            >
+              <ListItemText primary="Job Scanner" sx={{ color: "white" }} />
             </ListItem>
           </List>
         </Box>
