@@ -65,23 +65,26 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                                 {buyCode}
                             </Typography>
 
-                            {/* Current Value */}
+                            {/* Current Price and Today's Change */}
                             <Box className={style.currentBox}>
                                 <Typography variant="body1" className={style.currentValue}>
                                     &#8377;{lastPrice}
-                                </Typography>
-                            </Box>
-
-                            {/* Previous Value and Price Change */}
-                            <Box className={style.previousBox}>
-                                <Typography variant="body2" className={style.previousValue}>
-                                    &#8377;{previousClose}
                                 </Typography>
                                 <Typography
                                     variant="body2"
                                     className={isPositiveChange ? style.positiveChange : style.negativeChange}
                                 >
                                     {isPositiveChange ? `+${pChange}%` : `${pChange}%`}
+                                </Typography>
+                            </Box>
+
+                            {/* Purchase Price and Purchase Quantity */}
+                            <Box className={style.previousBox}>
+                                <Typography variant="body2" className={style.previousValue}>
+                                    &#8377;{buyPrice}
+                                </Typography>
+                                <Typography variant="body2" className={style.previousValue}>
+                                    Qty: {buyQuant}
                                 </Typography>
                             </Box>
 
