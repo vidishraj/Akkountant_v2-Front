@@ -15,7 +15,9 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import AgentHeaderInput from "./AgentHeaderInput";
+import { AgentType } from "../../services/agentService";
 import styles from "./Header.module.scss";
 import Menu from "@mui/material/Menu";
 import { useEffect, useState } from "react";
@@ -49,6 +51,15 @@ const Header = () => {
   const { setPayload } = useMessage();
   const { currentUser, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const activeAgentType: AgentType | null = (() => {
+    const p = location.pathname;
+    if (p.startsWith("/transactions")) return "transaction";
+    if (p.startsWith("/investments")) return "investment";
+    if (p.startsWith("/freelance")) return "freelance";
+    return null;
+  })();
 
   const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
   const [optedBanksDialog, setOptedBanksDialog] = useState<boolean>(false);
@@ -89,9 +100,9 @@ const Header = () => {
     <>
       <AppBar
         position="static"
-        sx={{ backgroundColor: "inherit", borderBottom: "0.7px solid white" }}
+        sx={{ backgroundColor: "inherit", borderBottom: "0.7px solid white", zIndex: 1300, overflow: "visible" }}
       >
-        <Toolbar sx={{ justifyContent: "space-between" }}>
+        <Toolbar sx={{ justifyContent: "space-between", overflow: "visible" }}>
           <Box className={styles.linkContainer}>
             <Typography sx={{ fontWeight: "bold" }} className={styles.icon}>
               <Link style={{ color: "#FAFAFA", fontWeight: "700" }} to={"/"}>
@@ -147,6 +158,9 @@ const Header = () => {
               </>
             )}
           </Box>
+          {!loading && currentUser && !isMobile && activeAgentType && (
+            <AgentHeaderInput agentType={activeAgentType} />
+          )}
           <Box display="flex" alignItems="center">
             {!loading && currentUser && isMobile && (
               <IconButton

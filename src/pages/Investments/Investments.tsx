@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import style from "../Investments/Investments.module.scss";
 import MSNCard from "../../components/MSNCardComponent/MSNCard.tsx";
 import BasicCard from "../../components/BasicCard.tsx";
@@ -8,6 +8,7 @@ import EPGHome from "../../components/EPGHomeComponent/EPGHome.tsx";
 import GlobalSummary from "../../components/GlobalSummary.tsx";
 import GlobalInvestmentsCharts from "../../components/InvestmentChartsComponent/GlobalInvestmentsCharts.tsx";
 import ExtendablePage from "../../components/ExtendableComponent/ExtendablePageComponent.tsx";
+import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 
 const Investments = () => {
     const {state, fetchAndSetSummary, AllInfoForEpf} = useMSNContext();
@@ -51,6 +52,15 @@ const Investments = () => {
         </>
     );
 
+    const handleAgentMutation = useCallback(() => {
+        fetchAndSetSummary("Stocks", false);
+        fetchAndSetSummary("NPS", false);
+        fetchAndSetSummary("Mutual_Funds", false);
+        AllInfoForEpf("EPF", false);
+        AllInfoForEpf("Gold", false);
+        AllInfoForEpf("PF", false);
+    }, [fetchAndSetSummary, AllInfoForEpf]);
+
     const homeRef = useRef<any>(null);
     const dashboard = useRef<any>(null);
     useEffect(() => {
@@ -89,6 +99,7 @@ const Investments = () => {
                     renderCards()
                 )}
             </div>
+            <AgentChat agentType="investment" onMutation={handleAgentMutation} />
         </div>
     );
 };

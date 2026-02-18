@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {Drawer, TablePagination, useMediaQuery} from "@mui/material";
 import BasicCard from "../../components/BasicCard.tsx";
 import TransactionCard from "../../components/TransactionCardComponent/TransactionCard.tsx";
@@ -25,6 +25,7 @@ import {FileDetails, Transaction} from "../../utils/interfaces.ts";
 import "react-toastify/dist/ReactToastify.css";
 import GoogleComponent from "../../components/GoogleComponent/GoogleComponent.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
+import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 
 const Transactions = () => {
     const {state, dispatch} = useFilterContext();
@@ -112,6 +113,11 @@ const Transactions = () => {
                 })
             });
     };
+
+    const handleAgentMutation = useCallback(() => {
+        refreshTransactions();
+        refreshFileDetails();
+    }, [state.page, state.sortBy, state.limit, state.source, fileState.filePage, fileState.sortBy, fileState.limit]);
 
     useEffect(() => {
         refreshTransactions();
@@ -312,6 +318,7 @@ const Transactions = () => {
             <BasicCard className={style.transactionListContainer}>
                 {transactionModeSelection ? renderTransactionMode() : renderFileMode()}
             </BasicCard>
+            <AgentChat agentType="transaction" onMutation={handleAgentMutation} />
         </div>
     );
 };

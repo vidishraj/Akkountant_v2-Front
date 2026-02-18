@@ -11,11 +11,13 @@ import {FileFilterProvider} from "./contexts/FileFilterContext.tsx";
 import Header from "./components/Header/Header.tsx";
 import {MSNProvider} from "./contexts/MSNContext.tsx";
 import {MessageProvider} from "./contexts/MessageContext.tsx";
+import {AgentChatBridgeProvider} from "./contexts/AgentChatBridgeContext.tsx";
 import {KiteProvider} from "./contexts/KiteContext.tsx";
 import NotificationMessage from "./components/NotificationBanner/NotificationBanner.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <Router>
+        <AgentChatBridgeProvider>
         <MessageProvider>
             <LoadingProvider>
                 <AuthProvider>
@@ -41,5 +43,6 @@ createRoot(document.getElementById("root")!).render(
                 </AuthProvider>
             </LoadingProvider>
         </MessageProvider>
+        </AgentChatBridgeProvider>
     </Router>
 );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import BasicCard from "../../components/BasicCard";
 import styles from "./Freelance.module.scss";
 import FreelanceDashboard from "../../components/FreelanceDashboard/FreelanceDashboard";
@@ -6,6 +6,7 @@ import InvoiceCreator from "../../components/InvoiceCreator/InvoiceCreator";
 import InvoiceManager from "../../components/InvoiceManager/InvoiceManager";
 import InvoiceSigner from "../../components/InvoiceSigner/InvoiceSigner";
 import CustomerManager from "../../components/CustomerManager/CustomerManager";
+import AgentChat from "../../components/AgentChat/AgentChat";
 
 type TabType = "dashboard" | "create" | "manage" | "signer" | "customers";
 
@@ -42,6 +43,10 @@ const Freelance = () => {
   const handleInvoiceUpdated = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
+
+  const handleAgentMutation = useCallback(() => {
+    setRefreshTrigger((prev) => prev + 1);
+  }, []);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -102,6 +107,7 @@ const Freelance = () => {
 
         <div className={styles.tabContent}>{renderTabContent()}</div>
       </BasicCard>
+      <AgentChat agentType="freelance" onMutation={handleAgentMutation} />
     </div>
   );
 };
