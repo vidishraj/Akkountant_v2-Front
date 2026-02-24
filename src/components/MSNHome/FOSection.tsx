@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from "react";
-import {Box, Card, CardContent, Typography, Chip} from "@mui/material";
+import {Box, Card, CardContent, Typography, Chip, CircularProgress} from "@mui/material";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -85,7 +85,15 @@ const FOSection: React.FC = () => {
         {key: "contracts", label: "Contracts"},
     ];
 
-    if (!data || data.tradeCount === 0) {
+    if (data === null) {
+        return (
+            <Box className={style.noDataMessage}>
+                <CircularProgress size={28} sx={{color: "#7a7d85"}}/>
+            </Box>
+        );
+    }
+
+    if (data.tradeCount === 0) {
         return (
             <Box className={style.noDataMessage}>
                 <Typography variant="body1" sx={{color: "#FAFAFA", mb: 1}}>
