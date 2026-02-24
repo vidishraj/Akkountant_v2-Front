@@ -166,8 +166,8 @@ const FOSection: React.FC = () => {
 
                             {isExpanded && (
                                 <Box className={style.expandedTradesContainer}>
-                                    {group.contracts.map((contract) => (
-                                        <Box key={contract.symbol} className={style.expandedTradeRow}>
+                                    {group.contracts.map((contract, idx) => (
+                                        <Box key={`${contract.symbol}_${contract.expiry_date}_${idx}`} className={style.expandedTradeRow}>
                                             <span>
                                                 {contract.strike_price}{" "}
                                                 <span style={{
