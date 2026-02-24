@@ -419,6 +419,10 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
                 });
             })
             .catch((err) => {
+                setPayload({
+                    type: "error",
+                    message: "Error fetching F&O summary. Please try again!"
+                });
                 console.error("Error fetching FO summary:", err);
             });
     };
@@ -432,6 +436,10 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
                 });
             })
             .catch((err) => {
+                setPayload({
+                    type: "error",
+                    message: "Error fetching realized P&L. Please try again!"
+                });
                 console.error("Error fetching realized P&L:", err);
             });
     };
@@ -487,6 +495,7 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         AllInfoForEpf("Gold", true)
         AllInfoForEpf("PF", true)
         fetchAndSetFOSummary(true)
+        fetchAndSetRealizedPnL(true)
     }
     const contextValue: MSNContextType = {
         state,
