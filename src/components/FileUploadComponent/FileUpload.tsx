@@ -74,11 +74,18 @@ const FileUploadDialog: React.FC<FileUploadProps> = ({open, onClose, onUpload, c
             setUploading(true);
             try {
                 onUpload(selectedFile).then((response: any) => {
-                    const bought = response.data.Details.inserted.buy;
-                    const sold = response.data.Details.inserted.sold;
+                    const details = response.data?.Details;
+                    let message = "File uploaded successfully.";
+                    if (details?.inserted) {
+                        // Equity tradebook format
+                        message = `File read successfully. Bought ${details.inserted.buy ?? 0} Sold ${details.inserted.sold ?? 0}`;
+                    } else if (details?.total_rows !== undefined) {
+                        // FO tradebook format
+                        message = `File read successfully. Inserted ${details.inserted ?? 0}, Duplicates ${details.duplicates ?? 0}, Skipped ${details.skipped ?? 0}`;
+                    }
                     setPayload({
                         type: 'success',
-                        message: `File Read successfully. Bought ${bought} Sold ${sold}`
+                        message
                     })
                     const service = cardType === "stocks" ? "Stocks" : cardType === "nps" ? "NPS" : "EPF";
                     fetchAndSetSummary(service, true)
