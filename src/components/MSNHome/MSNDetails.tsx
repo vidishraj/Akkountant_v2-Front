@@ -96,6 +96,7 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
         "previousClose": "Prev. Close",
         "schemeType": "Scheme",
         "scheme_id": "ID",
+        "companyName": "Name",
     }
 
     return (
