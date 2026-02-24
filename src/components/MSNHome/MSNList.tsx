@@ -39,8 +39,8 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
             let pChange = 0;
             let {buyCode, info} = stock;
             if (state.selectedCard.stocks || state.selectedCard.mf) {
-                if (state.selectedCard.mf && info.schemeType) {
-                    buyCode = info.schemeType;
+                if (state.selectedCard.mf && info.companyName) {
+                    buyCode = info.companyName;
                 }
                 lastPrice = info.lastPrice;
                 pChange = info.pChange;

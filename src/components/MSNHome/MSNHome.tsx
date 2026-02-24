@@ -165,7 +165,7 @@ const MSNHome = () => {
                             if (state.selectedCard.nps) {
                                 setDetailState(listState?.find((item) => item.info.name === stockCode));
                             } else if (state.selectedCard.mf) {
-                                setDetailState(listState?.find((item) => item.info.schemeType === stockCode));
+                                setDetailState(listState?.find((item) => item.info.companyName === stockCode));
                             } else {
                                 setDetailState(listState?.find((item) => item.buyCode === stockCode));
                             }
