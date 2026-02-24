@@ -36,9 +36,6 @@ const MSNHome = () => {
     const [deleteConfirmation, setDeleteConfirmation] = useState(false);
     const [stocksTab, setStocksTab] = useState(0);
 
-    const deleteAll = () => {
-        deleteComplete()
-    }
     // Effect to set state based on selected card
     useEffect(() => {
         const contextKey = getContextKey();
@@ -204,7 +201,7 @@ const MSNHome = () => {
                 onCancel={() => setDeleteConfirmation(false)}
                 onSubmit={() => {
                     setDeleteConfirmation(false)
-                    deleteAll()
+                    deleteComplete()
                 }}
                 message={"Are you sure you want to delete all data?"}
             />
