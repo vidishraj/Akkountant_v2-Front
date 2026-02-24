@@ -195,6 +195,7 @@ interface MSNContextType {
     fetchAndSetSummary: (serviceType: string, clearCache: boolean) => void;
     fetchAndSetSearchItems: () => Promise<MSNListResponse[]>;
     fetchAndSetUserSecurities: (clearCache?: boolean) => void;
+
     deleteComplete: () => void;
     AllInfoForEpf: (serviceType: string, clearCache: boolean) => void;
     getServiceType: () => string;
@@ -282,33 +283,32 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
             });
     };
 
-    const fetchAndSetUserSecurities = async (clearCache = false): Promise<void> => {
+    const fetchAndSetUserSecurities = (clearCache = false): void => {
         dispatch({
             type: "MSNLoaderSetter",
             payload: {...state.loadingState, [contextKey]: {...state.loadingState[contextKey], list: true}}
         });
 
-        try {
-            fetchUserSecurities(serviceType, clearCache)
-                .then((response) => {
-                    dispatch({
-                        type: "MSNListSetter",
-                        payload: {...state.lists, [contextKey]: response.data},
-                    });
-                })
-                .finally(() => {
-                    dispatch({
-                        type: "MSNLoaderSetter",
-                        payload: {...state.loadingState, [contextKey]: {...state.loadingState[contextKey], list: false}}
-                    });
+        fetchUserSecurities(serviceType, clearCache)
+            .then((response) => {
+                dispatch({
+                    type: "MSNListSetter",
+                    payload: {...state.lists, [contextKey]: response.data},
                 });
-        } catch (error) {
-            setPayload({
-                type: "error",
-                message: `Error fetching list for ${serviceType}. Please try again!`
+            })
+            .catch((error) => {
+                setPayload({
+                    type: "error",
+                    message: `Error fetching list for ${serviceType}. Please try again!`
+                });
+                console.error(`Error fetching user securities for ${serviceType}:`, error);
+            })
+            .finally(() => {
+                dispatch({
+                    type: "MSNLoaderSetter",
+                    payload: {...state.loadingState, [contextKey]: {...state.loadingState[contextKey], list: false}}
+                });
             });
-            console.error(`Error fetching user securities for ${serviceType}:`, error);
-        }
     };
 
     const fetchAndSetSearchItems = async (): Promise<MSNListResponse[]> => {
