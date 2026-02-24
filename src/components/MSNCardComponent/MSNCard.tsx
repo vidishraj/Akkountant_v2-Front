@@ -26,7 +26,7 @@ interface MSNCardProps {
 }
 
 const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}) => {
-    const {state, dispatch, fetchAndSetSummary, AllInfoForEpf, fetchAndSetSearchItems} = useMSNContext();
+    const {state, dispatch, fetchAndSetSummary, AllInfoForEpf, fetchAndSetSearchItems, fetchAndSetRealizedPnL, fetchAndSetFOSummary} = useMSNContext();
     const [summary, setSummary] = useState<MSNSummaryResponse>();
     const [buyModal, setBuyModal] = useState<boolean>(false);
     const [searchItems, setSearchItems] = useState<any[]>([]);
@@ -123,6 +123,10 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 onUpload={(selectedFile) => {
                     const service = cardType === "stocks" ? "Stocks" : cardType === "nps" ? "NPS" : "EPF";
                     return handleFileUpload(selectedFile, service).then((response) => {
+                        if (cardType === "stocks") {
+                            fetchAndSetRealizedPnL(true);
+                            fetchAndSetFOSummary(true);
+                        }
                         return response;
                     }).catch((err) => {
                         return err;
@@ -316,7 +320,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                         </div>
                     )}
                     {cardType === "stocks" && renderCloudSyncButton()}
-                    {(cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
+                    {(cardType === "stocks" || cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
                     {cardType === "mf" && renderAddMFButton()}
                     {(cardType2 === "ppf" || cardType2 === "gold") && renderAddButton()}
                 </div>

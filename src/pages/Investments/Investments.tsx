@@ -11,7 +11,7 @@ import ExtendablePage from "../../components/ExtendableComponent/ExtendablePageC
 import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 
 const Investments = () => {
-    const {state, fetchAndSetSummary, AllInfoForEpf} = useMSNContext();
+    const {state, fetchAndSetSummary, AllInfoForEpf, fetchAndSetFOSummary} = useMSNContext();
     const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth <= 900);
 
     useEffect(() => {
@@ -21,6 +21,7 @@ const Investments = () => {
         AllInfoForEpf("EPF", false);
         AllInfoForEpf("Gold", false);
         AllInfoForEpf("PF", false);
+        fetchAndSetFOSummary(false);
 
         // Add a resize event listener to handle screen size changes
         const handleResize = () => {

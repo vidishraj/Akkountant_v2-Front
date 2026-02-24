@@ -3,7 +3,7 @@ import {
     EPGResponse,
     FileUploadParams,
     FileUploadResponse,
-    InsertEPGRequest, 
+    InsertEPGRequest,
     InsertSecurityTransactionRequest,
     JobsResponse,
     MSNListResponse,
@@ -15,6 +15,9 @@ import {
     KiteHoldingsResponse,
     KitePositionsResponse,
     KiteSyncResponse,
+    RealizedPnLResponse,
+    FOSummaryResponse,
+    FOTrade,
 } from '../utils/interfaces.ts';
 import {queueRequest} from './AxiosQueueManager.tsx';
 import {CacheAxiosResponse} from 'axios-cache-interceptor';
@@ -270,6 +273,53 @@ export async function getFileTimeStamps(
 
     const response = await queueRequest(() => axios.get('/fetchTimeStamps', options));
     return response.data;
+}
+
+/**
+ * Fetches realized P&L and historical closed trades.
+ */
+export async function fetchRealizedPnL(
+    serviceType: string,
+    clearCache = false
+): Promise<CacheAxiosResponse<RealizedPnLResponse>> {
+    const options = withRequestId(
+        'fetchRealizedPnL',
+        clearCache
+            ? withCacheCleared({params: {serviceType}})
+            : {params: {serviceType}}
+    );
+
+    return queueRequest(() => axios.get('fetchRealizedPnL', options));
+}
+
+// F&O API Functions
+
+/**
+ * Fetches F&O P&L summary.
+ */
+export async function fetchFOSummary(
+    clearCache = false
+): Promise<CacheAxiosResponse<FOSummaryResponse>> {
+    const options = withRequestId(
+        'fetchFOSummary',
+        clearCache ? withCacheCleared() : {}
+    );
+
+    return queueRequest(() => axios.get('fetchFOSummary', options));
+}
+
+/**
+ * Fetches all individual F&O trades.
+ */
+export async function fetchFOTrades(
+    clearCache = false
+): Promise<CacheAxiosResponse<FOTrade[]>> {
+    const options = withRequestId(
+        'fetchFOTrades',
+        clearCache ? withCacheCleared() : {}
+    );
+
+    return queueRequest(() => axios.get('fetchFOTrades', options));
 }
 
 // Kite Connect API Functions

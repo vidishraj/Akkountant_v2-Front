@@ -1,5 +1,5 @@
-import {ReactNode, useEffect, useState} from "react";
-import {Card, Typography, Grid, CardContent, Divider, Button, useMediaQuery} from "@mui/material";
+import {useEffect, useState} from "react";
+import {Card, Typography, CardContent, Divider, Button, useMediaQuery} from "@mui/material";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import style from "./MSNHome.module.scss";
 import withLoader from "../LoaderHOC.tsx";
@@ -9,10 +9,9 @@ import DepositModal from "../DepositsComponent.tsx";
 import {fetchRates} from "../../services/investmentService.ts";
 import RatesModal from "../RatesModal.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
-// Removed unused imports: CircleIcon, SyncIcon, syncKiteTransactions
 
 const MSNSummary = () => {
-    const [summary, setSummary] = useState<any | undefined>(undefined); // Set appropriate type later if possible
+    const [summary, setSummary] = useState<any | undefined>(undefined);
     const {state, getServiceType} = useMSNContext();
     const isMobile = useMediaQuery("(max-width:1000px)");
     const {setPayload} = useMessage();
@@ -38,12 +37,9 @@ const MSNSummary = () => {
         })
     }
 
-    // Removed handleSyncTransactions function since sync buttons are commented out
-
     useEffect(() => {
         const {selectedCard, summaries} = state;
 
-        // Determine which summary to display based on selectedCard
         if (selectedCard.nps) {
             setSummary(summaries.nps);
         } else if (selectedCard.stocks) {
@@ -81,246 +77,106 @@ const MSNSummary = () => {
         }
     }, [state]);
 
-    const renderSummaryItem = (label: string, value: number | string | ReactNode, color?: string) => (
-        <Grid item xs={12} sm={4} alignItems="center" justifyContent="center" flexDirection="column" display={'flex'}>
-            <Typography variant="subtitle1" className={style.label}>
-                {label}
-            </Typography>
-            <Typography
-                className={style.dValue}
-                variant="body1"
-                style={color ? {color} : undefined}
-            >
+    const formatINR = (val: number | string) =>
+        Number(val).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    const isMSN = state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks;
+    const isEPG = state.selectedCard.ppf || state.selectedCard.epf || state.selectedCard.gold;
+
+    const renderStatItem = (label: string, value: string, color?: string) => (
+        <div className={style.summaryStatItem}>
+            <Typography className={style.label}>{label}</Typography>
+            <Typography className={style.dValue} style={color ? {color} : undefined}>
                 {value}
             </Typography>
-        </Grid>
+        </div>
     );
+
+    if (!summary) return null;
+
+    const changeColor = Number(summary.changeAmount) >= 0 ? "#4caf50" : "#f44336";
+    const pctColor = Number(summary.changePercent) >= 0 ? "#4caf50" : "#f44336";
 
     return (
         <Card className={style.assetCard} sx={isMobile ? {
-            padding: {xs: '0rem', sm: '1.5rem'},
-            borderRadius: 2,
+            padding: {xs: '0rem', sm: '1rem'},
+            borderRadius: '14px',
             boxShadow: 3,
             overflowY: 'auto',
             minHeight: "fit-content"
         } : {}}>
-            <CardContent className={isMobile ? '' : style.innerCard}>
-                {summary && isMobile ? (<>
-                    <Grid container spacing={2} alignItems="center"
-                          justifyContent="space-between">
-                        <Grid item xs={12}>
-                            <Typography variant="h6" className={style.header} textAlign="center">
-                                Total Asset Value
-                            </Typography>
-                            <Typography
-                                variant="h5"
-                                className={style.value}
-                                textAlign="center"
-                                sx={{fontSize: {xs: '1.25rem', sm: '1.5rem'}}}
-                            >
-                                &#8377;{Number(summary.currentValue).toLocaleString('en-IN', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}
-                            </Typography>
-                        </Grid>
-                    </Grid><Divider sx={{borderColor: "#ccc", borderWidth: 1, my: 2}}/>
+            <CardContent className={style.innerCard}>
+                {/* Top: Total Asset Value */}
+                <div className={style.totalValueGrid}>
+                    <Typography className={style.header}>
+                        Total Asset Value
+                    </Typography>
+                    <Typography className={style.value}>
+                        {"\u20B9"}{formatINR(summary.currentValue)}
+                    </Typography>
+                </div>
 
-                    {/* Details Section */}
-                    <Grid container spacing={2} alignItems="center" justifyContent="space-evenly" flexWrap={'nowrap'}>
-                        {
-                            renderSummaryItem(
-                                "Invested", Number(summary.totalValue).toLocaleString('en-IN', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })
-                            )}
-                        {renderSummaryItem(
-                            "Change", Number(summary.changeAmount).toLocaleString('en-IN', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })
-                        )}
-                        {renderSummaryItem(
-                            "% Change", Number(summary.changePercent).toLocaleString('en-IN', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })
-                        )}
-                    </Grid>
-                    <Grid container spacing={2} alignItems="center" justifyContent="space-evenly" flexWrap={'nowrap'}
-                          marginTop={(state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks) ? '' : 1}>
-                        {/*state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
-                            renderSummaryItem(
-                                "Market Status", <CircleIcon
-                                    style={{color: summary.marketStatus ? "green" : "maroon"}}
-                                />
-                            ) : */state.selectedCard.ppf && <Button
-                            startIcon={<FormatListBulletedIcon/>}
-                            onClick={() => setDepositModal(true)}
-                            className={style.depositsButton}
-                        >
-                            Deposits
-                        </Button>}
-                        {state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ? renderSummaryItem(
-                                "Securities Count", summary.count
-                            ) :
+                <Divider sx={{borderColor: "#29384D", borderWidth: 0.5, width: "85%", my: 1}}/>
+
+                {/* Row 1: Invested | Change | % Change */}
+                <div className={style.summaryStatsRow}>
+                    {renderStatItem("Invested", `\u20B9${formatINR(summary.totalValue)}`)}
+                    {renderStatItem(
+                        "Change",
+                        `${Number(summary.changeAmount) >= 0 ? "+" : ""}\u20B9${formatINR(summary.changeAmount)}`,
+                        changeColor
+                    )}
+                    {renderStatItem(
+                        "% Change",
+                        `${Number(summary.changePercent).toFixed(2)}%`,
+                        pctColor
+                    )}
+                </div>
+
+                {/* Row 2: Context-specific items */}
+                {isMSN && (
+                    <div className={style.summaryStatsRow}>
+                        {renderStatItem("Count", `${summary.count}`)}
+                        {state.selectedCard.stocks && state.realizedPnl && state.realizedPnl.tradeCount > 0 &&
+                            renderStatItem(
+                                "Realized P&L",
+                                `${state.realizedPnl.netRealizedPnL >= 0 ? "+" : ""}\u20B9${formatINR(state.realizedPnl.netRealizedPnL)}`,
+                                state.realizedPnl.netRealizedPnL >= 0 ? "#4caf50" : "#f44336"
+                            )
+                        }
+                        {state.selectedCard.stocks && state.foSummary && state.foSummary.tradeCount > 0 &&
+                            renderStatItem(
+                                "F&O P&L",
+                                `${state.foSummary.netPnL >= 0 ? "+" : ""}\u20B9${formatINR(state.foSummary.netPnL)}`,
+                                state.foSummary.netPnL >= 0 ? "#4caf50" : "#f44336"
+                            )
+                        }
+                    </div>
+                )}
+
+                {/* EPG-specific action buttons */}
+                {isEPG && (
+                    <div className={style.summaryStatsRow}>
+                        {state.selectedCard.ppf && (
                             <Button
-                                startIcon={<PercentIcon/>}
-                                onClick={() => {
-                                    setRate()
-                                    setRatesModal(true)
-                                }}
-                                className={style.rateButton}
+                                startIcon={<FormatListBulletedIcon/>}
+                                onClick={() => setDepositModal(true)}
+                                className={style.depositsButton}
                             >
-                                Rates
-                            </Button>}
-                    </Grid>
-                    {/*state.selectedCard.stocks && (
-                        <Grid container spacing={2} alignItems="center" justifyContent="center" marginTop={1}>
-                            <Button
-                                size="small"
-                                startIcon={<SyncIcon/>}
-                                onClick={handleSyncTransactions}
-                                variant="outlined"
-                                sx={{ minWidth: 'auto', fontSize: '0.75rem' }}
-                            >
-                                Sync
+                                Deposits
                             </Button>
-                        </Grid>
-                    )*/}
-                </>) : summary && (
-                    <>
-                        {/* Total Asset Value Section */}
-                        <Grid className={style.totalValueGrid}>
-                            <Typography variant="h6" className={style.header}>
-                                Total Asset Value
-                            </Typography>
-                            <Typography variant="h6" className={style.value}>
-                                &#8377;{Number(summary.currentValue).toLocaleString('en-IN', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}
-                            </Typography>
-                        </Grid>
-
-                        <Divider sx={{borderColor: "#ccc", borderWidth: 1}}/>
-
-                        {/* Additional Information Section */}
-                        <Grid container spacing={1} className={style.infoGrid}>
-                            {/* Invested Value */}
-                            <Grid item xs={4}>
-                                <Typography variant="subtitle1" className={style.label}>
-                                    Invested
-                                </Typography>
-                                <Typography className={style.dValue} variant="body1">
-                                    &#8377;{Number(summary.totalValue).toLocaleString('en-IN', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })}
-                                </Typography>
-                            </Grid>
-
-                            {/* Change */}
-                            <Grid item xs={4}>
-                                <Typography variant="subtitle1" className={style.label}>
-                                    Change
-                                </Typography>
-                                <Typography
-                                    className={style.dValue}
-                                    variant="body1"
-                                    style={{color: summary.changeAmount >= 0 ? "green" : "red"}}
-                                >
-                                    {summary.changeAmount >= 0
-                                        ? `+${Number(summary.changeAmount).toLocaleString('en-IN', {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}`
-                                        : Number(summary.changeAmount).toLocaleString('en-IN', {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}
-                                </Typography>
-                            </Grid>
-
-                            {/* % Change */}
-                            <Grid item xs={4}>
-                                <Typography variant="subtitle1" className={style.label}>
-                                    % Change
-                                </Typography>
-                                <Typography
-                                    className={style.dValue}
-                                    variant="body1"
-                                    style={{color: summary.changePercent >= 0 ? "green" : "red"}}
-                                >
-                                    {summary.changePercent >= 0
-                                        ? `${Number(summary.changePercent).toFixed(2)}%`
-                                        : `${Number(summary.changePercent).toFixed(2)}%`}
-                                </Typography>
-                            </Grid>
-
-                            {/* Securities Count */}
-                            <Grid item xs={6}>
-                                {state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
-                                    <>
-                                        <Typography variant="subtitle1" className={style.label}>
-                                            Securities Count
-                                        </Typography>
-                                        <Typography className={style.dValue} variant="body1">
-                                            {summary.count}
-                                        </Typography>
-                                    </> :
-                                    state.selectedCard.ppf &&
-                                    <Button
-                                        startIcon={<FormatListBulletedIcon/>}
-                                        onClick={() => setDepositModal(true)}
-                                        className={style.depositsButton}
-                                    >
-                                        Deposits
-                                    </Button>}
-                            </Grid>
-
-                            {/* Market Status */}
-                            <Grid item xs={6}>
-                                {/*state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks ?
-                                    <>
-                                        <Typography variant="subtitle1" className={style.label}>
-                                            Market Status
-                                        </Typography>
-                                        <Typography variant="body1" className={style.status}>
-                                            <CircleIcon
-                                                style={{color: summary.marketStatus ? "green" : "maroon"}}
-                                            />
-                                        </Typography>
-                                    </> :*/}
-                                <Button
-                                    startIcon={<PercentIcon/>}
-                                    onClick={() => {
-                                        setRate()
-                                        setRatesModal(true)
-                                    }}
-                                    className={style.rateButton}
-                                >
-                                    Rates
-                                </Button>
-                            </Grid>
-                        </Grid>
-
-                        {/* Sync button for stocks (desktop view) */}
-                        {/*state.selectedCard.stocks && (
-                            <Grid container spacing={2} alignItems="center" justifyContent="center" marginTop={2}>
-                                <Button
-                                    size="small"
-                                    startIcon={<SyncIcon/>}
-                                    onClick={handleSyncTransactions}
-                                    variant="outlined"
-                                    sx={{ minWidth: 'auto', fontSize: '0.75rem' }}
-                                >
-                                    Sync Transactions
-                                </Button>
-                            </Grid>
-                        )*/}
-                    </>
+                        )}
+                        <Button
+                            startIcon={<PercentIcon/>}
+                            onClick={() => {
+                                setRate()
+                                setRatesModal(true)
+                            }}
+                            className={style.rateButton}
+                        >
+                            Rates
+                        </Button>
+                    </div>
                 )}
             </CardContent>
             <DepositModal
@@ -328,12 +184,13 @@ const MSNSummary = () => {
                 onClose={() => setDepositModal(false)}
                 data={state.summaries[getContextKey()].deposits}
                 title={getContextKey()}
-            /><RatesModal
-            open={ratesModal}
-            onClose={() => setRatesModal(false)}
-            data={ratesData}
-            title={getContextKey()}
-        />
+            />
+            <RatesModal
+                open={ratesModal}
+                onClose={() => setRatesModal(false)}
+                data={ratesData}
+                title={getContextKey()}
+            />
         </Card>
     );
 };

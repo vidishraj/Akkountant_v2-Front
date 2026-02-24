@@ -2,7 +2,6 @@
   background-color: #121c24;
   color: #FAFAFA;
   border-radius: 12px;
-  //padding: 20px;
   min-width: 370px;
   height: 100%;
   width: 100%;
@@ -10,7 +9,7 @@
 }
 
 .tabs {
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #29384D;
   margin-bottom: 15px;
 }
 
@@ -19,7 +18,7 @@
 }
 
 .tabContent {
-  //padding: 10px 10px;
+  padding: 0 10px;
 }
 
 .innerContent {
@@ -38,22 +37,91 @@
   font-weight: bold;
 }
 
+// Hero section for stock detail view
+.detailHero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  margin-bottom: 12px;
+  background-color: #1a2530;
+  border-radius: 8px;
+}
+
+// Investment summary row
+.investmentRow {
+  display: flex;
+  justify-content: space-around;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background-color: #29384D;
+  border-radius: 8px;
+  text-align: center;
+}
+
+// OHLC 2x2 grid
+.ohlcGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ohlcCell {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+  &:nth-child(2n) {
+    border-right: none;
+  }
+
+  &:nth-child(n+3) {
+    border-bottom: none;
+  }
+}
+
+// Table improvements
 .table {
-  max-height: 220px;
+  max-height: 280px;
   min-width: 100%;
+  background-color: #121c24 !important;
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 td, th {
   background-color: #121c24;
   color: #FAFAFA !important;
   text-align: center;
+  font-size: 13px !important;
+  padding: 8px !important;
+  border-bottom: 1px solid #29384D !important;
 }
 
-.table {
-  -ms-overflow-style: none; /* Internet Explorer 10+ */
-  scrollbar-width: none; /* Firefox */
+th {
+  background-color: #1a2530 !important;
+  font-weight: bold !important;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
-.table::-webkit-scrollbar {
-  display: none; /* Safari and Chrome */
+// Buy/Sell action coloring
+.buyAction {
+  color: #4caf50 !important;
+  font-weight: bold !important;
+}
+
+.sellAction {
+  color: #f44336 !important;
+  font-weight: bold !important;
 }

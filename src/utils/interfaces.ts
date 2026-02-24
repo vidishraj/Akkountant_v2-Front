@@ -538,3 +538,62 @@ export interface KiteSyncResponse {
     message: string;
     holdings_synced: number;
 }
+
+// F&O Interfaces
+export interface FOContract {
+    symbol: string;
+    underlying: string;
+    expiry_date: string;
+    strike_price: number;
+    option_type: string;
+    buy_qty: number;
+    sell_qty: number;
+    buy_value: number;
+    sell_value: number;
+    pnl: number;
+}
+
+export interface FOSummaryResponse {
+    totalContracts: number;
+    netPnL: number;
+    totalPremiumPaid: number;
+    totalPremiumReceived: number;
+    profitableContracts: number;
+    losingContracts: number;
+    tradeCount: number;
+    contracts: FOContract[];
+}
+
+export interface FOTrade {
+    tradeId: string;
+    symbol: string;
+    underlying: string;
+    expiryDate: string;
+    strikePrice: number;
+    optionType: string;
+    tradeDate: string;
+    tradeType: string;
+    quantity: number;
+    price: number;
+    value: number;
+    orderId: string;
+}
+
+export interface RealizedTrade {
+    sellID: number;
+    symbol: string;
+    buyPrice: number;
+    sellPrice: number;
+    quantity: number;
+    sellDate: string;
+    profit: number;
+    buyID: string;
+}
+
+export interface RealizedPnLResponse {
+    totalRealizedProfit: number;
+    totalRealizedLoss: number;
+    netRealizedPnL: number;
+    tradeCount: number;
+    trades: RealizedTrade[];
+}

@@ -70,6 +70,14 @@ const EPGHome = () => {
 
     return (
         <div className={style.container}>
+            <Button
+                startIcon={<ArrowBackIcon/>}
+                onClick={handleResetCardSelector}
+                className={style.backButton}
+                style={{alignSelf: "flex-start"}}
+            >
+                Back
+            </Button>
             {summaryState && (
                 <div className={style.innerSummary}>
                     <MSNSummary isLoading={false}/>
@@ -88,7 +96,7 @@ const EPGHome = () => {
                         <>
                             <Card
                                 key={"header_list"}
-                                className={`${style.stockCard} ${style.headerCard}`} // Add a specific class for the header
+                                className={`${style.stockCard} ${style.headerCard}`}
                             >
                                 <CardContent className={style.cardContent}>
                                     <Typography variant="body2" className={style.date}>
@@ -209,13 +217,6 @@ const EPGHome = () => {
                     </>}
 
                 </Box>
-                <Button
-                    startIcon={<ArrowBackIcon/>}
-                    onClick={handleResetCardSelector}
-                    className={style.backButton}
-                >
-                    Back
-                </Button>
             </div>
 
             <ConfirmationDialog

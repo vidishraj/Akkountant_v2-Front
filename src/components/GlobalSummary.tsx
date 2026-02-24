@@ -13,6 +13,7 @@ export const initialSecuritiesRead: SecuritiesRead = {
     stocks: false,
     gold: false,
     mf: false,
+    fo: false,
 };
 
 export const initialSummaryState: GlobalSummaryInterface = {

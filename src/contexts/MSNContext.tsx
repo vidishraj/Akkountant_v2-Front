@@ -11,8 +11,11 @@ import {
     fetchCompleteEPG,
     fetchSecuritiesList, fetchSecurityTransactions,
     fetchSummary,
-    fetchUserSecurities
+    fetchUserSecurities,
+    fetchFOSummary,
+    fetchRealizedPnL,
 } from "../services/investmentService";
+import {FOSummaryResponse, RealizedPnLResponse} from "../utils/interfaces";
 import {useMessage} from "./MessageContext";
 
 // Define interfaces for selected card, summary context, list context, loader, loading state, and MSN state
@@ -78,6 +81,8 @@ interface MSNState {
     lists: ListContext;
     transactions: TransactionContext;
     loadingState: LoadingState;
+    realizedPnl: RealizedPnLResponse | null;
+    foSummary: FOSummaryResponse | null;
 }
 
 // Define the shape of the actions
@@ -88,7 +93,9 @@ type MSNAction =
     | { type: 'MSNSummarySetter'; payload: any }
     | { type: 'MSNTransactionSetter'; payload: any }
     | { type: 'MSNListSetter'; payload: ListContext }
-    | { type: 'MSNLoaderSetter'; payload: any };
+    | { type: 'MSNLoaderSetter'; payload: any }
+    | { type: 'RealizedPnLSetter'; payload: RealizedPnLResponse | null }
+    | { type: 'FOSummarySetter'; payload: FOSummaryResponse | null };
 
 // Initial state
 const initialSummaryState: MSNSummaryResponse = {
@@ -150,7 +157,9 @@ const initialState: MSNState = {
         epf: initialLoadingState,
         ppf: initialLoadingState,
         gold: initialLoadingState
-    }
+    },
+    realizedPnl: null,
+    foSummary: null,
 };
 
 // Reducer function to manage state transitions
@@ -170,6 +179,10 @@ const msnReducer = (state: MSNState, action: MSNAction): MSNState => {
             return {...state, transactions: {...state.transactions, ...action.payload}};
         case 'MSNLoaderSetter':
             return {...state, loadingState: {...state.loadingState, ...action.payload}};
+        case 'RealizedPnLSetter':
+            return {...state, realizedPnl: action.payload};
+        case 'FOSummarySetter':
+            return {...state, foSummary: action.payload};
         default:
             return state;
     }
@@ -189,6 +202,8 @@ interface MSNContextType {
     fetchTransactions: (serviceType: string, clearCache: boolean) => void;
     calculateSummary: (summary: GlobalSummaryInterface, read: SecuritiesRead) => any;
     globalInvestmentRefresh: () => void;
+    fetchAndSetFOSummary: (clearCache?: boolean) => void;
+    fetchAndSetRealizedPnL: (clearCache?: boolean) => void;
 
 }
 
@@ -391,6 +406,36 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
     const msnContextKeys = ["mf", "stocks", "nps"];
     const epgContextKeys = ["ppf", "epf", "gold"];
 
+    const fetchAndSetFOSummary = (clearCache = false): void => {
+        fetchFOSummary(clearCache)
+            .then((response) => {
+                dispatch({
+                    type: "MSNSummarySetter",
+                    payload: {fo: response.data},
+                });
+                dispatch({
+                    type: "FOSummarySetter",
+                    payload: response.data,
+                });
+            })
+            .catch((err) => {
+                console.error("Error fetching FO summary:", err);
+            });
+    };
+
+    const fetchAndSetRealizedPnL = (clearCache = false): void => {
+        fetchRealizedPnL("Stocks", clearCache)
+            .then((response) => {
+                dispatch({
+                    type: "RealizedPnLSetter",
+                    payload: response.data,
+                });
+            })
+            .catch((err) => {
+                console.error("Error fetching realized P&L:", err);
+            });
+    };
+
     const calculateSummary = (summary: GlobalSummaryInterface, read: SecuritiesRead) => {
         const updatedSummary = {...summary};
         const updatedRead = {...read};
@@ -417,9 +462,19 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         processContext(msnContextKeys, false);
         processContext(epgContextKeys, true);
 
+        // Include FO in global summary
+        const foData = state.summaries.fo as FOSummaryResponse | undefined;
+        if (foData && !read['fo'] && foData.tradeCount > 0) {
+            updatedRead['fo'] = true;
+            updatedSummary.totalInvestment += foData.totalPremiumPaid;
+            updatedSummary.currentValue += foData.totalPremiumPaid + foData.netPnL;
+            updatedSummary.profit += foData.netPnL;
+        }
 
         updatedSummary.profitPercentage =
-            (updatedSummary.profit / updatedSummary.totalInvestment) * 100;
+            updatedSummary.totalInvestment !== 0
+                ? (updatedSummary.profit / updatedSummary.totalInvestment) * 100
+                : 0;
 
         return [updatedRead, updatedSummary];
     };
@@ -431,6 +486,7 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         AllInfoForEpf("EPF", true)
         AllInfoForEpf("Gold", true)
         AllInfoForEpf("PF", true)
+        fetchAndSetFOSummary(true)
     }
     const contextValue: MSNContextType = {
         state,
@@ -444,7 +500,9 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         getContextKey,
         fetchTransactions,
         calculateSummary,
-        globalInvestmentRefresh
+        globalInvestmentRefresh,
+        fetchAndSetFOSummary,
+        fetchAndSetRealizedPnL,
     };
 
     return (

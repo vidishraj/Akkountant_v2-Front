@@ -1,12 +1,14 @@
 import {useEffect, useState} from "react";
 import {ReactSearchAutocomplete} from "react-search-autocomplete";
-import {Button, IconButton} from "@mui/material";
+import {Button, IconButton, Tabs, Tab} from "@mui/material";
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import style from "./MSNHome.module.scss";
 import MSNSummary from "./MSNSummary.tsx";
 import MSNList from "./MSNList.tsx";
 import MSNDetails from "./MSNDetails.tsx";
+import RealizedPnL from "./RealizedPnL.tsx";
+import FOSection from "./FOSection.tsx";
 import ObjectDetailsDialog from "./ObjectDetailsDialog.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import {fetchSecurityScheme} from "../../services/investmentService.ts";
@@ -20,7 +22,9 @@ const MSNHome = () => {
         dispatch,
         fetchAndSetUserSecurities,
         fetchAndSetSearchItems,
-        deleteComplete, getServiceType, getContextKey
+        deleteComplete, getServiceType, getContextKey,
+        fetchAndSetRealizedPnL,
+        fetchAndSetFOSummary,
     } = useMSNContext();
     const [searchItems, setSearchItems] = useState<MSNListResponse[]>([]);
     const [detailState, setDetailState] = useState<MSNListResponse | undefined>(undefined);
@@ -30,6 +34,7 @@ const MSNHome = () => {
     const [schemeData, setSchemeData] = useState<any>({});
     const [showDetails, setShowDetails] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState(false);
+    const [stocksTab, setStocksTab] = useState(0);
 
     const deleteAll = () => {
         deleteComplete()
@@ -51,6 +56,14 @@ const MSNHome = () => {
         })
     }, []);
 
+    // Fetch historical data when stocks card is selected
+    useEffect(() => {
+        if (state.selectedCard.stocks) {
+            fetchAndSetRealizedPnL();
+            fetchAndSetFOSummary();
+        }
+    }, [state.selectedCard.stocks]);
+
     // Handlers
     const handleOnSelect = async (searchItem: any) => {
         try {
@@ -64,8 +77,22 @@ const MSNHome = () => {
     };
 
     const renderSearchBar = () => (
-        <div style={{minWidth: 300, color: "white", width: "100%", display: "flex", justifyContent: "space-evenly"}}>
-            <div style={{width: '80%'}}>
+        <div style={{minWidth: 300, color: "white", width: "100%", display: "flex", alignItems: "center", gap: 8}}>
+            <Button
+                startIcon={<ArrowBackIcon/>}
+                onClick={() => {
+                    if (showDetails) {
+                        setShowDetails(false);
+                    } else {
+                        dispatch({type: "ResetCardSelector"});
+                        setStocksTab(0);
+                    }
+                }}
+                className={style.backButton}
+            >
+                Back
+            </Button>
+            <div style={{flex: 1}}>
                 <ReactSearchAutocomplete
                     styling={{
                         backgroundColor: "#29384D",
@@ -82,52 +109,72 @@ const MSNHome = () => {
                     onSelect={handleOnSelect}
                 />
             </div>
-            <IconButton style={{backgroundColor: "#121c24", color: "#FAFAFA", border: "2px #29384D solid",}}
+            <IconButton style={{backgroundColor: "#121c24", color: "#FAFAFA", border: "2px #29384D solid"}}
                         onClick={() => setDeleteConfirmation(true)}>
                 <DeleteForeverIcon/>
             </IconButton>
         </div>
     );
 
+    const renderStocksTabContent = () => {
+        switch (stocksTab) {
+            case 0:
+                return (
+                    <MSNList
+                        isLoading={state.loadingState[getContextKey()].list}
+                        list={listState || []}
+                        onClick={(stockCode: string) => {
+                            setShowDetails(true)
+                            setDetailState(listState?.find((item) => item.buyCode === stockCode));
+                        }}
+                    />
+                );
+            case 1:
+                return <RealizedPnL />;
+            case 2:
+                return <FOSection />;
+            default:
+                return null;
+        }
+    };
+
     const renderDetails = () =>
         showDetails && detailState ? (
-
             <div style={{minWidth: '320px'}} className={style.listBackButton}>
-                <div style={{flexBasis: '70%'}}>
-                    <MSNDetails isLoading={false} details={detailState}/>
-                    {/* Back Button */}
-                </div>
-                <Button
-                    startIcon={<ArrowBackIcon/>}
-                    onClick={() => setShowDetails(false)}
-                    className={style.backButton}
-                >
-                    Back
-                </Button>
+                <MSNDetails isLoading={false} details={detailState}/>
             </div>
         ) : (
             <div style={{minWidth: '320px'}} className={style.listBackButton}>
-                <MSNList
-                    isLoading={state.loadingState[getContextKey()].list}
-                    list={listState || []}
-                    onClick={(stockCode: string) => {
-                        setShowDetails(true)
-                        if (state.selectedCard.nps) {
-                            setDetailState(listState?.find((item) => item.info.name === stockCode));
-                        } else if (state.selectedCard.mf) {
-                            setDetailState(listState?.find((item) => item.info.schemeType === stockCode));
-                        } else {
-                            setDetailState(listState?.find((item) => item.buyCode === stockCode));
-                        }
-                    }}
-                />
-                <Button
-                    startIcon={<ArrowBackIcon/>}
-                    onClick={() => dispatch({type: "ResetCardSelector"})}
-                    className={style.backButton}
-                >
-                    Back
-                </Button>
+                {state.selectedCard.stocks ? (
+                    <>
+                        <Tabs
+                            value={stocksTab}
+                            onChange={(_e, newValue) => setStocksTab(newValue)}
+                            className={style.stocksTabs}
+                            variant="fullWidth"
+                        >
+                            <Tab label="Holdings" />
+                            <Tab label="Equity History" />
+                            <Tab label="F&O History" />
+                        </Tabs>
+                        {renderStocksTabContent()}
+                    </>
+                ) : (
+                    <MSNList
+                        isLoading={state.loadingState[getContextKey()].list}
+                        list={listState || []}
+                        onClick={(stockCode: string) => {
+                            setShowDetails(true)
+                            if (state.selectedCard.nps) {
+                                setDetailState(listState?.find((item) => item.info.name === stockCode));
+                            } else if (state.selectedCard.mf) {
+                                setDetailState(listState?.find((item) => item.info.schemeType === stockCode));
+                            } else {
+                                setDetailState(listState?.find((item) => item.buyCode === stockCode));
+                            }
+                        }}
+                    />
+                )}
             </div>
         );
 
