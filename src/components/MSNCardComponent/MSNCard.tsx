@@ -43,7 +43,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 const netProfit = parseFloat(epfSummary.netProfit);
                 const unaccounted = parseFloat(epfSummary.unAccountedProfit);
                 const current = net + netProfit
-                const changePercent = (netProfit - unaccounted) / net * 100;
+                const changePercent = net !== 0 ? ((netProfit - unaccounted) / net) * 100 : 0;
                 setSummary({
                     totalValue: net - (netProfit - unaccounted),
                     currentValue: current,
@@ -56,7 +56,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 const net = parseFloat(epfSummary.net);
                 const netProfit = parseFloat(epfSummary.netProfit);
                 const current = net + netProfit
-                const changePercent = (netProfit) / net * 100;
+                const changePercent = net !== 0 ? (netProfit / net) * 100 : 0;
                 setSummary({
                     totalValue: net,
                     currentValue: current,
@@ -255,6 +255,7 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                         type: 'success',
                         message: response.data.Message,
                     })
+                    AllInfoForEpf(cardType2 === "gold" ? "Gold" : "PF", true);
                 }).catch(() => {
                     setPayload({
                         type: 'error',
