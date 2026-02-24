@@ -51,7 +51,7 @@ const MSNSummary = () => {
             const net = parseFloat(summaries[cardType].net);
             const netProfit = parseFloat(summaries[cardType].netProfit);
             const current = net + netProfit
-            const changePercent = (netProfit) / net * 100;
+            const changePercent = net !== 0 ? (netProfit / net) * 100 : 0;
             setSummary({
                 totalValue: net,
                 currentValue: current,
@@ -65,7 +65,7 @@ const MSNSummary = () => {
             const netProfit = parseFloat(summaries.ppf.netProfit);
             const unaccounted = parseFloat(summaries.ppf.unAccountedProfit);
             const current = net + netProfit
-            const changePercent = (netProfit - unaccounted) / net * 100;
+            const changePercent = net !== 0 ? ((netProfit - unaccounted) / net) * 100 : 0;
             setSummary({
                 totalValue: net - (netProfit - unaccounted),
                 currentValue: current,
