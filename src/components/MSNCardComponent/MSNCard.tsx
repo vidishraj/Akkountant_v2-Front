@@ -43,7 +43,18 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                 const unaccounted = parseFloat(epfSummary.unAccountedProfit || 0);
                 const invested = net - (netProfit - unaccounted);
                 const current = net + unaccounted;
-                const changePercent = invested !== 0 ? (netProfit / invested) * 100 : 0;
+                // Show CAGR (annualized return) instead of cumulative return
+                let changePercent = 0;
+                const deposits = epfSummary.deposits;
+                if (invested > 0 && deposits?.length > 0) {
+                    const firstDate = new Date(deposits[0].date);
+                    const years = (Date.now() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+                    if (years >= 1) {
+                        changePercent = (Math.pow(current / invested, 1 / years) - 1) * 100;
+                    } else if (years > 0) {
+                        changePercent = (netProfit / invested) * 100;
+                    }
+                }
                 setSummary({
                     totalValue: invested,
                     currentValue: current,

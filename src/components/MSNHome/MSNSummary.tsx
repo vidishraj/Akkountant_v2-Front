@@ -67,7 +67,18 @@ const MSNSummary = () => {
             // net = deposits + compounded interest; unaccounted = pending interest since last March
             const invested = net - (netProfit - unaccounted);
             const current = net + unaccounted;
-            const changePercent = invested !== 0 ? (netProfit / invested) * 100 : 0;
+            // Show CAGR (annualized return) instead of cumulative return
+            let changePercent = 0;
+            const deposits = summaries.ppf.deposits;
+            if (invested > 0 && deposits?.length > 0) {
+                const firstDate = new Date(deposits[0].date);
+                const years = (Date.now() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+                if (years >= 1) {
+                    changePercent = (Math.pow(current / invested, 1 / years) - 1) * 100;
+                } else if (years > 0) {
+                    changePercent = (netProfit / invested) * 100;
+                }
+            }
             setSummary({
                 totalValue: invested,
                 currentValue: current,
