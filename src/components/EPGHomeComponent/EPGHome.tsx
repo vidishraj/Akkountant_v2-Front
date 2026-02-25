@@ -1,5 +1,16 @@
 import {useEffect, useState} from "react";
-import {Box, Button, Card, CardContent, Typography} from "@mui/material";
+import {
+    Box,
+    Button,
+    Typography,
+    TableCell,
+    TableBody,
+    TableHead,
+    Table,
+    TableContainer,
+    TableRow,
+    Paper,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import ConfirmationDialog from "../ConfirmationDialogComponent.tsx";
@@ -18,6 +29,9 @@ interface EPGlist {
     quantity?: number;
     goldType?: string;
 }
+
+const formatINR = (val: number | string) =>
+    Number(val).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
 const EPGHome = () => {
     const {state, dispatch, fetchAndSetUserSecurities, deleteComplete} = useMSNContext();
@@ -68,6 +82,37 @@ const EPGHome = () => {
 
     const handleResetCardSelector = () => dispatch({type: "ResetCardSelector"});
 
+    const isPPF = state.selectedCard.ppf;
+    const isGold = state.selectedCard.gold;
+
+    // PPF metrics
+    const getPPFMetrics = () => {
+        if (!summaryState || !isPPF) return null;
+        const netProfit = parseFloat(summaryState.netProfit);
+        const unaccounted = parseFloat(summaryState.unAccountedProfit || 0);
+        const deposits = summaryState.deposits || [];
+
+        let accountAge = "—";
+        if (deposits.length > 0) {
+            const firstDate = new Date(deposits[0].date);
+            const now = new Date();
+            const diffMs = now.getTime() - firstDate.getTime();
+            const totalMonths = Math.floor(diffMs / (30.44 * 24 * 60 * 60 * 1000));
+            const years = Math.floor(totalMonths / 12);
+            const months = totalMonths % 12;
+            accountAge = years > 0 ? `${years}y ${months}m` : `${months}m`;
+        }
+
+        return {
+            depositCount: deposits.length,
+            accountAge,
+            pendingInterest: unaccounted,
+            totalInterest: netProfit,
+        };
+    };
+
+    const ppfMetrics = getPPFMetrics();
+
     return (
         <div className={style.container}>
             <Button
@@ -84,139 +129,79 @@ const EPGHome = () => {
                 </div>
             )}
 
-            <div className={style.listBackButton} style={{minWidth: "320px"}}>
-                <Box
-                    className={style.scrollContainer}
-                    style={{
-                        justifyContent: listState.length === 0 ? "center" : "",
-                        alignItems: listState.length === 0 ? "center" : "",
-                    }}
-                >
-                    {listState.length > 0 ? (
-                        <>
-                            <Card
-                                key={"header_list"}
-                                className={`${style.stockCard} ${style.headerCard}`}
-                            >
-                                <CardContent className={style.cardContent}>
-                                    <Typography variant="body2" className={style.date}>
-                                        Date
-                                    </Typography>
-                                    {!state.selectedCard.ppf && (
-                                        <Typography variant="body2" className={style.description}>
-                                            Description
-                                        </Typography>
-                                    )}
-                                    {state.selectedCard.gold ? (
-                                        <div className={style.basicFlex}>
-                                            <Typography variant="body2" className={style.amount}>
-                                                Amount
-                                            </Typography>
-                                            <Typography variant="body2" className={style.interest}>
-                                                Profit
-                                            </Typography>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <Typography
-                                                variant="body2"
-                                                className={style.amount}
-                                                style={{width: "25%"}}
-                                            >
-                                                Amount
-                                            </Typography>
-                                            <Typography
-                                                variant="body2"
-                                                className={style.interest}
-                                                style={{width: "25%"}}
-                                            >
-                                                Profit
-                                            </Typography>
-                                        </>
-                                    )}
-                                    {state.selectedCard.gold && (
-                                        <div className={style.basicFlex}>
-                                            <Typography variant="body2" className={style.quantity}>
-                                                Quantity
-                                            </Typography>
-                                            <Typography variant="body2" className={style.goldType}>
-                                                Type
-                                            </Typography>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                            {listState.map((item, index) => (
-                                <Card key={index} className={style.stockCard}>
-                                    <CardContent className={style.cardContent}>
-                                        <Typography variant="body2" className={style.date}>
-                                            {formatDateString(item.date)}
-                                        </Typography>
-                                        {!state.selectedCard.ppf && (
-                                            <Typography variant="body2" className={style.description}>
-                                                {item.description}
-                                            </Typography>
-                                        )}
-                                        {state.selectedCard.gold ? (
-                                            <div className={style.basicFlex}>
-                                                <Typography variant="body2" className={style.amount}>
-                                                    ₹{Number(item.amount).toLocaleString('en-IN', {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                })}
-                                                </Typography>
-                                                <Typography variant="body2" className={style.interest}>
-                                                    ₹{Number(item.interest).toLocaleString('en-IN', {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                })}
-                                                </Typography>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <Typography
-                                                    variant="body2"
-                                                    className={style.amount}
-                                                    style={{width: "25%"}}
-                                                >
-                                                    ₹{Number(item.amount).toLocaleString('en-IN', {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                })}
-                                                </Typography>
-                                                <Typography
-                                                    variant="body2"
-                                                    className={style.interest}
-                                                    style={{width: "25%"}}
-                                                >
-                                                    ₹{Number(item.interest).toLocaleString('en-IN', {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                })}
-                                                </Typography>
-                                            </>
-                                        )}
-                                        {state.selectedCard.gold && (
-                                            <div className={style.basicFlex}>
-                                                <Typography variant="body2" className={style.quantity}>
-                                                    {item.quantity}g
-                                                </Typography>
-                                                <Typography variant="body2" className={style.goldType}>
-                                                    {item.goldType} carat
-                                                </Typography>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-
-                            ))}
-                        </>) : <>
-                        <div style={{textAlign: 'center'}}> No data! <br/>
-                            Upload statement or Add instrument!
-                        </div>
-                    </>}
-
+            {/* PPF Metrics Grid */}
+            {isPPF && ppfMetrics && (
+                <Box className={style.metricsGrid}>
+                    <Box className={style.metricsCell}>
+                        <Typography className={style.metricsLabel}>Deposits</Typography>
+                        <Typography className={style.metricsValue}>{ppfMetrics.depositCount}</Typography>
+                    </Box>
+                    <Box className={style.metricsCell}>
+                        <Typography className={style.metricsLabel}>Account Age</Typography>
+                        <Typography className={style.metricsValue}>{ppfMetrics.accountAge}</Typography>
+                    </Box>
+                    <Box className={style.metricsCell}>
+                        <Typography className={style.metricsLabel}>Pending Interest</Typography>
+                        <Typography className={style.metricsValue} sx={{color: '#4caf50'}}>
+                            ₹{formatINR(ppfMetrics.pendingInterest)}
+                        </Typography>
+                    </Box>
+                    <Box className={style.metricsCell}>
+                        <Typography className={style.metricsLabel}>Total Interest</Typography>
+                        <Typography className={style.metricsValue} sx={{color: '#4caf50'}}>
+                            ₹{formatINR(ppfMetrics.totalInterest)}
+                        </Typography>
+                    </Box>
                 </Box>
+            )}
+
+            <div className={style.listBackButton} style={{minWidth: "320px"}}>
+                {listState.length > 0 ? (
+                    <TableContainer component={Paper} className={style.tableContainer}>
+                        <Table stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell><b>Date</b></TableCell>
+                                    {!isPPF && <TableCell><b>Description</b></TableCell>}
+                                    <TableCell><b>Amount</b></TableCell>
+                                    <TableCell><b>Profit</b></TableCell>
+                                    {isGold && <TableCell><b>Qty</b></TableCell>}
+                                    {isGold && <TableCell><b>Type</b></TableCell>}
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {listState.map((item, index) => {
+                                    const profit = Number(item.interest);
+                                    return (
+                                        <TableRow key={index}>
+                                            <TableCell>{formatDateString(item.date)}</TableCell>
+                                            {!isPPF && <TableCell>{item.description}</TableCell>}
+                                            <TableCell>₹{formatINR(item.amount)}</TableCell>
+                                            <TableCell className={profit >= 0 ? style.profitPositive : style.profitNegative}>
+                                                {profit >= 0 ? '+' : ''}₹{formatINR(profit)}
+                                            </TableCell>
+                                            {isGold && <TableCell>{item.quantity}g</TableCell>}
+                                            {isGold && <TableCell>{item.goldType}K</TableCell>}
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minHeight: '200px',
+                        color: '#7a7d85',
+                        textAlign: 'center',
+                    }}>
+                        <Typography variant="body2">
+                            No data!<br/>Upload statement or add instrument.
+                        </Typography>
+                    </Box>
+                )}
             </div>
 
             <ConfirmationDialog
