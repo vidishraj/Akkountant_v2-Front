@@ -291,9 +291,10 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
 
         fetchUserSecurities(serviceType, clearCache)
             .then((response) => {
+                const data = Array.isArray(response.data) ? response.data : [];
                 dispatch({
                     type: "MSNListSetter",
-                    payload: {...state.lists, [contextKey]: response.data},
+                    payload: {...state.lists, [contextKey]: data},
                 });
             })
             .catch((error) => {
@@ -454,9 +455,17 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
                     updatedRead[key] = true;
 
                     if (isEPG) {
+                        const net = Number(data.net);
                         const profit = Number(data.netProfit);
-                        updatedSummary.totalInvestment += Number(data.net) - profit;
-                        updatedSummary.currentValue += Number(data.net);
+                        const unaccounted = Number(data.unAccountedProfit || 0);
+                        if (key === "ppf") {
+                            // PPF: net includes compounded interest but not pending interest
+                            updatedSummary.totalInvestment += net - (profit - unaccounted);
+                            updatedSummary.currentValue += net + unaccounted;
+                        } else {
+                            updatedSummary.totalInvestment += net - profit;
+                            updatedSummary.currentValue += net;
+                        }
                         updatedSummary.profit += profit;
                     } else {
                         updatedSummary.totalInvestment += Number(data.totalValue);
