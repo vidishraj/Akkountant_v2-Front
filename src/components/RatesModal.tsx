@@ -5,21 +5,42 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    Box,
-    Typography,
-    Grid,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
 } from '@mui/material';
 
 interface ModalProps {
     open: boolean;
     onClose: () => void;
     title: string;
-    data: any; // Data can be either object or array based on the format
+    data: any;
 }
 
+const formatINR = (val: number | string) =>
+    Number(val).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+const headerSx = {
+    backgroundColor: '#1a2530 !important',
+    color: '#7a7d85 !important',
+    fontWeight: 'bold',
+    borderBottom: '1px solid #29384D !important',
+    fontSize: '12px !important',
+};
+
+const cellSx = {
+    color: '#FAFAFA',
+    borderBottom: '1px solid #29384D',
+    fontSize: '13px',
+    py: 1,
+};
+
 const ResponsiveDataModal: React.FC<ModalProps> = ({open, onClose, title, data}) => {
-    // Check if data is an object (key-value pairs) or an array of objects
     const isObjectData = typeof data === 'object' && !Array.isArray(data);
+    const isGold = title.toLowerCase() === 'gold';
 
     return (
         <Dialog
@@ -30,73 +51,59 @@ const ResponsiveDataModal: React.FC<ModalProps> = ({open, onClose, title, data})
             PaperProps={{
                 sx: {
                     width: '100%',
-                    maxWidth: 400, // Ensures it fits on mobile screens
+                    maxWidth: 440,
                     margin: '0 auto',
                     color: "#FAFAFA",
-                    backgroundColor: "#121C24"
+                    backgroundColor: "#121C24",
                 },
             }}
         >
-            <DialogTitle sx={{textAlign: 'center', fontWeight: 'bold'}}>
-                {title} rates
+            <DialogTitle sx={{textAlign: 'center', fontWeight: 'bold', pb: 1}}>
+                {title.toUpperCase()} Rates
             </DialogTitle>
-            <DialogContent dividers>
-                {/* Rendering for the Object Data (Gold Carat Information) */}
-                {isObjectData ? (
-                    <Box>
-                        {Object.entries(data).map(([key, value], index) => (
-                            <Box
-                                key={index}
-                                sx={{
-                                    padding: '10px 0',
-                                    borderBottom: index !== Object.entries(data).length - 1 ? '1px solid #29384D' : 'none',
-                                }}
-                            >
-                                <Grid container spacing={1} alignItems="center">
-                                    <Grid item xs={6}>
-                                        <Typography variant="body2" fontWeight="bold">
+            <DialogContent dividers sx={{p: 0, borderColor: '#29384D'}}>
+                <TableContainer sx={{maxHeight: 350}}>
+                    <Table stickyHeader size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={headerSx}>
+                                    {isGold ? 'Carat' : 'Period'}
+                                </TableCell>
+                                <TableCell align="right" sx={headerSx}>
+                                    {isGold ? 'Price (per 10g)' : 'Interest Rate'}
+                                </TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {isObjectData ? (
+                                Object.entries(data).map(([key, value], index) => (
+                                    <TableRow key={index} sx={{'&:last-child td': {borderBottom: 'none'}}}>
+                                        <TableCell sx={cellSx}>
                                             {key}
-                                        </Typography>
-                                    </Grid>
-                                    <Grid item xs={6}>
-                                        <Typography variant="body2" color="primary" fontWeight="bold">
-                                            ₹{value ? Number(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
-                                        </Typography>
-                                    </Grid>
-                                </Grid>
-                            </Box>
-                        ))}
-                    </Box>
-                ) : (
-                    // Rendering for the Array Data (Interest Rates by Year)
-                    <Box>
-                        {data.map((item: { 'Interest Rate': number; Year: string }, index: number) => (
-                            <Box
-                                key={index}
-                                sx={{
-                                    padding: '10px 0',
-                                    borderBottom: index !== data.length - 1 ? '1px solid #29384D' : 'none',
-                                }}
-                            >
-                                <Grid container spacing={1} alignItems="center">
-                                    <Grid item xs={6}>
-                                        <Typography variant="body2" fontWeight="bold">
+                                        </TableCell>
+                                        <TableCell align="right" sx={{...cellSx, color: '#4a9eff', fontWeight: 'bold'}}>
+                                            ₹{value ? formatINR(value as number) : '0.00'}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                data.map((item: { 'Interest Rate': number; Year: string }, index: number) => (
+                                    <TableRow key={index} sx={{'&:last-child td': {borderBottom: 'none'}}}>
+                                        <TableCell sx={cellSx}>
                                             {item.Year}
-                                        </Typography>
-                                    </Grid>
-                                    <Grid item xs={6}>
-                                        <Typography variant="body2" color="primary" fontWeight="bold">
+                                        </TableCell>
+                                        <TableCell align="right" sx={{...cellSx, color: '#4a9eff', fontWeight: 'bold'}}>
                                             {Number(item['Interest Rate']).toFixed(2)}%
-                                        </Typography>
-                                    </Grid>
-                                </Grid>
-                            </Box>
-                        ))}
-                    </Box>
-                )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             </DialogContent>
-            <DialogActions>
-                <Button variant="contained" color="primary" onClick={onClose} fullWidth>
+            <DialogActions sx={{borderTop: '1px solid #29384D', p: 1.5}}>
+                <Button variant="contained" color="primary" onClick={onClose} fullWidth size="small">
                     Close
                 </Button>
             </DialogActions>

@@ -83,35 +83,56 @@ const EPGHome = () => {
     const handleResetCardSelector = () => dispatch({type: "ResetCardSelector"});
 
     const isPPF = state.selectedCard.ppf;
+    const isEPF = state.selectedCard.epf;
     const isGold = state.selectedCard.gold;
 
-    // PPF metrics
-    const getPPFMetrics = () => {
-        if (!summaryState || !isPPF) return null;
-        const netProfit = parseFloat(summaryState.netProfit);
-        const unaccounted = parseFloat(summaryState.unAccountedProfit || 0);
-        const deposits = summaryState.deposits || [];
-
-        let accountAge = "—";
-        if (deposits.length > 0) {
-            const firstDate = new Date(deposits[0].date);
-            const now = new Date();
-            const diffMs = now.getTime() - firstDate.getTime();
-            const totalMonths = Math.floor(diffMs / (30.44 * 24 * 60 * 60 * 1000));
-            const years = Math.floor(totalMonths / 12);
-            const months = totalMonths % 12;
-            accountAge = years > 0 ? `${years}y ${months}m` : `${months}m`;
-        }
-
-        return {
-            depositCount: deposits.length,
-            accountAge,
-            pendingInterest: unaccounted,
-            totalInterest: netProfit,
-        };
+    const getAccountAge = (deposits: any[]) => {
+        if (deposits.length === 0) return "—";
+        const firstDate = new Date(deposits[0].date);
+        const now = new Date();
+        const diffMs = now.getTime() - firstDate.getTime();
+        const totalMonths = Math.floor(diffMs / (30.44 * 24 * 60 * 60 * 1000));
+        const years = Math.floor(totalMonths / 12);
+        const months = totalMonths % 12;
+        return years > 0 ? `${years}y ${months}m` : `${months}m`;
     };
 
-    const ppfMetrics = getPPFMetrics();
+    const getMetrics = () => {
+        if (!summaryState) return null;
+        const netProfit = parseFloat(summaryState.netProfit);
+        const deposits = summaryState.deposits || [];
+        const transactions = summaryState.transactions || [];
+
+        if (isPPF || isEPF) {
+            const unaccounted = parseFloat(summaryState.unAccountedProfit || 0);
+            return {
+                type: 'interest' as const,
+                depositCount: deposits.length,
+                accountAge: getAccountAge(deposits),
+                pendingInterest: isPPF ? unaccounted : unaccounted,
+                totalInterest: netProfit,
+            };
+        }
+
+        if (isGold) {
+            const totalWeight = transactions.reduce((sum, t) => sum + Number(t.quant || 0), 0);
+            const typeCounts: Record<string, number> = {};
+            transactions.forEach((t) => {
+                const key = `${t.goldType || '?'}K`;
+                typeCounts[key] = (typeCounts[key] || 0) + 1;
+            });
+            return {
+                type: 'gold' as const,
+                purchaseCount: deposits.length,
+                totalWeight,
+                typeCounts,
+            };
+        }
+
+        return null;
+    };
+
+    const metrics = getMetrics();
 
     return (
         <div className={style.container}>
@@ -129,29 +150,47 @@ const EPGHome = () => {
                 </div>
             )}
 
-            {/* PPF Metrics Grid */}
-            {isPPF && ppfMetrics && (
+            {/* Metrics Grid */}
+            {metrics?.type === 'interest' && (
                 <Box className={style.metricsGrid}>
                     <Box className={style.metricsCell}>
                         <Typography className={style.metricsLabel}>Deposits</Typography>
-                        <Typography className={style.metricsValue}>{ppfMetrics.depositCount}</Typography>
+                        <Typography className={style.metricsValue}>{metrics.depositCount}</Typography>
                     </Box>
                     <Box className={style.metricsCell}>
                         <Typography className={style.metricsLabel}>Account Age</Typography>
-                        <Typography className={style.metricsValue}>{ppfMetrics.accountAge}</Typography>
+                        <Typography className={style.metricsValue}>{metrics.accountAge}</Typography>
                     </Box>
                     <Box className={style.metricsCell}>
                         <Typography className={style.metricsLabel}>Pending Interest</Typography>
                         <Typography className={style.metricsValue} sx={{color: '#4caf50'}}>
-                            ₹{formatINR(ppfMetrics.pendingInterest)}
+                            ₹{formatINR(metrics.pendingInterest)}
                         </Typography>
                     </Box>
                     <Box className={style.metricsCell}>
                         <Typography className={style.metricsLabel}>Total Interest</Typography>
                         <Typography className={style.metricsValue} sx={{color: '#4caf50'}}>
-                            ₹{formatINR(ppfMetrics.totalInterest)}
+                            ₹{formatINR(metrics.totalInterest)}
                         </Typography>
                     </Box>
+                </Box>
+            )}
+            {metrics?.type === 'gold' && (
+                <Box className={style.metricsGrid}>
+                    <Box className={style.metricsCell}>
+                        <Typography className={style.metricsLabel}>Purchases</Typography>
+                        <Typography className={style.metricsValue}>{metrics.purchaseCount}</Typography>
+                    </Box>
+                    <Box className={style.metricsCell}>
+                        <Typography className={style.metricsLabel}>Total Weight</Typography>
+                        <Typography className={style.metricsValue}>{metrics.totalWeight.toFixed(2)}g</Typography>
+                    </Box>
+                    {Object.entries(metrics.typeCounts).map(([type, count]) => (
+                        <Box className={style.metricsCell} key={type}>
+                            <Typography className={style.metricsLabel}>{type} Gold</Typography>
+                            <Typography className={style.metricsValue}>{count}</Typography>
+                        </Box>
+                    ))}
                 </Box>
             )}
 

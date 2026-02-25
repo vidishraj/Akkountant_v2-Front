@@ -46,16 +46,43 @@ const MSNSummary = () => {
             setSummary(summaries.stocks);
         } else if (selectedCard.mf) {
             setSummary(summaries.mf);
-        } else if (selectedCard.epf || selectedCard.gold) {
-            const cardType = selectedCard.epf ? "epf" : "gold"
-            const net = parseFloat(summaries[cardType].net);
-            const netProfit = parseFloat(summaries[cardType].netProfit);
-            const current = net + netProfit
-            const changePercent = net !== 0 ? (netProfit / net) * 100 : 0;
+        } else if (selectedCard.epf) {
+            const net = parseFloat(summaries.epf.net);
+            const netProfit = parseFloat(summaries.epf.netProfit);
+            // net already includes profit; invested = contributions only
+            const invested = net - netProfit;
+            const current = net;
+            // Show CAGR
+            let changePercent = 0;
+            const deposits = summaries.epf.deposits;
+            if (invested > 0 && deposits?.length > 0) {
+                const firstDate = new Date(deposits[0].date);
+                const years = (Date.now() - firstDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+                if (years >= 1) {
+                    changePercent = (Math.pow(current / invested, 1 / years) - 1) * 100;
+                } else if (years > 0) {
+                    changePercent = (netProfit / invested) * 100;
+                }
+            }
             setSummary({
-                totalValue: net,
+                totalValue: invested,
                 currentValue: current,
-                changePercent: changePercent,
+                changePercent,
+                changeAmount: netProfit,
+                count: 0,
+                marketStatus: false
+            });
+        } else if (selectedCard.gold) {
+            const net = parseFloat(summaries.gold.net);
+            const netProfit = parseFloat(summaries.gold.netProfit);
+            // net already includes profit; invested = cost only
+            const invested = net - netProfit;
+            const current = net;
+            const changePercent = invested !== 0 ? (netProfit / invested) * 100 : 0;
+            setSummary({
+                totalValue: invested,
+                currentValue: current,
+                changePercent,
                 changeAmount: netProfit,
                 count: 0,
                 marketStatus: false

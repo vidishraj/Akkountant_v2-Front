@@ -32,6 +32,7 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
     const [sortAsc, setSortAsc] = useState(false);
 
     const computedList = useMemo(() => {
+        if (!Array.isArray(list)) return [];
         return list.map((stock): ComputedStock => {
             let lastPrice = 0;
             let buyQuant = 0;

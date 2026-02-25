@@ -35,6 +35,7 @@ export interface Transaction {
 
 const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
     const {state, fetchTransactions, getServiceType, getContextKey} = useMSNContext();
+    const isMfOrNps = state.selectedCard.mf || state.selectedCard.nps;
     const [activeTab, setActiveTab] = useState<number>(0);
 
     const [stockOverview, setStockOverview] = useState<Record<string, string | number | undefined>>({});
@@ -88,17 +89,6 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
         setActiveTab(newValue);
     };
 
-    const mfLabelMap: any = {
-        "change": "Change",
-        "fundHouse": "Fund House",
-        "lastPrice": "Last Price",
-        "pChange": "% Change",
-        "previousClose": "Prev. Close",
-        "schemeType": "Scheme",
-        "scheme_id": "ID",
-        "companyName": "Name",
-    }
-
     return (
         <Box className={style.container}>
             {/* Tabs */}
@@ -116,24 +106,24 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
             {/* Tab Content */}
             {activeTab === 0 && (
                 <Box className={style.tabContent}>
-                    {/* Stock Hero Section */}
-                    {state.selectedCard.stocks && (
+                    {/* Hero Section for Stocks and MF */}
+                    {(state.selectedCard.stocks || state.selectedCard.mf) && (
                         <>
                             <Box className={style.detailHero}>
                                 <Box>
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#FAFAFA' }}>
-                                        {details.buyCode}
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#FAFAFA', fontSize: state.selectedCard.mf ? '14px' : undefined }}>
+                                        {state.selectedCard.mf ? details.info.companyName : details.buyCode}
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: '#7a7d85' }}>
-                                        {details.info.industry}
+                                        {state.selectedCard.mf ? details.info.fundHouse : details.info.industry}
                                     </Typography>
                                 </Box>
                                 <Box sx={{ textAlign: 'right' }}>
                                     <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#FAFAFA' }}>
                                         &#8377;{Number(details.info.lastPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Typography>
-                                    <Typography variant="body2" sx={{ color: details.info.pChange >= 0 ? '#4caf50' : '#f44336' }}>
-                                        {details.info.change >= 0 ? '+' : ''}{Number(details.info.change).toFixed(2)} ({Number(details.info.pChange).toFixed(2)}%)
+                                    <Typography variant="body2" sx={{ color: Number(details.info.pChange) >= 0 ? '#4caf50' : '#f44336' }}>
+                                        {Number(details.info.change) >= 0 ? '+' : ''}{Number(details.info.change).toFixed(2)} ({Number(details.info.pChange).toFixed(2)}%)
                                     </Typography>
                                 </Box>
                             </Box>
@@ -165,26 +155,106 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                         </>
                     )}
 
-                    {/* OHLC Grid for stocks */}
-                    {state.selectedCard.stocks ? (
+                    {/* NPS Hero Section */}
+                    {state.selectedCard.nps && (
+                        <>
+                            <Box className={style.detailHero}>
+                                <Box>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#FAFAFA', fontSize: '14px' }}>
+                                        {details.info.name}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>
+                                        {details.info.pfm_name}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ textAlign: 'right' }}>
+                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#FAFAFA' }}>
+                                        &#8377;{Number(details.info.nav).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </Typography>
+                                    {(() => {
+                                        const nav = Number(details.info.nav);
+                                        const yesterday = Number(details.info.yesterday);
+                                        const change = nav - yesterday;
+                                        const pct = yesterday !== 0 ? (change / yesterday) * 100 : 0;
+                                        return (
+                                            <Typography variant="body2" sx={{ color: change >= 0 ? '#4caf50' : '#f44336' }}>
+                                                {change >= 0 ? '+' : ''}{change.toFixed(2)} ({pct.toFixed(2)}%)
+                                            </Typography>
+                                        );
+                                    })()}
+                                </Box>
+                            </Box>
+                            <Box className={style.investmentRow}>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>Invested</Typography>
+                                    <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
+                                        &#8377;{(details.buyPrice * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>Current</Typography>
+                                    <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
+                                        &#8377;{(Number(details.info.nav) * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>P&L</Typography>
+                                    {(() => {
+                                        const pnl = (Number(details.info.nav) - details.buyPrice) * details.buyQuant;
+                                        return (
+                                            <Typography variant="body2" sx={{ color: pnl >= 0 ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
+                                                {pnl >= 0 ? '+' : ''}&#8377;{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </Typography>
+                                        );
+                                    })()}
+                                </Box>
+                            </Box>
+                        </>
+                    )}
+
+                    {/* OHLC-style Grid for Stocks and MF */}
+                    {(state.selectedCard.stocks || state.selectedCard.mf) ? (
                         <Box className={style.ohlcGrid}>
-                            {Object.entries(stockOverview)
-                                .filter(([label]) => label !== 'Industry')
-                                .map(([label, value]) => (
+                            {(() => {
+                                const entries = state.selectedCard.stocks
+                                    ? Object.entries(stockOverview).filter(([label]) => label !== 'Industry')
+                                    : [
+                                        ["Prev. Close", details.info.previousClose],
+                                        ["Scheme Type", details.info.schemeType],
+                                        ["Units", details.buyQuant.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })],
+                                        ["Avg. NAV", details.buyPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })],
+                                    ];
+                                return entries.map(([label, value]) => (
                                     <Box className={style.ohlcCell} key={label}>
                                         <Typography className={style.label}>{label}</Typography>
                                         <Typography className={style.value}>
                                             {typeof value === 'number' ? Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}
                                         </Typography>
                                     </Box>
-                                ))}
+                                ));
+                            })()}
+                        </Box>
+                    ) : state.selectedCard.nps ? (
+                        <Box className={style.ohlcGrid}>
+                            {[
+                                ["Yesterday", details.info.yesterday],
+                                ["Last Week", details.info.lastWeek],
+                                ["6 Months Ago", details.info.sixMonthsAgo],
+                                ["Units", details.buyQuant.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })],
+                            ].map(([label, value]) => (
+                                <Box className={style.ohlcCell} key={label}>
+                                    <Typography className={style.label}>{label}</Typography>
+                                    <Typography className={style.value}>
+                                        {typeof value === 'number' ? Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}
+                                    </Typography>
+                                </Box>
+                            ))}
                         </Box>
                     ) : (
                         <Grid container spacing={2} className={style.innerContent}>
                             {Object.entries(stockOverview).map(([label, value]) => (
                                 <Grid item xs={6} key={label}>
-                                    <Typography
-                                        className={style.label}>{state.selectedCard.mf ? mfLabelMap[label] : label}</Typography>
+                                    <Typography className={style.label}>{label}</Typography>
                                     <Typography className={style.value}>{value}</Typography>
                                 </Grid>
                             ))}
@@ -200,24 +270,29 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                             <TableHead>
                                 <TableRow>
                                     <TableCell><b>Date</b></TableCell>
-                                    <TableCell><b>Price</b></TableCell>
-                                    <TableCell><b>Quantity</b></TableCell>
+                                    <TableCell><b>{isMfOrNps ? 'NAV' : 'Price'}</b></TableCell>
+                                    <TableCell><b>{isMfOrNps ? 'Units' : 'Qty'}</b></TableCell>
+                                    <TableCell><b>Total</b></TableCell>
                                     <TableCell><b>Action</b></TableCell>
-                                    <TableCell><b>Security</b></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {financialData.length > 0 ? financialData.map((row, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>{formatDateString(row.date)}</TableCell>
-                                        <TableCell>&#8377;{Number(row.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                        <TableCell>{parseFloat(row.quant).toLocaleString('en-IN')}</TableCell>
-                                        <TableCell className={row.transactionType === 'buy' ? style.buyAction : style.sellAction}>
-                                            {row.transactionType.toUpperCase()}
-                                        </TableCell>
-                                        <TableCell>{row.securityCode || row.buyId || 'N/A'}</TableCell>
-                                    </TableRow>
-                                )) : (
+                                {financialData.length > 0 ? financialData.map((row, index) => {
+                                    const price = Number(row.price);
+                                    const quant = Number(row.quant);
+                                    const total = price * quant;
+                                    return (
+                                        <TableRow key={index}>
+                                            <TableCell>{formatDateString(row.date)}</TableCell>
+                                            <TableCell>&#8377;{price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{quant.toLocaleString('en-IN', { minimumFractionDigits: isMfOrNps ? 3 : 0, maximumFractionDigits: isMfOrNps ? 3 : 0 })}</TableCell>
+                                            <TableCell>&#8377;{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className={row.transactionType === 'buy' ? style.buyAction : style.sellAction}>
+                                                {row.transactionType.toUpperCase()}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                }) : (
                                     <TableRow>
                                         <TableCell colSpan={5} sx={{ textAlign: 'center', color: '#7a7d85' }}>
                                             No transactions found

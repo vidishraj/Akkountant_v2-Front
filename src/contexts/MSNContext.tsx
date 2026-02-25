@@ -479,14 +479,7 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         processContext(msnContextKeys, false);
         processContext(epgContextKeys, true);
 
-        // Include FO in global summary
-        const foData = state.summaries.fo as FOSummaryResponse | undefined;
-        if (foData && !read['fo'] && foData.tradeCount > 0) {
-            updatedRead['fo'] = true;
-            updatedSummary.totalInvestment += foData.totalPremiumPaid;
-            updatedSummary.currentValue += foData.totalPremiumPaid + foData.netPnL;
-            updatedSummary.profit += foData.netPnL;
-        }
+        // F&O trades are settled (not active holdings) — exclude from asset total
 
         updatedSummary.profitPercentage =
             updatedSummary.totalInvestment !== 0
