@@ -63,11 +63,13 @@ const MSNSummary = () => {
         } else if (selectedCard.ppf) {
             const net = parseFloat(summaries.ppf.net);
             const netProfit = parseFloat(summaries.ppf.netProfit);
-            const unaccounted = parseFloat(summaries.ppf.unAccountedProfit);
-            const current = net + netProfit
-            const changePercent = net !== 0 ? ((netProfit - unaccounted) / net) * 100 : 0;
+            const unaccounted = parseFloat(summaries.ppf.unAccountedProfit || 0);
+            // net = deposits + compounded interest; unaccounted = pending interest since last March
+            const invested = net - (netProfit - unaccounted);
+            const current = net + unaccounted;
+            const changePercent = invested !== 0 ? (netProfit / invested) * 100 : 0;
             setSummary({
-                totalValue: net - (netProfit - unaccounted),
+                totalValue: invested,
                 currentValue: current,
                 changePercent: changePercent,
                 changeAmount: `${netProfit}`,

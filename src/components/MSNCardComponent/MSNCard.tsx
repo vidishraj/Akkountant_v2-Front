@@ -9,14 +9,14 @@ import BasicCard from "../BasicCard";
 import FileUploadDialog from "../FileUploadComponent/FileUpload";
 import moduleStyle from "./MSNCard.module.scss";
 import {useMSNContext} from "../../contexts/MSNContext";
-import {InsertEPGRequest, InsertSecurityTransactionRequest, MSNSummaryResponse} from "../../utils/interfaces";
-import {insertEPG, uploadFile, syncKiteHoldings, insertSecurityTransaction} from "../../services/investmentService";
+import {MSNSummaryResponse} from "../../utils/interfaces";
+import {uploadFile, syncKiteHoldings} from "../../services/investmentService";
 import withLoader from "../LoaderHOC.tsx";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
-import CustomModal from "../InputDialogComponent/CustomModal.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
 import KiteAuth from "../KiteAuth/KiteAuth.tsx";
+import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext";
 
 interface MSNCardProps {
     title: string;
@@ -26,11 +26,10 @@ interface MSNCardProps {
 }
 
 const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}) => {
-    const {state, dispatch, fetchAndSetSummary, AllInfoForEpf, fetchAndSetSearchItems, fetchAndSetRealizedPnL, fetchAndSetFOSummary} = useMSNContext();
+    const {state, dispatch, fetchAndSetSummary, AllInfoForEpf, fetchAndSetRealizedPnL, fetchAndSetFOSummary} = useMSNContext();
     const [summary, setSummary] = useState<MSNSummaryResponse>();
-    const [buyModal, setBuyModal] = useState<boolean>(false);
-    const [searchItems, setSearchItems] = useState<any[]>([]);
     const {setPayload} = useMessage();
+    const {setCommand} = useAgentChatBridge();
 
     useEffect(() => {
         if (cardType) {
@@ -41,11 +40,12 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
             if (cardType2 === "ppf") {
                 const net = parseFloat(epfSummary.net);
                 const netProfit = parseFloat(epfSummary.netProfit);
-                const unaccounted = parseFloat(epfSummary.unAccountedProfit);
-                const current = net + netProfit
-                const changePercent = net !== 0 ? ((netProfit - unaccounted) / net) * 100 : 0;
+                const unaccounted = parseFloat(epfSummary.unAccountedProfit || 0);
+                const invested = net - (netProfit - unaccounted);
+                const current = net + unaccounted;
+                const changePercent = invested !== 0 ? (netProfit / invested) * 100 : 0;
                 setSummary({
-                    totalValue: net - (netProfit - unaccounted),
+                    totalValue: invested,
                     currentValue: current,
                     changePercent: changePercent,
                     changeAmount: `${netProfit}`,
@@ -69,17 +69,6 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
 
         }
     }, [state, cardType]);
-
-    // Fetch search items for MF
-    useEffect(() => {
-        if (cardType === "mf") {
-            fetchAndSetSearchItems().then((response) => {
-                setSearchItems(response)
-            }).catch(() => {
-                setSearchItems([]);
-            })
-        }
-    }, [cardType]);
 
     const handleCardClick = () => {
         dispatch({
@@ -182,88 +171,24 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
             </Button>
         </div>
     );
-    const renderAddMFButton = () => (
-        <div onClick={(e) => e.stopPropagation()}>
-            <Button
-                className={moduleStyle.FileUploadButton}
-                variant="contained"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setBuyModal(true)
-                }}
-            ><CustomModal title={`Buy ${cardType}`} open={buyModal} searchItems={searchItems} cardType={cardType} onCancel={() => {
-                setBuyModal(false)
-            }} onSubmit={(formData) => {
-                const requestBody: InsertSecurityTransactionRequest = {
-                    serviceType: "Mutual_Funds",
-                    schemeCode: formData.schemeCode,
-                    date: formData.date,
-                    quantity: parseFloat(formData.quantity),
-                    amount: parseFloat(formData.amount)
-                };
-                
-                insertSecurityTransaction(requestBody).then((response) => {
-                    setPayload({
-                        type: 'success',
-                        message: response.data.Message,
-                    });
-                    // Refresh the summary after adding
-                    fetchAndSetSummary("Mutual_Funds", true);
-                }).catch(() => {
-                    setPayload({
-                        type: 'error',
-                        message: "Error inserting mutual fund transaction",
-                    })
-                })
-                setBuyModal(false)
-            }}/>
-                <AddIcon style={{color: "black"}}/>
-            </Button>
-        </div>
-    );
+    const handleAddClick = (message: string) => {
+        setCommand({
+            type: "send_message",
+            payload: message,
+            timestamp: Date.now(),
+        });
+    };
 
-    const renderAddButton = () => (
+    const renderAddButton = (message: string) => (
         <div onClick={(e) => e.stopPropagation()}>
             <Button
                 className={moduleStyle.FileUploadButton}
                 variant="contained"
                 onClick={(e) => {
                     e.stopPropagation();
-                    setBuyModal(true)
+                    handleAddClick(message);
                 }}
-            ><CustomModal title={`Buy ${cardType2}`} open={buyModal} onCancel={() => {
-                setBuyModal(false)
-            }} onSubmit={(formData) => {
-                let requestBody: InsertEPGRequest = {} as InsertEPGRequest;
-                if (cardType2 === "gold") {
-                    requestBody = {
-                        date: formData.date,
-                        amount: parseFloat(formData.amount),
-                        description: formData.description,
-                        quantity: parseFloat(formData.quantity),
-                        goldType: formData.goldCarat.substring(0, 3)
-                    };
-                } else if (cardType2 === "ppf") {
-                    requestBody = {
-                        date: formData.date,
-                        description: formData.description,
-                        amount: parseFloat(formData.amount),
-                    };
-                }
-                insertEPG(cardType2 === "gold" ? "Gold" : "PF", requestBody).then((response) => {
-                    setPayload({
-                        type: 'success',
-                        message: response.data.Message,
-                    })
-                    AllInfoForEpf(cardType2 === "gold" ? "Gold" : "PF", true);
-                }).catch(() => {
-                    setPayload({
-                        type: 'error',
-                        message: "Error inserting",
-                    })
-                })
-                setBuyModal(false)
-            }} cardType={cardType2}/>
+            >
                 <AddIcon style={{color: "black"}}/>
             </Button>
         </div>
@@ -322,8 +247,10 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
                     )}
                     {cardType === "stocks" && renderCloudSyncButton()}
                     {(cardType === "stocks" || cardType === "nps" || cardType2 === "epf") && renderFileUploadSection()}
-                    {cardType === "mf" && renderAddMFButton()}
-                    {(cardType2 === "ppf" || cardType2 === "gold") && renderAddButton()}
+                    {cardType === "mf" && renderAddButton("I want to add a new Mutual Fund investment.")}
+                    {cardType === "nps" && renderAddButton("I want to add a new NPS investment.")}
+                    {cardType2 === "ppf" && renderAddButton("I want to add a new PPF deposit.")}
+                    {cardType2 === "gold" && renderAddButton("I want to add a new Gold purchase.")}
                 </div>
             </div>
             <div className={moduleStyle.summary}>{renderSummary()}</div>
