@@ -49,7 +49,7 @@ const ResponsiveDataModal: React.FC<ModalProps> = ({open, onClose, title, data})
                                 key={index}
                                 sx={{
                                     padding: '10px 0',
-                                    borderBottom: index !== Object.entries(data).length - 1 ? '1px solid #ccc' : 'none',
+                                    borderBottom: index !== Object.entries(data).length - 1 ? '1px solid #29384D' : 'none',
                                 }}
                             >
                                 <Grid container spacing={1} alignItems="center">
@@ -60,7 +60,7 @@ const ResponsiveDataModal: React.FC<ModalProps> = ({open, onClose, title, data})
                                     </Grid>
                                     <Grid item xs={6}>
                                         <Typography variant="body2" color="primary" fontWeight="bold">
-                                            ₹{value ? Number(value).toFixed(2) : 0}
+                                            ₹{value ? Number(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
                                         </Typography>
                                     </Grid>
                                 </Grid>
@@ -75,7 +75,7 @@ const ResponsiveDataModal: React.FC<ModalProps> = ({open, onClose, title, data})
                                 key={index}
                                 sx={{
                                     padding: '10px 0',
-                                    borderBottom: index !== data.length - 1 ? '1px solid #ccc' : 'none',
+                                    borderBottom: index !== data.length - 1 ? '1px solid #29384D' : 'none',
                                 }}
                             >
                                 <Grid container spacing={1} alignItems="center">
@@ -86,7 +86,7 @@ const ResponsiveDataModal: React.FC<ModalProps> = ({open, onClose, title, data})
                                     </Grid>
                                     <Grid item xs={6}>
                                         <Typography variant="body2" color="primary" fontWeight="bold">
-                                            {item['Interest Rate']}%
+                                            {Number(item['Interest Rate']).toFixed(2)}%
                                         </Typography>
                                     </Grid>
                                 </Grid>

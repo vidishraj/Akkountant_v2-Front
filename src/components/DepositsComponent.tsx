@@ -44,7 +44,7 @@ const DepositModal: React.FC<ModalProps> = ({open, onClose, title, data}) => {
                         key={index}
                         sx={{
                             padding: "10px 0",
-                            borderBottom: index !== data.length - 1 ? "1px solid #ccc" : "none",
+                            borderBottom: index !== data.length - 1 ? "1px solid #29384D" : "none",
                         }}
                     >
                         <Grid container spacing={1} alignItems="center">
@@ -58,7 +58,7 @@ const DepositModal: React.FC<ModalProps> = ({open, onClose, title, data}) => {
                             </Grid>
                             <Grid item xs={4}>
                                 <Typography variant="body2" color="primary" fontWeight="bold">
-                                    ₹{item.amount.toFixed(2)}
+                                    ₹{Number(item.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                 </Typography>
                             </Grid>
                         </Grid>
