@@ -1,19 +1,11 @@
 .carousel {
   min-height: fit-content;
-  border-top: 1px solid #FAFAFA;
-  padding: 20px;
-  width: 100%;
-}
-
-.MuiChartsAxis-bottom {
-  color: #FAFAFA !important;
-}
-
-.slick-dots li.slick-active button:before {
-  // your code here
-  color: #FAFAFA !important;
+  border-top: 1px solid #29384D;
+  padding: 20px 10px 30px;
 }
 
 .innerBox {
   display: flex !important;
+  justify-content: center;
+  align-items: center;
 }

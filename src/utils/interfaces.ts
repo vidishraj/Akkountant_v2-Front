@@ -142,6 +142,8 @@ interface Deposit {
     buyId: string;
     date: string; // ISO or GMT string format
     description: string;
+    employeeAmount?: number;
+    employerAmount?: number;
 }
 
 interface TransactionEPG {

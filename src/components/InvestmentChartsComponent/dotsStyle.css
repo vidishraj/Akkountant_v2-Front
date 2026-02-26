@@ -1,9 +1,39 @@
-
-.slick-dots li.slick-active button:before {
-    color: black !important;
+/* Carousel dots — dark theme */
+.slick-dots {
+    bottom: -20px !important;
+    background-color: transparent !important;
 }
 
+.slick-dots li button:before {
+    color: #7a7d85 !important;
+    opacity: 0.5 !important;
+    font-size: 8px !important;
+}
 
-.slick-dots {
-    background-color: #FAFAFA !important;
+.slick-dots li.slick-active button:before {
+    color: #4a9eff !important;
+    opacity: 1 !important;
+}
+
+/* Arrows — dark theme */
+.slick-prev:before,
+.slick-next:before {
+    color: #7a7d85 !important;
+    opacity: 0.8 !important;
+}
+
+.slick-prev:hover:before,
+.slick-next:hover:before {
+    color: #fafafa !important;
+    opacity: 1 !important;
+}
+
+.slick-prev {
+    left: 5px !important;
+    z-index: 1;
+}
+
+.slick-next {
+    right: 5px !important;
+    z-index: 1;
 }

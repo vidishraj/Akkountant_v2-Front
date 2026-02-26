@@ -1,22 +1,24 @@
 .page {
   position: relative;
   width: 100%;
-  height: 300px; // Initial height
+  max-height: 420px;
   overflow: hidden;
   background-color: #121c24;
-  transition: height 0.3s ease-in-out;
+  transition: max-height 0.3s ease-in-out;
+  padding-bottom: 48px; // space for expand button
 
   &.open {
-    height: 100%; // Full page height when expanded
+    max-height: none;
+    overflow: visible;
   }
 
   .contentInside {
-    padding: 20px;
+    padding: 12px;
     color: #fafafa;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
 
     h1 {
       font-size: 24px;
@@ -31,12 +33,13 @@
 
   .expandButton {
     position: absolute;
-    bottom: 10px;
+    bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
     background-color: #29384d !important;
     border: 2px solid #fafafa !important;
     color: #fafafa !important;
+    z-index: 1;
   }
 
   .closeButton {

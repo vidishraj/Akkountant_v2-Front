@@ -13,13 +13,13 @@
 //summary
 .assetCard {
   background-color: #121c24 !important;
-  padding: 12px 0;
+  padding: 12px !important;
   border: 1px solid #29384D;
-  border-radius: 14px;
+  border-radius: 14px !important;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.25);
   font-family: Arial, sans-serif;
-  width: 100%;
   max-height: none !important;
+  overflow: hidden !important;
 }
 
 .innerSummary {
@@ -303,7 +303,21 @@
 
 .refresh {
   max-height: fit-content;
-  background-color: white !important;
+  color: #ccd0d5 !important;
+  padding: 8px 20px !important;
+  border: 1px solid #29384D !important;
+  border-radius: 20px !important;
+  background-color: #1a2530 !important;
+  font-size: 13px !important;
+  text-transform: none !important;
+  letter-spacing: 0.5px !important;
+  transition: all 0.2s ease !important;
+
+  &:hover {
+    background-color: #29384D !important;
+    color: #fafafa !important;
+    border-color: #3a5068 !important;
+  }
 }
 
 // Realized P&L section
@@ -479,4 +493,55 @@
   padding: 40px 20px;
   color: #7a7d85;
   text-align: center;
+}
+
+// Global Summary: Allocation bar
+.allocationBar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.allocationSegment {
+  height: 100%;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.allocationLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+// Global Summary: Day change
+.dayChangeRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 8px;
+  padding: 4px 0;
+}
+
+// Global Summary: Realized gains
+.realizedSection {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background-color: #1a2530;
+  border-radius: 8px;
+  border: 1px solid #29384D;
+}
+
+.realizedLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
 }
