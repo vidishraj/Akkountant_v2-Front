@@ -155,10 +155,20 @@
 }
 
 // Responsive
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 768px) {
   .card {
     padding: 12px;
     gap: 10px;
+  }
+
+  .cardHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .headerInfo {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .bankName {
@@ -171,10 +181,16 @@
 
   .statsRow {
     gap: 6px;
+    flex-wrap: wrap;
   }
 
   .stat {
     font-size: 0.7rem;
     padding: 2px 8px;
+  }
+
+  .cardFooter {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }

@@ -28,6 +28,8 @@
 .transactionListContainer {
   background-color: #121C24 !important;
   flex-basis: 75%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .transactionFilters {
@@ -55,7 +57,7 @@
 
 .fileGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 14px;
   padding: 16px 12px;
   overflow-y: auto;
@@ -68,9 +70,11 @@
     display: none;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 10px;
+    max-height: 60vh;
+    min-height: 300px;
   }
 }
 
