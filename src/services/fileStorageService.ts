@@ -30,16 +30,17 @@ export async function uploadVaultFile(file: File, label?: string, folderId?: str
 }
 
 export async function listVaultFiles(folderId?: string | null, clearCache = false): Promise<{files: UserFileData[], folders: UserFolderData[]}> {
-    const params: Record<string, string> = {};
+    const params: Record<string, unknown> = {};
     if (folderId) {
         params.folder_id = folderId;
     }
-    const options = withRequestId('api/files/list', {
-        ...(clearCache ? withCacheCleared() : {}),
-        params,
-    });
+    // Build ID from only the meaningful params (exclude clearCacheEntry)
+    const id = `api/files/list-${JSON.stringify({folder_id: folderId || null})}`;
+    if (clearCache) {
+        params.clearCacheEntry = true;
+    }
     const response = await queueRequest(() =>
-        axios.get('files/list', options)
+        axios.get('files/list', {id, params})
     );
     return {files: response.data.files, folders: response.data.folders || []};
 }
