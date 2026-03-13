@@ -21,10 +21,13 @@ jobs:
     - name: Pull latest changes and restart service
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          set -e
           cd /home/opc/React/Akkountant_v2-Front
-          sudo git pull
+          sudo chown -R opc:opc .
+          git reset --hard
+          git pull origin Personal
           npm i
           npm run build
-          sudo rm -r /var/www/akkountant/
+          sudo rm -rf /var/www/akkountant/
           sudo mv dist/ /var/www/akkountant/
         EOF
