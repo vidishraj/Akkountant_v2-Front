@@ -7,6 +7,7 @@ import InvoiceManager from "../../components/InvoiceManager/InvoiceManager";
 import InvoiceSigner from "../../components/InvoiceSigner/InvoiceSigner";
 import CustomerManager from "../../components/CustomerManager/CustomerManager";
 import AgentChat from "../../components/AgentChat/AgentChat";
+import { InvoiceData } from "../../utils/interfaces";
 
 type TabType = "dashboard" | "create" | "manage" | "signer" | "customers";
 
@@ -15,27 +16,40 @@ const Freelance = () => {
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(
     undefined
   );
+  const [duplicatingInvoiceData, setDuplicatingInvoiceData] = useState<InvoiceData | undefined>(undefined);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleEditInvoice = (invoiceId: string) => {
     setEditingInvoiceId(invoiceId);
+    setDuplicatingInvoiceData(undefined);
+    setInitialSubTab("creation");
     setActiveTab("create");
   };
 
+  const [initialSubTab, setInitialSubTab] = useState<"creation" | "pdf-preview">("creation");
+
   const handlePreviewInvoice = (invoiceId: string) => {
     setEditingInvoiceId(invoiceId);
+    setDuplicatingInvoiceData(undefined);
+    setInitialSubTab("pdf-preview");
     setActiveTab("create");
-    // Switch to PDF preview sub-tab after a short delay to allow data loading
-    setTimeout(() => {
-      const pdfTab = document.querySelector(
-        '[data-tab="pdf-preview"]'
-      ) as HTMLElement;
-      if (pdfTab) pdfTab.click();
-    }, 100);
+  };
+
+  const handleDuplicateInvoice = (invoice: InvoiceData) => {
+    setEditingInvoiceId(undefined);
+    setDuplicatingInvoiceData(invoice);
+    setActiveTab("create");
   };
 
   const handleEditComplete = () => {
     setEditingInvoiceId(undefined);
+    setDuplicatingInvoiceData(undefined);
+    setRefreshTrigger((prev) => prev + 1);
+    setActiveTab("manage");
+  };
+
+  const handleDuplicateComplete = () => {
+    setDuplicatingInvoiceData(undefined);
     setRefreshTrigger((prev) => prev + 1);
     setActiveTab("manage");
   };
@@ -51,13 +65,16 @@ const Freelance = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return <FreelanceDashboard refreshTrigger={refreshTrigger} isActive={activeTab === "dashboard"} />;
+        return <FreelanceDashboard refreshTrigger={refreshTrigger} isActive={activeTab === "dashboard"} onNavigateToManage={() => setActiveTab("manage")} />;
       case "create":
         return (
           <InvoiceCreator
             editingInvoiceId={editingInvoiceId}
+            duplicatingInvoiceData={duplicatingInvoiceData}
             onEditComplete={handleEditComplete}
             onInvoiceUpdated={handleInvoiceUpdated}
+            onDuplicateComplete={handleDuplicateComplete}
+            initialSubTab={initialSubTab}
           />
         );
       case "manage":
@@ -65,6 +82,7 @@ const Freelance = () => {
           <InvoiceManager
             onEditInvoice={handleEditInvoice}
             onPreviewInvoice={handlePreviewInvoice}
+            onDuplicateInvoice={handleDuplicateInvoice}
             refreshTrigger={refreshTrigger}
             onInvoiceUpdated={handleInvoiceUpdated}
             isActive={activeTab === "manage"}

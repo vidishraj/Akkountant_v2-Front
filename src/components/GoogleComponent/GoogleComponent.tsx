@@ -1,20 +1,15 @@
 import {useState, useEffect} from "react";
-import {Button, IconButton} from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorIcon from "@mui/icons-material/Error";
+import {Button, Typography} from "@mui/material";
 import BasicCard from "../BasicCard.tsx";
 import GmailPng from "../../assets/icons/gmail.png";
 import GoogleDrivePng from "../../assets/icons/google-drive.png";
-import {
-    checkGoogleStatus,
-} from "../../services/transactionService.ts";
+import {checkGoogleStatus} from "../../services/transactionService.ts";
 import styles from "./GoogleComponent.module.scss";
 import {makeDriveInitialRequest, makeInitialRequest} from "../../services/GoogleApiUtils.tsx";
 
 const GoogleComponent = () => {
     const [gmailStatus, setGmailStatus] = useState<"success" | "error" | null>(null);
     const [gdriveStatus, setGdriveStatus] = useState<"success" | "error" | null>(null);
-    const [, setLoading] = useState(false);
 
     useEffect(() => {
         checkConnection("gmail");
@@ -22,15 +17,12 @@ const GoogleComponent = () => {
     }, []);
 
     const checkConnection = async (apiType: "gmail" | "gdrive") => {
-        setLoading(true);
         try {
             const response = await checkGoogleStatus(apiType);
             const isSuccess = response.Message === "Successful";
             apiType === "gmail" ? setGmailStatus(isSuccess ? "success" : "error") : setGdriveStatus(isSuccess ? "success" : "error");
         } catch {
             apiType === "gmail" ? setGmailStatus("error") : setGdriveStatus("error");
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -38,38 +30,35 @@ const GoogleComponent = () => {
         apiType === "gmail" ? makeInitialRequest() : makeDriveInitialRequest();
     };
 
-    const renderStatusRow = (apiType: "gmail" | "gdrive", status: "success" | "error" | null, iconSrc: string) => (
-        <div className={styles.statusRow}>
-            <IconButton
-                disabled={status === "success"}
-                onClick={() => handleReconnect(apiType)}
-                className={styles.iconButton}
-            >
-                {status === "success" ? <CheckCircleIcon color="success"/> : <ErrorIcon color="error"/>}
-            </IconButton>
-            <Button
-                variant="outlined"
-                color="primary"
-                disabled={status === "success"}
-                onClick={() => handleReconnect(apiType)}
-                className={status === "success" ? `${styles.reconnectButton} ${styles.reconnectButtonDisabled}` : styles.reconnectButton}
-                sx={{
-                    "&.Mui-disabled": {
-                        cursor: "not-allowed !important",
-                        pointerEvents: "all !important",
-                    },
-                }}
-            >
-                <img src={iconSrc} alt={`${apiType} Icon`} className={styles.reconnectIcon}/>
-                Reconnect
-            </Button>
-        </div>
-    );
+    const renderStatusRow = (apiType: "gmail" | "gdrive", status: "success" | "error" | null, iconSrc: string, label: string) => {
+        const connected = status === "success";
+        return (
+            <div className={styles.statusRow}>
+                <img src={iconSrc} alt={label} className={styles.serviceIcon} />
+                <div className={styles.serviceInfo}>
+                    <Typography className={styles.serviceName}>{label}</Typography>
+                    <Typography className={`${styles.statusText} ${connected ? styles.connected : styles.disconnected}`}>
+                        {status === null ? "Checking..." : connected ? "Connected" : "Not connected"}
+                    </Typography>
+                </div>
+                <span className={`${styles.statusDot} ${connected ? styles.dotGreen : styles.dotRed}`} />
+                {!connected && (
+                    <Button
+                        size="small"
+                        onClick={() => handleReconnect(apiType)}
+                        className={styles.connectBtn}
+                    >
+                        Connect
+                    </Button>
+                )}
+            </div>
+        );
+    };
 
     return (
         <BasicCard className={styles.googleContainer}>
-            {renderStatusRow("gmail", gmailStatus, GmailPng)}
-            {renderStatusRow("gdrive", gdriveStatus, GoogleDrivePng)}
+            {renderStatusRow("gmail", gmailStatus, GmailPng, "Gmail")}
+            {renderStatusRow("gdrive", gdriveStatus, GoogleDrivePng, "Google Drive")}
         </BasicCard>
     );
 };

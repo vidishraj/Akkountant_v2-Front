@@ -1,59 +1,82 @@
 .googleContainer {
-  padding: 16px 12px;
+  padding: 8px 12px;
   width: 100%;
   background-color: #121c24 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .statusRow {
   display: flex;
-  justify-content: center;
   align-items: center;
-  flex-wrap: nowrap;
-  padding: 16px 12px;
+  gap: 10px;
+  padding: 8px 10px;
+  background-color: #1a2730;
+  border: 1px solid #2a3a50;
+  border-radius: 8px;
 }
 
-.iconButton {
-  margin-top: 8px;
-  flex-basis: 10%;
+.serviceIcon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
 }
 
-.reconnectButton {
-  margin-top: 8px;
-  flex-basis: 90%;
-  display: flex;
-  justify-content: space-evenly !important;
-  color: #FAFAFA !important;
-  font-family: "Lexend", sans-serif;
-  font-optical-sizing: auto;
-  font-style: normal;
+.serviceInfo {
+  flex: 1;
+  min-width: 0;
 }
 
-.reconnectButton:hover {
-  background-color: #607AFB !important;
+.serviceName {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #fafafa;
+  line-height: 1.2 !important;
 }
 
-.reconnectButtonDisabled {
-  cursor: not-allowed !important; /* Stop interaction */
-  background-color: #3d404a !important;
+.statusText {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
 }
 
-.reconnectButtonDisabled:hover {
-  background-color: #3d404a !important;
+.connected {
+  color: #4ade80;
 }
 
-.Mui-disabled {
-  background-color: #5cb85c !important;
+.disconnected {
+  color: #8b8b8b;
 }
 
-.reconnectIcon {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
+.dotGreen {
+  background-color: #4ade80;
+  box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
+}
 
-.lexendFont {
-  font-family: "Lexend", sans-serif;
-  font-optical-sizing: auto;
-  font-style: normal;
+.dotRed {
+  background-color: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+}
+
+.connectBtn {
+  font-size: 11px !important;
+  text-transform: none !important;
+  color: #7b68ee !important;
+  border: 1px solid #7b68ee !important;
+  border-radius: 6px !important;
+  padding: 2px 10px !important;
+  min-width: auto !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    background-color: rgba(123, 104, 238, 0.1) !important;
+  }
 }

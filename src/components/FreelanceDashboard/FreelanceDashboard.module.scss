@@ -1,0 +1,413 @@
+// Dashboard grid and metric cards
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 30px;
+
+  @media screen and (max-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+.metricCard {
+  background-color: #121c24;
+  border: 1px solid #fafafa;
+  padding: 16px 12px;
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.2s ease;
+  min-width: 0;
+  overflow: hidden;
+
+  &:hover {
+    border-color: #7b68ee;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(123, 104, 238, 0.2);
+  }
+}
+
+.metricValue {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: #7b68ee;
+  margin-bottom: 8px;
+  word-break: break-word;
+
+  @media screen and (max-width: 600px) {
+    font-size: 1.1rem;
+  }
+}
+
+.metricLabel {
+  color: #fafafa;
+  font-size: 0.85rem;
+  font-weight: 500;
+
+  @media screen and (max-width: 600px) {
+    font-size: 0.75rem;
+  }
+}
+
+.chartContainer {
+  background-color: #121c24;
+  border: 1px solid #fafafa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  min-width: 0;
+  overflow: hidden;
+
+  @media screen and (max-width: 600px) {
+    padding: 10px 8px;
+  }
+}
+
+// Summary box
+.summaryBox {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: rgba(123, 104, 238, 0.1);
+  border: 1px solid #7b68ee;
+  border-radius: 4px;
+  text-align: center;
+}
+
+// Primary metrics grid
+.primaryMetricsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media screen and (max-width: 700px) {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+// Primary metric cards (larger, top row)
+.metricCardPrimary {
+  background-color: #121c24;
+  border: 1px solid #2a3a50;
+  padding: 20px 16px;
+  border-radius: 10px;
+  text-align: center;
+  transition: all 0.2s ease;
+  min-width: 0;
+  overflow: hidden;
+
+  &:hover {
+    border-color: #7b68ee;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(123, 104, 238, 0.2);
+  }
+
+  .metricValue {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    word-break: break-word;
+
+    @media screen and (max-width: 700px) {
+      font-size: 1.4rem;
+    }
+  }
+
+  .metricLabel {
+    font-size: 0.85rem;
+
+    @media screen and (max-width: 700px) {
+      font-size: 0.8rem;
+    }
+  }
+}
+
+// Metric value colors
+.metricValueGreen {
+  color: #4ade80 !important;
+}
+
+.metricValueAmber {
+  color: #f59e0b !important;
+}
+
+.metricValuePurple {
+  color: #7b68ee !important;
+}
+
+// Chart grid layout
+.chartGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  @media screen and (max-width: 900px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+// Secondary chart grid (for bar charts side by side)
+.secondaryChartGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  @media screen and (max-width: 900px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+// Trend indicators
+.trendUp {
+  color: #4ade80;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.trendDown {
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.trendNeutral {
+  color: #b0b0b0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+// View all link
+.viewAllLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #7b68ee;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  padding: 0;
+
+  &:hover {
+    color: #9b8aff;
+    text-decoration: underline;
+  }
+}
+
+// ========================================
+// Compact Dashboard Filter Strip
+// ========================================
+
+.dashboardFilterStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: rgba(123, 104, 238, 0.08);
+  border: 1px solid #2a3a50;
+  border-left: 3px solid #7b68ee;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  overflow: hidden;
+
+  @media screen and (max-width: 600px) {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+}
+
+.filterLabel {
+  color: #b0b0b0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+}
+
+.presetChip {
+  background-color: transparent;
+  color: #b0b0b0;
+  border: 1px solid #3a4a60;
+  padding: 4px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    color: #fafafa;
+    border-color: #7b68ee;
+    background-color: rgba(123, 104, 238, 0.15);
+  }
+
+  &.activeChip {
+    color: #fafafa;
+    border-color: #7b68ee;
+    background-color: rgba(123, 104, 238, 0.25);
+    font-weight: 600;
+  }
+}
+
+.filterDivider {
+  width: 1px;
+  height: 24px;
+  background-color: #3a4a60;
+  flex-shrink: 0;
+
+  @media screen and (max-width: 600px) {
+    display: none;
+  }
+}
+
+.filterDateInput {
+  padding: 4px 6px;
+  border: 1px solid #3a4a60;
+  border-radius: 4px;
+  background-color: #121c24;
+  color: #fafafa;
+  font-size: 0.75rem;
+  height: 28px;
+  box-sizing: border-box;
+  max-width: 130px;
+  min-width: 0;
+
+  &:focus {
+    outline: none;
+    border-color: #7b68ee;
+  }
+
+  @media screen and (max-width: 600px) {
+    max-width: 110px;
+    font-size: 0.7rem;
+  }
+}
+
+.filterApplyBtn {
+  background-color: #7b68ee;
+  color: #fafafa;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  height: 28px;
+  transition: background-color 0.2s;
+
+  &:hover:not(:disabled) {
+    background-color: #6a5acd;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.filterClearBtn {
+  background: none;
+  border: none;
+  color: #b0b0b0;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  text-decoration: underline;
+
+  &:hover {
+    color: #fafafa;
+  }
+}
+
+// ========================================
+// Invoice Status Distribution Bar
+// ========================================
+
+.statusBarContainer {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background-color: #121c24;
+  border: 1px solid #2a3a50;
+  border-radius: 8px;
+  overflow: hidden;
+
+  @media screen and (max-width: 600px) {
+    padding: 10px 12px;
+  }
+}
+
+.statusBarHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.statusBarTitle {
+  color: #fafafa;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.statusBarLegend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.statusLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #b0b0b0;
+}
+
+.statusLegendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statusBarTrack {
+  width: 100%;
+  height: 10px;
+  background-color: #1e2d3d;
+  border-radius: 5px;
+  overflow: hidden;
+  display: flex;
+}
+
+.statusBarSegment {
+  height: 100%;
+  transition: width 0.4s ease;
+
+  &:first-child {
+    border-radius: 5px 0 0 5px;
+  }
+
+  &:last-child {
+    border-radius: 0 5px 5px 0;
+  }
+}

@@ -206,25 +206,40 @@ const Transactions = () => {
         </>
     );
 
+    const ALLOWED_BANKS = ["HDFC_DEBIT", "Millenia_Credit", "HDFC_REGALIA", "BOI", "YES_BANK_DEBIT", "YES_BANK_ACE", "ICICI_AMAZON_PAY"];
+    const filteredFiles = fileState.fileDetails.filter((f: FileDetails) =>
+        ALLOWED_BANKS.includes(f.bank)
+    );
+
     const renderFileMode = () => (
         <>
             <div className={style.transactionFilters}>
                 <FileFilterCompact isMobile={isMobile} setDrawerState={() => {
                     setDrawerState(true)
                 }} apply={refreshFileDetails}/>
-                <FileSummary/>
+                <FileSummary files={filteredFiles}/>
             </div>
-            <div className={style.transactionCards}>
-                {fileState.fileDetails.length === 0 ? emptyTransactionBox() : fileState.fileDetails.map((file: FileDetails) => (
+            <div className={style.fileGrid}>
+                {filteredFiles.length === 0 ? emptyTransactionBox() : filteredFiles.map((file: FileDetails) => (
                     <FileDetailsCard
                         key={file.fileID}
                         bank={file.bank}
                         fileName={file.fileName}
                         uploadDate={file.uploadDate}
                         statementCount={file.statementCount}
+                        category={file.category}
+                        status={file.status}
+                        summary_text={file.summary_text}
+                        has_pdf={file.has_pdf}
+                        email_date={file.email_date}
+                        subject={file.subject}
+                        sender={file.sender}
+                        extraction_summary={file.extraction_summary}
+                        period_start={file.period_start}
+                        period_end={file.period_end}
                         onDownload={() => {
-                            downloadFile(file.fileID).then((blob: any) => {
-                                const url = window.URL.createObjectURL(new Blob([blob]))
+                            downloadFile(file.fileID).then((res: any) => {
+                                const url = window.URL.createObjectURL(new Blob([res.data]))
                                 const link = document.createElement('a')
                                 link.href = url
                                 link.setAttribute('download', file.fileName) // Specify the filename

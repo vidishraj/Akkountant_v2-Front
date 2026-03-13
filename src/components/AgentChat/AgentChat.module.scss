@@ -215,6 +215,52 @@
   border-bottom-left-radius: 4px;
 }
 
+.thinkingIndicator {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background-color: #29384D;
+  border-radius: 12px;
+  border-bottom-left-radius: 4px;
+  color: rgba(250, 250, 250, 0.6);
+  font-size: 0.85rem;
+}
+
+.thinkingDots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #607AFB;
+    animation: thinkingBounce 1.4s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+}
+
+@keyframes thinkingBounce {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .toolChip {
   align-self: center;
   display: flex;

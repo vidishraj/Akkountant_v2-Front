@@ -483,6 +483,17 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
               </div>
             ))}
 
+            {isLoading && !activeTool && !streamedText && !confirmDialog && (
+              <div className={styles.thinkingIndicator}>
+                <div className={styles.thinkingDots}>
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                Thinking...
+              </div>
+            )}
+
             {activeTool && (
               <div className={styles.toolChip}>
                 <div className={styles.spinner} />

@@ -3,15 +3,18 @@ import {Box, Button, Typography} from "@mui/material";
 import {useFilterContext} from "../../contexts/FilterContext.tsx";
 import styles from "./TransactionSummary.module.scss";
 import ClearFilterButton from "../ClearFilterComponent.tsx";
-import CustomIconSwitch from "./EmailStatementSwitcher.tsx";
 import DateModal from "../DateModalComponent.tsx";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import {triggerEmailCheck, triggerStatementCheck} from "../../services/transactionService.ts";
+import EmailIcon from "@mui/icons-material/Email";
+import {triggerEmailCheck} from "../../services/transactionService.ts";
 import {useMessage} from "../../contexts/MessageContext.tsx";
 
 interface TransactionSummaryProps {
     refreshTransactions: any
 }
+
+const formatAmount = (value: number) =>
+    Math.abs(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
 const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
     const {state, dispatch} = useFilterContext();
@@ -19,140 +22,86 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
     const credit = state.transactions.credits;
     const debit = state.transactions.debits;
     const [dateModalState, setDateModalState] = useState(false);
-    const [googleSwitch, setGoogleSwitch] = useState(true);
-    const net = -1 * (debit - (-1 * credit)); // Calculate net balance
+    const net = -1 * (debit - (-1 * credit));
     const {setPayload} = useMessage();
     return (
         <Box className={styles.summaryContainer}>
-            {/* Credit */}
-            <Box className={styles.summaryBox}>
-                <Box className={styles.credit}>
-                    <Typography variant="subtitle1" className={styles.subtitle}>
-                        Credit
-                    </Typography>
-                    <Typography variant="subtitle1" className={styles.creditAmount}>
-                        ₹{credit ? Math.abs(credit).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                    }) : 0}
+            <Box className={styles.metricsGroup}>
+                <Box className={`${styles.metricCard} ${styles.creditCard}`}>
+                    <Typography className={styles.metricLabel}>Credit</Typography>
+                    <Typography className={styles.metricValue} style={{color: '#4ade80'}}>
+                        ₹{credit ? formatAmount(credit) : '0.00'}
                     </Typography>
                 </Box>
-
-                {/* Debit */}
-                <Box className={styles.debit}>
-                    <Typography variant="subtitle1" className={styles.subtitle}>
-                        Debit
-                    </Typography>
-                    <Typography variant="subtitle1" className={styles.debitAmount}>
-                        ₹{debit ? Math.abs(debit).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                    }) : 0}
+                <Box className={`${styles.metricCard} ${styles.debitCard}`}>
+                    <Typography className={styles.metricLabel}>Debit</Typography>
+                    <Typography className={styles.metricValue} style={{color: '#ef4444'}}>
+                        ₹{debit ? formatAmount(debit) : '0.00'}
                     </Typography>
                 </Box>
-
-                {/* Net */}
-                <Box className={styles.net}>
-                    <Typography variant="subtitle1" className={styles.subtitle}>
-                        Net
-                    </Typography>
-                    <Typography
-                        variant="subtitle1"
-                        className={`${styles.netAmount} ${
-                            net >= 0 ? styles.netPositive : styles.netNegative
-                        }`}
-                    >
-                        ₹{net ? parseFloat(String(net)).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                    }) : 0}
+                <Box className={`${styles.metricCard} ${styles.netCard}`}>
+                    <Typography className={styles.metricLabel}>Net</Typography>
+                    <Typography className={styles.metricValue} style={{color: net >= 0 ? '#4ade80' : '#ef4444'}}>
+                        ₹{net ? formatAmount(net) : '0.00'}
                     </Typography>
                 </Box>
             </Box>
-            {/* Action Buttons */}
+
+            <Box className={styles.divider} />
+
             <Box className={styles.actionButtons}>
                 <Button
-                    className={styles.FileUploadButton}
-                    variant="contained"
+                    className={styles.iconBtn}
                     onClick={(e) => {
                         e.stopPropagation();
                         refreshTransactions();
                     }}
                 >
-                    <RefreshIcon style={{color: "black"}}/>
+                    <RefreshIcon fontSize="small" />
                 </Button>
                 <Button
-                    className={styles.reconnectButton}
-                    style={{border: '0.2px solid white'}}
-                    onClick={() => {
-                        setDateModalState(true);
-                    }}
+                    className={styles.scanBtn}
+                    onClick={() => setDateModalState(true)}
                 >
-                    {!googleSwitch ? "Mail Check" : "Statement Check"}
+                    <EmailIcon fontSize="small" sx={{mr: 0.5}} />
+                    Scan
                 </Button>
-                <CustomIconSwitch
-                    setChecked={() => {
-                        setGoogleSwitch(!googleSwitch);
-                    }}
-                />
-                <DateModal
-                    title={!googleSwitch ? "Trigger Mail Check" : "Trigger Statement Check"}
-                    isOpen={dateModalState}
-                    onSubmit={(dates) => {
-                        setDateModalState(false);
-                        if (!googleSwitch) {
-                            triggerEmailCheck(dates.to, dates.from, false).then((r) => {
-                                if (r.status === 200) {
-                                    const successCount = r.data.Message.read;
-                                    const errors = r.data.Message.conflicts;
-                                    setPayload({
-                                        type: "success",
-                                        message: `${successCount} emails read successfully. ${errors} errors`,
-                                    });
-                                    refreshTransactions();
-                                }
-                            }).catch(() => {
-                                setPayload({
-                                    type: "error",
-                                    message: "Error while reading emails.",
-                                });
-                            });
-                        } else {
-                            triggerStatementCheck(dates.to, dates.from, false).then((r) => {
-                                if (r.status === 200) {
-                                    const successCount = r.data.Message.read;
-                                    const errors = r.data.Message.conflicts;
-                                    setPayload({
-                                        type: "success",
-                                        message: `${successCount} transactions read successfully. ${errors} integrity errors`,
-                                    });
-                                    refreshTransactions();
-                                }
-                            }).catch(() => {
-                                setPayload({
-                                    type: "error",
-                                    message: "Error while reading statements.",
-                                });
-                            });
-                        }
-                    }}
-                    onCancel={() => {
-                        setDateModalState(false);
-                    }}
-                />
                 <ClearFilterButton
                     apply={() => {
-                        dispatch({
-                            type: "RESET_FILTERS",
-                        });
-                        // Refresh transactions after clearing filters to apply the cleared state
+                        dispatch({type: "RESET_FILTERS"});
                         setTimeout(() => refreshTransactions(), 0);
                     }}
                 />
             </Box>
+
+            <DateModal
+                title={"Scan Emails"}
+                isOpen={dateModalState}
+                onSubmit={(dates) => {
+                    setDateModalState(false);
+                    triggerEmailCheck(dates.to, dates.from, false).then((r) => {
+                        if (r.status === 200) {
+                            const msg = r.data.Message;
+                            const textCount = msg.text_emails_processed || 0;
+                            const pdfCount = msg.pdf_emails_processed || 0;
+                            const errorCount = msg.errors?.length || 0;
+                            setPayload({
+                                type: "success",
+                                message: `${textCount + pdfCount} emails processed (${msg.total_emails_fetched || 0} fetched, ${msg.pre_skipped || 0} skipped). ${errorCount} errors`,
+                            });
+                            refreshTransactions();
+                        }
+                    }).catch(() => {
+                        setPayload({
+                            type: "error",
+                            message: "Error while scanning emails.",
+                        });
+                    });
+                }}
+                onCancel={() => setDateModalState(false)}
+            />
         </Box>
     );
-
 };
 
 export default TransactionSummary;

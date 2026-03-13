@@ -6,7 +6,8 @@ import Lottie from "lottie-react";
 import homeInvestmentsAnimation from "../../assets/lottieFiles/homeInvestmentsAnimation.json";
 import homeTransactionsAnimation from "../../assets/lottieFiles/homeTransactionsAnimation.json";
 import homeJobsAnimation from "../../assets/lottieFiles/homeJobsAnimation.json";
-import jobAppAnimation from "../../assets/lottieFiles/jobApp.json";
+import homeFilesAnimation from "../../assets/lottieFiles/files.json";
+
 
 const Home = () => {
     const [searchParams] = useSearchParams()
@@ -28,67 +29,37 @@ const Home = () => {
     }, [])
     const navigate = useNavigate();
 
+    const lottieStyle = { width: 150, height: 150 };
+
     return (
       <div className={style.homeContainer}>
         <div
           className={style.investmentsContainer}
-          onClick={() => {
-            navigate("/investments");
-          }}
+          onClick={() => navigate("/investments")}
         >
-          <Lottie
-            animationData={homeInvestmentsAnimation}
-            loop={true}
-            autoPlay={true}
-            height={100}
-            width={100}
-          />
+          <Lottie animationData={homeInvestmentsAnimation} loop autoPlay style={lottieStyle} />
           <div className={style.investmentsTag}>Investments</div>
         </div>
         <div
           className={style.transactionsContainer}
-          onClick={() => {
-            navigate("/transactions");
-          }}
+          onClick={() => navigate("/transactions")}
         >
-          <Lottie
-            animationData={homeTransactionsAnimation}
-            loop={true}
-            autoPlay={true}
-            height={100}
-            width={100}
-          />
+          <Lottie animationData={homeTransactionsAnimation} loop autoPlay style={lottieStyle} />
           <div className={style.transactionsTag}>Transactions</div>
         </div>
         <div
           className={style.freelanceContainer}
-          onClick={() => {
-            navigate("/freelance");
-          }}
+          onClick={() => navigate("/freelance")}
         >
-          <Lottie
-            animationData={homeJobsAnimation}
-            loop={true}
-            autoPlay={true}
-            height={100}
-            width={100}
-          />
+          <Lottie animationData={homeJobsAnimation} loop autoPlay style={lottieStyle} />
           <div className={style.freelanceTag}>Freelance</div>
         </div>
         <div
-          className={style.jobScannerContainer}
-          onClick={() => {
-            navigate("/job-scanner");
-          }}
+          className={style.filesContainer}
+          onClick={() => navigate("/files")}
         >
-          <Lottie
-            animationData={jobAppAnimation}
-            loop={true}
-            autoPlay={true}
-            height={100}
-            width={100}
-          />
-          <div className={style.jobScannerTag}>Job Scanner</div>
+          <Lottie animationData={homeFilesAnimation} loop autoPlay style={lottieStyle} />
+          <div className={style.filesTag}>Files</div>
         </div>
       </div>
     );

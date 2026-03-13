@@ -1,0 +1,153 @@
+// Add/remove item buttons
+.addItemBtn {
+  background-color: #7b68ee !important;
+  color: #fafafa !important;
+  border: none !important;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.addItemBtn:hover {
+  background-color: #6a5acd !important;
+}
+
+.removeItemBtn {
+  background-color: #ff6b6b !important;
+  color: #fafafa !important;
+  border: 1px solid #ff6b6b !important;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.removeItemBtn:hover {
+  background-color: transparent !important;
+  color: #ff6b6b !important;
+  border-color: #ff6b6b !important;
+}
+
+// Totals
+.totalSection {
+  background-color: #121C24 !important;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #fafafa;
+  margin-top: 20px;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: #fafafa;
+}
+
+.totalRow.final {
+  font-weight: bold;
+  font-size: 1.1rem;
+  border-top: 2px solid #fafafa;
+  padding-top: 10px;
+  margin-top: 15px;
+}
+
+// Collapsible section header
+.collapsibleSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+  color: #fafafa;
+  font-weight: 600;
+  font-size: 1.05rem;
+  user-select: none;
+
+  &:hover {
+    color: #7b68ee;
+  }
+
+  .collapseIcon {
+    font-size: 0.8rem;
+    color: #b0b0b0;
+    transition: transform 0.2s;
+  }
+}
+
+// Field visibility toggle
+.fieldVisibilityToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #b0b0b0;
+  cursor: pointer;
+  white-space: nowrap;
+
+  input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #7b68ee;
+  }
+
+  span {
+    font-size: 0.75rem;
+  }
+}
+
+// Line items table
+.lineItemsTable {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .lineItemHeader {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #5b5b7b;
+    color: #b0b0b0;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .lineItemRow {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  @media screen and (max-width: 768px) {
+    .lineItemHeader {
+      display: none;
+    }
+
+    .lineItemRow {
+      flex-direction: column;
+      border-bottom: 1px solid rgba(91, 91, 123, 0.3);
+      padding-bottom: 10px;
+
+      > div, > button {
+        width: 100%;
+      }
+    }
+  }
+}
+
+// Computed (read-only) field
+.computedField {
+  color: #7b68ee;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  background-color: rgba(123, 104, 238, 0.08);
+  border-radius: 4px;
+  padding: 6px 8px;
+}

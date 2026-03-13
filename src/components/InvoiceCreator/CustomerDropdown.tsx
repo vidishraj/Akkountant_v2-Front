@@ -22,7 +22,7 @@ const useDebounce = (value: string, delay: number) => {
 
 interface CustomerDropdownProps {
     value: string;
-    onChange: (customerId: string) => void;
+    onChange: (customerId: string, customer?: Customer) => void;
     className?: string;
     disabled?: boolean;
 }
@@ -140,7 +140,7 @@ const CustomerDropdown: React.FC<CustomerDropdownProps> = ({
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer);
-        onChange(customer.id);
+        onChange(customer.id, customer);
         setIsOpen(false);
         setSearchTerm('');
     };
@@ -151,7 +151,7 @@ const CustomerDropdown: React.FC<CustomerDropdownProps> = ({
 
     const clearSelection = () => {
         setSelectedCustomer(null);
-        onChange('');
+        onChange('', undefined);
     };
 
     return (

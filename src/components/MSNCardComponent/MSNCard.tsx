@@ -11,7 +11,7 @@ import moduleStyle from "./MSNCard.module.scss";
 import {useMSNContext} from "../../contexts/MSNContext";
 import {MSNSummaryResponse} from "../../utils/interfaces";
 import {uploadFile, syncKiteHoldings} from "../../services/investmentService";
-import withLoader from "../LoaderHOC.tsx";
+import Loader from "../Loader.tsx";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
 import {useMessage} from "../../contexts/MessageContext.tsx";
@@ -23,9 +23,10 @@ interface MSNCardProps {
     cardType?: "stocks" | "mf" | "nps" | undefined;
     cardType2?: "ppf" | "epf" | "gold" | undefined;
     className?: string;
+    isLoading?: boolean;
 }
 
-const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}) => {
+const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2, isLoading}) => {
     const {state, dispatch, fetchAndSetSummary, AllInfoForEpf, fetchAndSetRealizedPnL, fetchAndSetFOSummary} = useMSNContext();
     const [summary, setSummary] = useState<MSNSummaryResponse>();
     const {setPayload} = useMessage();
@@ -272,7 +273,9 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
         <BasicCard
             onClick={handleCardClick}
             className={`${className} ${moduleStyle.MSNCard}`}
+            style={{position: "relative", overflow: "hidden"}}
         >
+            {isLoading && <Loader/>}
             <div className={moduleStyle.headerRow}>
                 <span className={moduleStyle.title}>{title}</span>
                 <div className={moduleStyle.actionButtons}>
@@ -295,4 +298,4 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2}
     );
 };
 
-export default withLoader(MSNCard);
+export default MSNCard;

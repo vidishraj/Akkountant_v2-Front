@@ -10,6 +10,7 @@ import MSNDetails from "./MSNDetails.tsx";
 import RealizedPnL from "./RealizedPnL.tsx";
 import FOSection from "./FOSection.tsx";
 import ObjectDetailsDialog from "./ObjectDetailsDialog.tsx";
+import InvestmentEmails from "../InvestmentEmails/InvestmentEmails.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import {fetchSecurityScheme} from "../../services/investmentService.ts";
 import {MSNListResponse, MSNSummaryResponse} from "../../utils/interfaces.ts";
@@ -35,6 +36,7 @@ const MSNHome = () => {
     const [showDetails, setShowDetails] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState(false);
     const [stocksTab, setStocksTab] = useState(0);
+    const [mfNpsTab, setMfNpsTab] = useState(0);
 
     // Effect to set state based on selected card
     useEffect(() => {
@@ -83,6 +85,7 @@ const MSNHome = () => {
                     } else {
                         dispatch({type: "ResetCardSelector"});
                         setStocksTab(0);
+                        setMfNpsTab(0);
                     }
                 }}
                 className={style.backButton}
@@ -113,6 +116,17 @@ const MSNHome = () => {
         </div>
     );
 
+    const getEmailCategory = () => {
+        return "investment_confirmation";
+    };
+
+    const getEmailServiceTypeFilter = () => {
+        if (state.selectedCard.stocks) return "Stocks";
+        if (state.selectedCard.mf) return "Mutual_Funds";
+        if (state.selectedCard.nps) return "NPS";
+        return undefined;
+    };
+
     const renderStocksTabContent = () => {
         switch (stocksTab) {
             case 0:
@@ -130,6 +144,8 @@ const MSNHome = () => {
                 return <RealizedPnL />;
             case 2:
                 return <FOSection />;
+            case 3:
+                return <InvestmentEmails category={getEmailCategory()} serviceTypeFilter={getEmailServiceTypeFilter()} />;
             default:
                 return null;
         }
@@ -153,24 +169,40 @@ const MSNHome = () => {
                             <Tab label="Holdings" />
                             <Tab label="Equity History" />
                             <Tab label="F&O History" />
+                            <Tab label="Emails" />
                         </Tabs>
                         {renderStocksTabContent()}
                     </>
                 ) : (
-                    <MSNList
-                        isLoading={state.loadingState[getContextKey()].list}
-                        list={listState || []}
-                        onClick={(stockCode: string) => {
-                            setShowDetails(true)
-                            if (state.selectedCard.nps) {
-                                setDetailState(listState?.find((item) => item.info.name === stockCode));
-                            } else if (state.selectedCard.mf) {
-                                setDetailState(listState?.find((item) => item.info.companyName === stockCode));
-                            } else {
-                                setDetailState(listState?.find((item) => item.buyCode === stockCode));
-                            }
-                        }}
-                    />
+                    <>
+                        <Tabs
+                            value={mfNpsTab}
+                            onChange={(_e, newValue) => setMfNpsTab(newValue)}
+                            className={style.stocksTabs}
+                            variant="fullWidth"
+                        >
+                            <Tab label="Holdings" />
+                            <Tab label="Emails" />
+                        </Tabs>
+                        {mfNpsTab === 0 ? (
+                            <MSNList
+                                isLoading={state.loadingState[getContextKey()].list}
+                                list={listState || []}
+                                onClick={(stockCode: string) => {
+                                    setShowDetails(true)
+                                    if (state.selectedCard.nps) {
+                                        setDetailState(listState?.find((item) => item.info.name === stockCode));
+                                    } else if (state.selectedCard.mf) {
+                                        setDetailState(listState?.find((item) => item.info.companyName === stockCode));
+                                    } else {
+                                        setDetailState(listState?.find((item) => item.buyCode === stockCode));
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <InvestmentEmails category={getEmailCategory()} serviceTypeFilter={getEmailServiceTypeFilter()} />
+                        )}
+                    </>
                 )}
             </div>
         );

@@ -24,7 +24,9 @@ import {
     DeleteTemplateResponse,
     Signature,
     UploadSignatureResponse,
-    DeleteSignatureResponse
+    DeleteSignatureResponse,
+    CustomerEmailLink,
+    ProcessedEmail
 } from '../utils/interfaces';
 import {jsPDF} from 'jspdf';
 
@@ -64,7 +66,14 @@ export async function fetchEarningsByDateRange(
     const response = await queueRequest(() =>
         axios.get('freelance/earnings', options)
     );
-    return response.data;
+    const data = response.data;
+    // Backend returns {total_earnings, invoices: [...]} — extract and map
+    const invoices = data.invoices || data;
+    if (!Array.isArray(invoices)) return [];
+    return invoices.map((inv: Record<string, unknown>) => ({
+        ...inv,
+        date: inv.issueDate || inv.date,
+    })) as FreelanceEarning[];
 }
 
 // Invoice management endpoints
@@ -127,10 +136,11 @@ export async function fetchAllInvoices(
     status?: string,
     sortBy?: string,
     sortOrder?: 'asc' | 'desc',
-    search?: string
+    search?: string,
+    customerId?: string
 ): Promise<FetchInvoicesResponse> {
     const params: Record<string, string | number> = {page, limit};
-    
+
     if (status && status !== 'all') {
         params.status = status;
     }
@@ -142,6 +152,9 @@ export async function fetchAllInvoices(
     }
     if (search) {
         params.search = search;
+    }
+    if (customerId) {
+        params.customerId = customerId;
     }
 
     const options = withRequestId('api/freelance/invoices', withCacheCleared({
@@ -652,14 +665,6 @@ export async function signInvoicePDFLocal(
     return Promise.resolve(pdfBlob);
 }
 
-/**
- * Generate preview URL for invoice PDF.
- */
-export async function previewInvoicePDF(invoiceData: InvoiceData): Promise<string> {
-    const pdfBlob = await generateInvoicePDF(invoiceData);
-    return URL.createObjectURL(pdfBlob);
-}
-
 // Signature management endpoints
 
 /**
@@ -692,6 +697,30 @@ export async function fetchUserSignatures(): Promise<Signature[]> {
         axios.get('freelance/signatures', options)
     );
     return response.data;
+}
+
+/**
+ * Fetch the default signature (is_default=true, or first available).
+ */
+export async function fetchDefaultSignature(): Promise<Signature | null> {
+    try {
+        const signatures = await fetchUserSignatures();
+        if (signatures.length === 0) return null;
+        const defaultSig = signatures.find(s => s.is_default);
+        return defaultSig || signatures[0];
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Set a signature as default.
+ */
+export async function setDefaultSignature(signatureId: string): Promise<void> {
+    const options = withRequestId(`api/freelance/signatures/${signatureId}/default`, withCacheCleared());
+    await queueRequest(() =>
+        axios.put(`freelance/signatures/${signatureId}/default`, {}, options)
+    );
 }
 
 /**
@@ -747,11 +776,14 @@ export async function fetchCustomers(
 }
 
 /**
- * Fetch all customers as array (backward compatibility).
+ * Fetch a single customer by ID.
  */
-export async function fetchAllCustomers(): Promise<Customer[]> {
-    const response = await fetchCustomers(1, 1000); // Get a large page to fetch all
-    return response.customers;
+export async function fetchCustomerById(customerId: string): Promise<Customer> {
+    const options = withRequestId(`api/freelance/customers/${customerId}`, withCacheCleared());
+    const response = await queueRequest(() =>
+        axios.get(`freelance/customers/${customerId}`, options)
+    );
+    return response.data.customer;
 }
 
 /**
@@ -859,6 +891,64 @@ export async function deleteInvoiceTemplate(templateId: string): Promise<DeleteT
     const options = withRequestId(`api/freelance/templates/${templateId}/delete`, withCacheCleared());
     const response = await queueRequest(() =>
         axios.delete(`freelance/templates/${templateId}`, options)
+    );
+    return response.data;
+}
+
+// Customer email linking endpoints
+
+/**
+ * Fetch emails linked to a customer.
+ */
+export async function fetchCustomerEmails(customerId: string): Promise<CustomerEmailLink[]> {
+    const options = withRequestId(`api/freelance/customers/${customerId}/emails`, withCacheCleared());
+    const response = await queueRequest(() =>
+        axios.get(`freelance/customers/${customerId}/emails`, options)
+    );
+    return response.data.emails;
+}
+
+/**
+ * Link an email to a customer.
+ */
+export async function linkEmailToCustomer(customerId: string, emailId: number): Promise<CustomerEmailLink> {
+    const options = withRequestId(`api/freelance/customers/${customerId}/emails/link`, withCacheCleared());
+    const response = await queueRequest(() =>
+        axios.post(`freelance/customers/${customerId}/emails`, { email_id: emailId }, options)
+    );
+    return response.data.link;
+}
+
+/**
+ * Unlink an email from a customer.
+ */
+export async function unlinkEmailFromCustomer(customerId: string, emailId: number): Promise<void> {
+    const options = withRequestId(`api/freelance/customers/${customerId}/emails/${emailId}/unlink`, withCacheCleared());
+    await queueRequest(() =>
+        axios.delete(`freelance/customers/${customerId}/emails/${emailId}`, options)
+    );
+}
+
+/**
+ * Search processed emails by query string (for manual linking).
+ */
+export async function searchProcessedEmails(query: string): Promise<ProcessedEmail[]> {
+    const options = withRequestId('api/freelance/emails/search', withCacheCleared({
+        params: { q: query }
+    }));
+    const response = await queueRequest(() =>
+        axios.get('freelance/emails/search', options)
+    );
+    return response.data.emails;
+}
+
+/**
+ * Batch re-link all processed emails to matching customers.
+ */
+export async function batchRelinkEmails(): Promise<{ message: string; linked: number }> {
+    const options = withRequestId('api/freelance/emails/batch-relink', withCacheCleared());
+    const response = await queueRequest(() =>
+        axios.post('freelance/emails/batch-relink', {}, options)
     );
     return response.data;
 }

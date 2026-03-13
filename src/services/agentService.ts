@@ -1,5 +1,6 @@
 import { auth } from "../components/FirebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
+import { API_BASE_URL } from "./AxiosConfig.tsx";
 
 export type AgentType = "investment" | "transaction" | "freelance";
 
@@ -50,7 +51,7 @@ export async function streamAgentChat(
 ): Promise<void> {
   const uid = await getFirebaseUID();
 
-  const response = await fetch("http://127.0.0.1:8080/agent/chat", {
+  const response = await fetch(`${API_BASE_URL}agent/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -8,12 +8,9 @@ import {
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
-    Paper,
     Collapse,
-    Chip,
     Button,
     Checkbox,
     TablePagination,
@@ -28,10 +25,12 @@ import {
 import {
     fetchJobsSummary,
     fetchJobsByTitleStatus,
+    fetchJobsDailyHistory,
     cancelJob,
     cancelJobsBulk,
     JobSummary,
-    JobDetail
+    JobDetail,
+    DailyHistory
 } from '../../services/jobService.ts';
 import {startJob, fetchJobsTable} from '../../services/investmentService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
@@ -40,6 +39,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
+import cardStyles from './JobsDialog.module.scss';
 
 interface JobsDialogProps {
     open: boolean,
@@ -56,21 +56,72 @@ interface ExpandedJobType {
     loading: boolean;
 }
 
+const HISTORY_DAYS = 90;
+
+const STATUS_COLORS: Record<string, string> = {
+    Completed: '#4ade80',
+    Pending: '#f59e0b',
+    Overdue: '#ef4444',
+    Failed: '#a855f7',
+};
+
+const STATUS_CELL_CLASS: Record<string, string> = {
+    Completed: cardStyles.dayCellCompleted,
+    Pending: cardStyles.dayCellPending,
+    Overdue: cardStyles.dayCellOverdue,
+    Failed: cardStyles.dayCellFailed,
+};
+
+/**
+ * Generate an array of date strings for the last N days (oldest first).
+ */
+function generateDateRange(days: number): string[] {
+    const dates: string[] = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        dates.push(d.toISOString().slice(0, 10));
+    }
+    return dates;
+}
+
+/**
+ * Determine the dominant status for a day (worst wins).
+ */
+function dominantStatus(dayData: Record<string, number>): string {
+    const priority = ['Failed', 'Overdue', 'Pending', 'Completed'];
+    for (const s of priority) {
+        if (dayData[s] && dayData[s] > 0) return s;
+    }
+    return 'Completed';
+}
+
 const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const [jobsSummary, setJobsSummary] = useState<JobSummary[]>([]);
+    const [dailyHistory, setDailyHistory] = useState<DailyHistory>({});
     const [expandedJobs, setExpandedJobs] = useState<Record<string, ExpandedJobType>>({});
     const [loading, setLoading] = useState(false);
     const [availableJobs, setAvailableJobs] = useState<Record<string, string>>({});
     const [selectedJob, setSelectedJob] = useState<string>("");
+    const [hoveredDay, setHoveredDay] = useState<string | null>(null);
     const {setPayload} = useMessage();
     const isMobile = useMediaQuery("(max-width:768px)");
+
+    const dateRange = generateDateRange(HISTORY_DAYS);
 
     const loadJobsSummary = async (clearCache = false) => {
         try {
             setLoading(true);
-            const response = await fetchJobsSummary(clearCache);
-            if (response.status === 'success') {
-                setJobsSummary(response.data);
+            const [summaryRes, historyRes] = await Promise.all([
+                fetchJobsSummary(clearCache),
+                fetchJobsDailyHistory(HISTORY_DAYS, clearCache),
+            ]);
+            if (summaryRes.status === 'success') {
+                setJobsSummary(summaryRes.data);
+            }
+            if (historyRes.status === 'success') {
+                setDailyHistory(historyRes.data);
             }
         } catch (error) {
             setPayload({
@@ -151,14 +202,12 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
         const key = `${title}-${status}`;
 
         if (expandedJobs[key]) {
-            // Remove from expanded jobs
             setExpandedJobs(prev => {
                 const newState = {...prev};
                 delete newState[key];
                 return newState;
             });
         } else {
-            // Add to expanded jobs and load data
             loadJobDetails(title, status);
         }
     };
@@ -201,7 +250,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const handleCancelJob = async (jobId: number, title: string, status: string) => {
         const key = `${title}-${status}`;
         const currentJobData = expandedJobs[key];
-        
+
         try {
             const response = await cancelJob(jobId);
             if (response.status === 'success') {
@@ -209,21 +258,17 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     type: "success",
                     message: response.message,
                 });
-                
-                // Reload summary first
+
                 await loadJobsSummary(true);
-                
-                // Calculate what page to load after deletion
+
                 const currentPage = currentJobData?.page || 1;
                 const currentJobsCount = currentJobData?.jobs?.length || 0;
-                
-                // If this was the only job on current page and not the first page, go back one page
+
                 let pageToLoad = currentPage;
                 if (currentJobsCount === 1 && currentPage > 1) {
                     pageToLoad = currentPage - 1;
                 }
-                
-                // Reload job details for the appropriate page
+
                 await loadJobDetails(title, status, pageToLoad);
             }
         } catch (error) {
@@ -255,22 +300,18 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     type: "success",
                     message: `${response.message} (${selectedIds.length} jobs)`,
                 });
-                
-                // Reload summary first
+
                 await loadJobsSummary(true);
-                
-                // Calculate what page to load after bulk deletion
+
                 const currentPage = currentJobData?.page || 1;
                 const currentJobsCount = currentJobData?.jobs?.length || 0;
                 const cancelledCount = selectedIds.length;
-                
-                // If we're cancelling all jobs on current page and not on first page, go back one page
+
                 let pageToLoad = currentPage;
                 if (cancelledCount >= currentJobsCount && currentPage > 1) {
                     pageToLoad = currentPage - 1;
                 }
-                
-                // Reload job details for the appropriate page
+
                 await loadJobDetails(title, status, pageToLoad);
             }
         } catch (error) {
@@ -303,7 +344,6 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     message: "Job started successfully",
                 });
                 setSelectedJob("");
-                // Refresh the jobs summary to show the new job
                 loadJobsSummary(true);
             }
         } catch (error) {
@@ -315,37 +355,131 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'completed':
-                return '#4CAF50';
-            case 'pending':
-                return '#FF9800';
-            case 'overdue':
-                return '#F44336';
-            case 'failed':
-                return '#9C27B0';
-            default:
-                return '#757575';
+    const canCancelJobs = (status: string) =>
+        status.toLowerCase() === 'pending' || status.toLowerCase() === 'overdue';
+
+    // --- Card helpers ---
+
+    const getTotal = (job: JobSummary) =>
+        job.pending_count + job.overdue_count + job.completed_count + job.failed_count;
+
+    const getSuccessRate = (job: JobSummary) => {
+        const total = getTotal(job);
+        if (total === 0) return 0;
+        return Math.round((job.completed_count / total) * 100);
+    };
+
+    const getHealthStatus = (job: JobSummary): { label: string; className: string } => {
+        if (job.is_disabled) return { label: 'Down', className: cardStyles.down };
+        const total = getTotal(job);
+        if (total === 0) return { label: 'Idle', className: cardStyles.idle };
+        const problematic = job.failed_count + job.overdue_count;
+        if (problematic === 0) return { label: 'Healthy', className: cardStyles.healthy };
+        if (problematic / total > 0.5) return { label: 'Critical', className: cardStyles.critical };
+        return { label: 'Degraded', className: cardStyles.degraded };
+    };
+
+    const getPriorityClass = (priority: string) => {
+        switch (priority) {
+            case 'High': return cardStyles.priorityHigh;
+            case 'Medium': return cardStyles.priorityMedium;
+            default: return cardStyles.priorityLow;
         }
     };
 
-    const getStatusCounts = (job: JobSummary) => [
-        {status: 'Pending', count: job.pending_count},
-        {status: 'Overdue', count: job.overdue_count},
-        {status: 'Completed', count: job.completed_count},
-        {status: 'Failed', count: job.failed_count}
-    ].filter(item => item.count > 0);
+    const getExpandedStatuses = (title: string) => {
+        return Object.keys(expandedJobs).filter(k => k.startsWith(`${title}-`));
+    };
 
-    const canCancelJobs = (status: string) =>
-        status.toLowerCase() === 'pending' || status.toLowerCase() === 'overdue';
+    // --- Render day cells for a job ---
+    const renderTimeline = (job: JobSummary) => {
+        const jobHistory = dailyHistory[job.title] || {};
+        const hoverKey = hoveredDay ? `${job.title}-${hoveredDay}` : null;
+
+        return (
+            <div style={{ position: 'relative' }}>
+                <div className={cardStyles.timelineBar}>
+                    {dateRange.map(date => {
+                        const dayData = jobHistory[date];
+                        const thisDayKey = `${job.title}-${date}`;
+                        const isHovered = hoverKey === thisDayKey;
+
+                        if (!dayData) {
+                            return (
+                                <div
+                                    key={date}
+                                    className={`${cardStyles.dayCell} ${cardStyles.dayCellEmpty}`}
+                                    onMouseEnter={() => setHoveredDay(date)}
+                                    onMouseLeave={() => setHoveredDay(null)}
+                                    onClick={() => {
+                                        // No data for this day
+                                    }}
+                                >
+                                    {isHovered && (
+                                        <div className={cardStyles.dayTooltip}>
+                                            <div className={cardStyles.tooltipDate}>
+                                                {new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                            </div>
+                                            <div style={{ color: '#5a6a7c' }}>No jobs</div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
+
+                        const statuses = Object.keys(dayData);
+                        const dominant = dominantStatus(dayData);
+                        const totalDay = Object.values(dayData).reduce((a, b) => a + b, 0);
+                        const cellClass = statuses.length > 1 ? cardStyles.dayCellMixed : (STATUS_CELL_CLASS[dominant] || cardStyles.dayCellEmpty);
+
+                        return (
+                            <div
+                                key={date}
+                                className={`${cardStyles.dayCell} ${cellClass}`}
+                                style={statuses.length > 1 ? {
+                                    background: buildGradient(dayData, totalDay),
+                                } : undefined}
+                                onMouseEnter={() => setHoveredDay(date)}
+                                onMouseLeave={() => setHoveredDay(null)}
+                                onClick={() => {
+                                    // Expand the dominant status for this job
+                                    handleExpandToggle(job.title, dominant);
+                                }}
+                            >
+                                {isHovered && (
+                                    <div className={cardStyles.dayTooltip}>
+                                        <div className={cardStyles.tooltipDate}>
+                                            {new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        </div>
+                                        {Object.entries(dayData).map(([status, count]) => (
+                                            <div key={status} className={cardStyles.tooltipRow}>
+                                                <span
+                                                    className={cardStyles.tooltipDot}
+                                                    style={{ backgroundColor: STATUS_COLORS[status] || '#8b8b8b' }}
+                                                />
+                                                {status}: {count}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className={cardStyles.timelineLabels}>
+                    <span>{new Date(dateRange[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                    <span>Today</span>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <Dialog
             open={open}
             onClose={onClose}
             fullScreen={isMobile}
-            maxWidth="xl"
+            maxWidth="md"
             PaperProps={{
                 sx: {
                     backgroundColor: "#121C24",
@@ -357,15 +491,15 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             }}
         >
             <DialogTitle sx={{
-                display: 'flex', 
+                display: 'flex',
                 flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'stretch', sm: 'center' }, 
+                alignItems: { xs: 'stretch', sm: 'center' },
                 justifyContent: 'space-between',
                 gap: { xs: 2, sm: 0 },
                 padding: { xs: 2, sm: 3 }
             }}>
                 <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ flexShrink: 0 }}>
-                    Jobs Management Dashboard
+                    Jobs Management
                 </Typography>
                 <Box sx={{
                     display: 'flex',
@@ -374,10 +508,9 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                     gap: { xs: 1, sm: 2 },
                     flexWrap: 'wrap'
                 }}>
-                    {/* Job Creation Section */}
                     <Box sx={{
-                        display: 'flex', 
-                        alignItems: 'center', 
+                        display: 'flex',
+                        alignItems: 'center',
                         gap: 1,
                         width: { xs: '100%', sm: 'auto' }
                     }}>
@@ -429,8 +562,8 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                         >
                             <RefreshIcon/>
                         </IconButton>
-                        <IconButton 
-                            onClick={onClose} 
+                        <IconButton
+                            onClick={onClose}
                             sx={{color: '#FAFAFA'}}
                             size={isMobile ? "small" : "medium"}
                         >
@@ -441,313 +574,241 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             </DialogTitle>
 
             <DialogContent sx={{padding: 0, overflow: 'auto'}}>
-                <TableContainer component={Paper} sx={{backgroundColor: '#121C24', height: '100%', overflowX: 'auto'}}>
-                    <Table stickyHeader sx={{ minWidth: { xs: 600, sm: 800 } }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{
-                                    backgroundColor: '#2C3E50', 
-                                    color: '#FAFAFA', 
-                                    fontWeight: 'bold',
-                                    minWidth: { xs: 80, sm: 120 },
-                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                                }}>
-                                    Job Type
-                                </TableCell>
-                                <TableCell sx={{
-                                    backgroundColor: '#2C3E50', 
-                                    color: '#FAFAFA', 
-                                    fontWeight: 'bold',
-                                    minWidth: { xs: 60, sm: 80 },
-                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                                }}>
-                                    Priority
-                                </TableCell>
-                                <TableCell sx={{
-                                    backgroundColor: '#2C3E50', 
-                                    color: '#FAFAFA', 
-                                    fontWeight: 'bold',
-                                    minWidth: { xs: 120, sm: 180 },
-                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                                }}>
-                                    Status Summary
-                                </TableCell>
-                                <TableCell sx={{
-                                    backgroundColor: '#2C3E50', 
-                                    color: '#FAFAFA', 
-                                    fontWeight: 'bold',
-                                    minWidth: { xs: 60, sm: 100 },
-                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                                }}>
-                                    Status
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {jobsSummary.map((job) => (
-                                <React.Fragment key={job.title}>
-                                    <TableRow sx={{backgroundColor: '#1A252F'}}>
-                                        <TableCell sx={{
-                                            color: '#FAFAFA', 
-                                            fontWeight: 'bold', 
-                                            fontSize: { xs: '0.875rem', sm: '1rem', md: '1.1rem' },
-                                            padding: { xs: 1, sm: 2 }
-                                        }}>
-                                            {job.title}
-                                        </TableCell>
-                                        <TableCell sx={{color: '#FAFAFA', padding: { xs: 1, sm: 2 }}}>
-                                            <Chip
-                                                label={job.priority}
-                                                color={job.priority === 'High' ? 'error' : job.priority === 'Medium' ? 'warning' : 'default'}
-                                                size={isMobile ? "small" : "small"}
-                                                sx={{ fontSize: { xs: '0.6rem', sm: '0.75rem' } }}
-                                            />
-                                        </TableCell>
-                                        <TableCell sx={{color: '#FAFAFA', padding: { xs: 1, sm: 2 }}}>
-                                            <Box sx={{display: 'flex', flexWrap: 'wrap', gap: { xs: 0.5, sm: 1 }}}>
-                                                {getStatusCounts(job).map(({status, count}) => (
-                                                    <Chip
-                                                        key={status}
-                                                        label={isMobile ? `${status.charAt(0)}:${count}` : `${status}: ${count}`}
-                                                        size="small"
-                                                        sx={{
-                                                            backgroundColor: getStatusColor(status),
-                                                            color: 'white',
-                                                            cursor: 'pointer',
-                                                            fontSize: { xs: '0.6rem', sm: '0.75rem' },
-                                                            height: { xs: 20, sm: 24 }
-                                                        }}
-                                                        onClick={() => handleExpandToggle(job.title, status)}
-                                                    />
-                                                ))}
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell sx={{color: '#FAFAFA', padding: { xs: 1, sm: 2 }}}>
-                                            <Chip
-                                                label={job.is_disabled ? 'Disabled' : 'Enabled'}
-                                                size="small"
-                                                color={job.is_disabled ? 'error' : 'success'}
-                                                variant={job.is_disabled ? 'filled' : 'outlined'}
-                                                sx={{ fontSize: { xs: '0.6rem', sm: '0.75rem' } }}
-                                            />
-                                        </TableCell>
-                                    </TableRow>
+                <div className={cardStyles.cardList}>
+                    {/* Legend at top */}
+                    <div className={cardStyles.legend}>
+                        {Object.entries(STATUS_COLORS).map(([status, color]) => (
+                            <div key={status} className={cardStyles.legendItem} style={{ cursor: 'default' }}>
+                                <span className={cardStyles.legendDot} style={{ backgroundColor: color }} />
+                                {status}
+                            </div>
+                        ))}
+                    </div>
 
-                                    {/* Sub-tables for each status */}
-                                    {getStatusCounts(job).map(({status}) => {
-                                        const key = `${job.title}-${status}`;
-                                        const jobData = expandedJobs[key];
+                    {jobsSummary.map((job) => {
+                        const health = getHealthStatus(job);
+                        const total = getTotal(job);
+                        const expandedKeys = getExpandedStatuses(job.title);
 
-                                        return (
-                                            <TableRow key={key}>
-                                                <TableCell style={{paddingBottom: 0, paddingTop: 0}} colSpan={4}>
-                                                    <Collapse in={!!jobData} timeout="auto" unmountOnExit>
-                                                        <Box sx={{
-                                                            margin: 1,
-                                                            backgroundColor: '#0F1419',
-                                                            borderRadius: 1,
-                                                            border: '1px solid #34495E'
-                                                        }}>
-                                                            <Box sx={{
-                                                                display: 'flex',
-                                                                justifyContent: 'space-between',
-                                                                alignItems: 'center',
-                                                                padding: 2,
-                                                                borderBottom: '1px solid #34495E'
-                                                            }}>
-                                                                <Typography variant="h6" sx={{color: '#FAFAFA'}}>
-                                                                    {job.title} - {status} Jobs
-                                                                </Typography>
+                        return (
+                            <div key={job.title}>
+                                {/* Job Card */}
+                                <div className={cardStyles.jobCard}>
+                                    {/* Card Header */}
+                                    <div className={cardStyles.cardHeader}>
+                                        <span className={cardStyles.jobTitle}>{job.title}</span>
+                                        <span className={`${cardStyles.healthBadge} ${health.className}`}>
+                                            {health.label}
+                                        </span>
+                                    </div>
 
-                                                                {canCancelJobs(status) && jobData && (
-                                                                    <Box sx={{display: 'flex', gap: 1}}>
-                                                                        <Button
-                                                                            startIcon={<DeleteIcon/>}
-                                                                            variant="outlined"
-                                                                            color="error"
-                                                                            size="small"
-                                                                            onClick={() => handleBulkCancel(job.title, status)}
-                                                                            disabled={(jobData?.selectedJobs?.size || 0) === 0}
-                                                                        >
-                                                                            Cancel Selected
-                                                                            ({jobData?.selectedJobs?.size || 0})
-                                                                        </Button>
-                                                                    </Box>
+                                    {/* Day-by-day timeline */}
+                                    {renderTimeline(job)}
+
+                                    {/* Card Footer */}
+                                    <div className={cardStyles.cardFooter}>
+                                        <div className={cardStyles.footerItem}>
+                                            <span>{total} total</span>
+                                        </div>
+                                        <div className={cardStyles.footerItem}>
+                                            <span className={cardStyles.successRate}>{getSuccessRate(job)}%</span>
+                                            <span>success</span>
+                                        </div>
+                                        <span className={`${cardStyles.priorityPill} ${getPriorityClass(job.priority)}`}>
+                                            {job.priority}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Expanded detail sections */}
+                                {expandedKeys.map((expandedKey) => {
+                                    const jobData = expandedJobs[expandedKey];
+                                    if (!jobData) return null;
+                                    const status = jobData.status;
+
+                                    return (
+                                        <Collapse key={expandedKey} in={true} timeout="auto">
+                                            <div className={cardStyles.expandedSection}>
+                                                <div className={cardStyles.expandedHeader}>
+                                                    <span className={cardStyles.expandedTitle}>
+                                                        {job.title} — {status} Jobs
+                                                    </span>
+                                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                                        {canCancelJobs(status) && (
+                                                            <Button
+                                                                startIcon={<DeleteIcon/>}
+                                                                variant="outlined"
+                                                                color="error"
+                                                                size="small"
+                                                                onClick={() => handleBulkCancel(job.title, status)}
+                                                                disabled={(jobData?.selectedJobs?.size || 0) === 0}
+                                                                sx={{ fontSize: '0.75rem' }}
+                                                            >
+                                                                Cancel ({jobData?.selectedJobs?.size || 0})
+                                                            </Button>
+                                                        )}
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleExpandToggle(job.title, status)}
+                                                            sx={{color: '#FAFAFA'}}
+                                                        >
+                                                            <KeyboardArrowUpIcon/>
+                                                        </IconButton>
+                                                    </Box>
+                                                </div>
+
+                                                <Box sx={{
+                                                    backgroundColor: '#0f1419',
+                                                    borderRadius: 1,
+                                                    border: '1px solid #2a3a50',
+                                                    overflowX: 'auto',
+                                                }}>
+                                                    <Table size="small">
+                                                        <TableHead>
+                                                            <TableRow>
+                                                                {canCancelJobs(status) && (
+                                                                    <TableCell sx={{color: '#FAFAFA', borderBottom: '1px solid #2a3a50'}}>
+                                                                        <Checkbox
+                                                                            checked={jobData?.jobs?.length > 0 && jobData.jobs.every(j => jobData?.selectedJobs?.has(j.id))}
+                                                                            indeterminate={(jobData?.selectedJobs?.size || 0) > 0 && (jobData?.selectedJobs?.size || 0) < (jobData?.jobs?.length || 0)}
+                                                                            onChange={() => handleSelectAll(job.title, status)}
+                                                                            sx={{color: '#FAFAFA', '&.Mui-checked': {color: '#7b68ee'}}}
+                                                                        />
+                                                                    </TableCell>
                                                                 )}
+                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>ID</TableCell>
+                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Priority</TableCell>
+                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Due Date</TableCell>
+                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Failures</TableCell>
+                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Result</TableCell>
+                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Status</TableCell>
+                                                                {canCancelJobs(status) && (
+                                                                    <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Actions</TableCell>
+                                                                )}
+                                                            </TableRow>
+                                                        </TableHead>
+                                                        <TableBody>
+                                                            {jobData.loading ? (
+                                                                <TableRow>
+                                                                    <TableCell
+                                                                        colSpan={canCancelJobs(status) ? 8 : 6}
+                                                                        sx={{color: '#8b8b8b', textAlign: 'center', borderBottom: '1px solid #2a3a50'}}
+                                                                    >
+                                                                        Loading...
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ) : jobData.jobs.map((jobDetail) => (
+                                                                <TableRow key={jobDetail.id} sx={{
+                                                                    '&:hover': { backgroundColor: 'rgba(255,255,255,0.03)' }
+                                                                }}>
+                                                                    {canCancelJobs(status) && (
+                                                                        <TableCell sx={{borderBottom: '1px solid #1a2938'}}>
+                                                                            <Checkbox
+                                                                                checked={jobData?.selectedJobs?.has(jobDetail.id) || false}
+                                                                                onChange={() => handleJobSelection(jobDetail.id, job.title, status)}
+                                                                                sx={{color: '#FAFAFA', '&.Mui-checked': {color: '#7b68ee'}}}
+                                                                            />
+                                                                        </TableCell>
+                                                                    )}
+                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>{jobDetail.id}</TableCell>
+                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>{jobDetail.priority}</TableCell>
+                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>
+                                                                        {new Date(jobDetail.due_date).toLocaleString(undefined, {
+                                                                            year: 'numeric',
+                                                                            month: 'short',
+                                                                            day: 'numeric',
+                                                                            hour: '2-digit',
+                                                                            minute: '2-digit',
+                                                                        })}
+                                                                    </TableCell>
+                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>{jobDetail.failures}</TableCell>
+                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', maxWidth: 180, borderBottom: '1px solid #1a2938'}}>
+                                                                        <Tooltip title={jobDetail.result || 'No result yet'}>
+                                                                            <Typography
+                                                                                noWrap
+                                                                                sx={{
+                                                                                    overflow: 'hidden',
+                                                                                    textOverflow: 'ellipsis',
+                                                                                    maxWidth: 180,
+                                                                                    fontSize: '0.8rem',
+                                                                                }}
+                                                                            >
+                                                                                {jobDetail.result || 'Pending...'}
+                                                                            </Typography>
+                                                                        </Tooltip>
+                                                                    </TableCell>
+                                                                    <TableCell sx={{fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>
+                                                                        <span style={{
+                                                                            color: jobDetail.job_type_disabled ? '#ef4444' : '#4ade80',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: 600,
+                                                                        }}>
+                                                                            {jobDetail.job_type_disabled ? 'Disabled' : 'Enabled'}
+                                                                        </span>
+                                                                    </TableCell>
+                                                                    {canCancelJobs(status) && (
+                                                                        <TableCell sx={{borderBottom: '1px solid #1a2938'}}>
+                                                                            <IconButton
+                                                                                size="small"
+                                                                                onClick={() => handleCancelJob(jobDetail.id, job.title, status)}
+                                                                                sx={{color: '#ef4444'}}
+                                                                            >
+                                                                                <CancelIcon fontSize="small"/>
+                                                                            </IconButton>
+                                                                        </TableCell>
+                                                                    )}
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
 
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={() => handleExpandToggle(job.title, status)}
-                                                                    sx={{color: '#FAFAFA'}}
-                                                                >
-                                                                    <KeyboardArrowUpIcon/>
-                                                                </IconButton>
-                                                            </Box>
-
-                                                            {jobData && (
-                                                                <>
-                                                                    <Table size="small">
-                                                                        <TableHead>
-                                                                            <TableRow>
-                                                                                {canCancelJobs(status) && (
-                                                                                    <TableCell sx={{color: '#FAFAFA'}}>
-                                                                                        <Checkbox
-                                                                                            checked={jobData?.jobs?.length > 0 && jobData.jobs.every(j => jobData?.selectedJobs?.has(j.id))}
-                                                                                            indeterminate={(jobData?.selectedJobs?.size || 0) > 0 && (jobData?.selectedJobs?.size || 0) < (jobData?.jobs?.length || 0)}
-                                                                                            onChange={() => handleSelectAll(job.title, status)}
-                                                                                            sx={{color: '#FAFAFA'}}
-                                                                                        />
-                                                                                    </TableCell>
-                                                                                )}
-                                                                                <TableCell sx={{
-                                                                                    color: '#FAFAFA',
-                                                                                    fontWeight: 'bold'
-                                                                                }}>ID</TableCell>
-                                                                                <TableCell sx={{
-                                                                                    color: '#FAFAFA',
-                                                                                    fontWeight: 'bold'
-                                                                                }}>Priority</TableCell>
-                                                                                <TableCell sx={{
-                                                                                    color: '#FAFAFA',
-                                                                                    fontWeight: 'bold'
-                                                                                }}>Due Date</TableCell>
-                                                                                <TableCell sx={{
-                                                                                    color: '#FAFAFA',
-                                                                                    fontWeight: 'bold'
-                                                                                }}>Failures</TableCell>
-                                                                                <TableCell sx={{
-                                                                                    color: '#FAFAFA',
-                                                                                    fontWeight: 'bold'
-                                                                                }}>Result</TableCell>
-                                                                                <TableCell sx={{
-                                                                                    color: '#FAFAFA',
-                                                                                    fontWeight: 'bold'
-                                                                                }}>Status</TableCell>
-                                                                                {canCancelJobs(status) && (
-                                                                                    <TableCell sx={{
-                                                                                        color: '#FAFAFA',
-                                                                                        fontWeight: 'bold'
-                                                                                    }}>Actions</TableCell>
-                                                                                )}
-                                                                            </TableRow>
-                                                                        </TableHead>
-                                                                        <TableBody>
-                                                                            {jobData.loading ? (
-                                                                                <TableRow>
-                                                                                    <TableCell
-                                                                                        colSpan={canCancelJobs(status) ? 8 : 6}
-                                                                                        sx={{
-                                                                                            color: '#FAFAFA',
-                                                                                            textAlign: 'center'
-                                                                                        }}
-                                                                                    >
-                                                                                        Loading...
-                                                                                    </TableCell>
-                                                                                </TableRow>
-                                                                            ) : jobData.jobs.map((jobDetail) => (
-                                                                                <TableRow key={jobDetail.id}>
-                                                                                    {canCancelJobs(status) && (
-                                                                                        <TableCell>
-                                                                                            <Checkbox
-                                                                                                checked={jobData?.selectedJobs?.has(jobDetail.id) || false}
-                                                                                                onChange={() => handleJobSelection(jobDetail.id, job.title, status)}
-                                                                                                sx={{color: '#FAFAFA'}}
-                                                                                            />
-                                                                                        </TableCell>
-                                                                                    )}
-                                                                                    <TableCell
-                                                                                        sx={{color: '#FAFAFA'}}>{jobDetail.id}</TableCell>
-                                                                                    <TableCell
-                                                                                        sx={{color: '#FAFAFA'}}>{jobDetail.priority}</TableCell>
-                                                                                    <TableCell sx={{color: '#FAFAFA'}}>
-                                                                                        {new Date(jobDetail.due_date).toLocaleString(undefined, {
-                                                                                            year: 'numeric',
-                                                                                            month: 'short',
-                                                                                            day: 'numeric',
-                                                                                            hour: '2-digit',
-                                                                                            minute: '2-digit',
-                                                                                            second: '2-digit',
-                                                                                            timeZoneName: 'short'
-                                                                                        })}
-                                                                                    </TableCell>
-                                                                                    <TableCell
-                                                                                        sx={{color: '#FAFAFA'}}>{jobDetail.failures}</TableCell>
-                                                                                    <TableCell sx={{
-                                                                                        color: '#FAFAFA',
-                                                                                        maxWidth: 200
-                                                                                    }}>
-                                                                                        <Tooltip
-                                                                                            title={jobDetail.result || 'No result yet'}>
-                                                                                            <Typography
-                                                                                                noWrap
-                                                                                                sx={{
-                                                                                                    overflow: 'hidden',
-                                                                                                    textOverflow: 'ellipsis',
-                                                                                                    maxWidth: 200
-                                                                                                }}
-                                                                                            >
-                                                                                                {jobDetail.result || 'Pending...'}
-                                                                                            </Typography>
-                                                                                        </Tooltip>
-                                                                                    </TableCell>
-                                                                                    <TableCell sx={{color: '#FAFAFA'}}>
-                                                                                        <Chip
-                                                                                            label={jobDetail.job_type_disabled ? 'Type Disabled' : 'Type Enabled'}
-                                                                                            size="small"
-                                                                                            color={jobDetail.job_type_disabled ? 'error' : 'success'}
-                                                                                            variant={jobDetail.job_type_disabled ? 'filled' : 'outlined'}
-                                                                                        />
-                                                                                    </TableCell>
-                                                                                    {canCancelJobs(status) && (
-                                                                                        <TableCell>
-                                                                                            <IconButton
-                                                                                                size="small"
-                                                                                                color="error"
-                                                                                                onClick={() => handleCancelJob(jobDetail.id, job.title, status)}
-                                                                                            >
-                                                                                                <CancelIcon/>
-                                                                                            </IconButton>
-                                                                                        </TableCell>
-                                                                                    )}
-                                                                                </TableRow>
-                                                                            ))}
-                                                                        </TableBody>
-                                                                    </Table>
-
-                                                                    {/* Pagination for job details */}
-                                                                    <TablePagination
-                                                                        component="div"
-                                                                        count={jobData.totalJobs}
-                                                                        page={jobData.page - 1}
-                                                                        onPageChange={(_, newPage) => handlePageChange(job.title, status, newPage)}
-                                                                        rowsPerPage={10}
-                                                                        rowsPerPageOptions={[10]}
-                                                                        sx={{
-                                                                            color: '#FAFAFA',
-                                                                            '& .MuiTablePagination-actions': {
-                                                                                color: '#FAFAFA'
-                                                                            },
-                                                                            '& .MuiIconButton-root': {
-                                                                                color: '#FAFAFA'
-                                                                            }
-                                                                        }}
-                                                                    />
-                                                                </>
-                                                            )}
-                                                        </Box>
-                                                    </Collapse>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </React.Fragment>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                                    <TablePagination
+                                                        component="div"
+                                                        count={jobData.totalJobs}
+                                                        page={jobData.page - 1}
+                                                        onPageChange={(_, newPage) => handlePageChange(job.title, status, newPage)}
+                                                        rowsPerPage={10}
+                                                        rowsPerPageOptions={[10]}
+                                                        sx={{
+                                                            color: '#8b8b8b',
+                                                            '& .MuiTablePagination-actions': {color: '#8b8b8b'},
+                                                            '& .MuiIconButton-root': {color: '#8b8b8b'},
+                                                            borderTop: '1px solid #2a3a50',
+                                                        }}
+                                                    />
+                                                </Box>
+                                            </div>
+                                        </Collapse>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
+                </div>
             </DialogContent>
         </Dialog>
     );
 };
+
+/**
+ * Build a CSS gradient showing proportional status colors for a mixed-status day.
+ */
+function buildGradient(dayData: Record<string, number>, total: number): string {
+    const order = ['Completed', 'Pending', 'Overdue', 'Failed'];
+    const stops: string[] = [];
+    let pct = 0;
+
+    for (const status of order) {
+        const count = dayData[status];
+        if (!count) continue;
+        const color = STATUS_COLORS[status] || '#8b8b8b';
+        const nextPct = pct + (count / total) * 100;
+        stops.push(`${color} ${pct}%`);
+        stops.push(`${color} ${nextPct}%`);
+        pct = nextPct;
+    }
+
+    return `linear-gradient(to top, ${stops.join(', ')})`;
+}
 
 export default JobsDialog;

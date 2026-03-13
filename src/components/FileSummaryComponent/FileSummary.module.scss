@@ -1,41 +1,114 @@
 .summaryContainer {
   display: flex;
-  gap: 0.1rem;
+  align-items: center;
+  gap: 0.75rem;
   background-color: #121c24;
   border-radius: 8px;
-  align-items: center;
-  justify-content: space-evenly;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #2a3a50;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #3a4f6a;
+  }
+
+  scrollbar-width: thin;
+  scrollbar-color: #2a3a50 transparent;
+
   @media screen and (max-width: 1000px) {
-    overflow-x: auto;
-    gap: 20px;
-  }
-
-  .bank {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 5px;
-    border-right: 0.5px solid white;
-    flex-direction: column-reverse;
-  }
-
-}
-
-.subtitle {
-  font-size: 14px;
-  color: #FAFAFA;
-  font-weight: 600;
-  @media(max-width: 520px) {
-    font-size: 12px !important;
+    gap: 0.5rem;
   }
 }
 
-.bankFileCount {
-  font-size: 14px;
-  color: #607AFB; /* Green for emphasis */
-  font-weight: 700;
-  @media(max-width: 520px) {
-    font-size: 12px !important;
+.totalsGroup {
+  display: flex;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.totalCard {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.totalIcon {
+  color: #7b68ee;
+  font-size: 20px !important;
+}
+
+.totalValue {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #fafafa;
+  line-height: 1.2 !important;
+}
+
+.totalLabel {
+  font-size: 11px !important;
+  color: #8b8b8b;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+.divider {
+  width: 1px;
+  height: 28px;
+  background-color: #2a3a50;
+  flex-shrink: 0;
+}
+
+.banksGroup {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.bankChip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: #1a2730;
+  border: 1px solid #2a3a50;
+  border-radius: 20px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: #243340;
   }
 }
 
+.bankCount {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #7b68ee;
+}
+
+.bankName {
+  font-size: 11px !important;
+  color: #8b8b8b;
+  font-weight: 500 !important;
+  white-space: nowrap;
+}
+
+.actionButtons {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 0.5rem;
+}

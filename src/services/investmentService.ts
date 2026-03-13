@@ -5,6 +5,7 @@ import {
     FileUploadResponse,
     InsertEPGRequest,
     InsertSecurityTransactionRequest,
+    InvestmentEmailsResponse,
     JobsResponse,
     MSNListResponse,
     MSNRateResponse,
@@ -388,6 +389,43 @@ export async function syncKiteHoldings(): Promise<KiteSyncResponse> {
  */
 export async function syncKiteTransactions(): Promise<KiteSyncResponse> {
     const response = await queueRequest(() => axios.get('/kite/sync-transactions'));
+    return response.data;
+}
+
+/**
+ * Fetches investment-related emails from processedEmails.
+ */
+export async function fetchInvestmentEmails(
+    category?: string,
+    page: number = 1,
+    pageSize: number = 50,
+    serviceType?: string,
+    categories?: string[],
+): Promise<InvestmentEmailsResponse> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (category) params.category = category;
+    if (serviceType) params.serviceType = serviceType;
+    if (categories && categories.length > 0) params.categories = categories.join(',');
+
+    const options = withRequestId(
+        'fetchInvestmentEmails',
+        { params }
+    );
+
+    const response = await queueRequest(() => axios.get('/fetchInvestmentEmails', options));
+    return response.data;
+}
+
+/**
+ * Fetches the full email body from Gmail for a given gmail_id.
+ */
+export async function fetchEmailBody(gmailId: string): Promise<{
+    gmail_id: string;
+    body_html: string | null;
+    body_text: string | null;
+}> {
+    const options = withRequestId('fetchEmailBody', {params: {gmailId}});
+    const response = await queueRequest(() => axios.get('/fetchEmailBody', options));
     return response.data;
 }
 

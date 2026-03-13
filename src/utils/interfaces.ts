@@ -59,10 +59,21 @@ export interface FileDetails {
     fileID: string; // File ID
     uploadDate: string; // Upload date of the file
     fileName: string; // Name of the file
-    fileSize: string; // Size of the file
-    statementCount: number; // Number of statements in the file
+    fileSize?: string; // Size of the file
+    statementCount: number; // Number of statements/items in the file
     bank: string; // Bank associated with the file
     user: string; // User ID who uploaded the file
+    category?: string; // Email category (e.g. "bank_statement", "investment")
+    items_extracted?: number; // Number of items extracted
+    extraction_summary?: Record<string, any>; // Detailed extraction summary
+    summary_text?: string; // Human-readable summary string
+    status?: string; // Processing status: processed/skipped/failed
+    subject?: string; // Email subject line
+    sender?: string; // Email sender
+    has_pdf?: boolean; // Whether PDF file exists on disk
+    email_date?: string; // Original email date
+    period_start?: string; // Statement period start date
+    period_end?: string; // Statement period end date
 }
 
 export interface FileDetailsResponse {
@@ -326,6 +337,25 @@ export interface Customer {
     updatedAt: string;
 }
 
+export interface ProcessedEmail {
+    id: number;
+    gmail_id?: string;
+    subject: string;
+    sender: string;
+    received_date: string;
+    category: string;
+    extraction_summary: Record<string, unknown> | null;
+}
+
+export interface CustomerEmailLink {
+    id: number;
+    customer_id: string;
+    email_id: number;
+    linked_by: 'auto' | 'manual';
+    created_at: string;
+    email?: ProcessedEmail;
+}
+
 // Freelance API Request/Response Types
 export interface CreateInvoiceRequest {
     invoiceData: InvoiceData;
@@ -581,6 +611,25 @@ export interface FOTrade {
     orderId: string;
 }
 
+export interface InvestmentEmail {
+    id: number;
+    gmail_id: string;
+    sender: string;
+    subject: string;
+    email_date: string;
+    category: string;
+    items_extracted: number;
+    extraction_summary: Record<string, any> | null;
+    status: string;
+}
+
+export interface InvestmentEmailsResponse {
+    emails: InvestmentEmail[];
+    total: number;
+    page: number;
+    pageSize: number;
+}
+
 export interface RealizedTrade {
     sellID: number;
     symbol: string;
@@ -598,4 +647,25 @@ export interface RealizedPnLResponse {
     netRealizedPnL: number;
     tradeCount: number;
     trades: RealizedTrade[];
+}
+
+export interface UserFileData {
+    id: string;
+    original_filename: string;
+    file_type: string;
+    file_extension: string;
+    file_size: number;
+    label: string | null;
+    thumbnail: string | null;
+    folder_id: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface UserFolderData {
+    id: string;
+    name: string;
+    parent_folder_id: string | null;
+    created_at: string;
+    updated_at: string;
 }

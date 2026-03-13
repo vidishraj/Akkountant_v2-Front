@@ -189,6 +189,29 @@ export async function fetchJobsByTitleStatus(
 /**
  * Cancel a single job
  */
+// { title: { "2026-03-13": { Completed: 5, Failed: 1 }, ... } }
+export type DailyHistory = Record<string, Record<string, Record<string, number>>>;
+
+export interface DailyHistoryResponse {
+    status: string;
+    data: DailyHistory;
+}
+
+/**
+ * Fetch day-by-day status history for all job types
+ */
+export async function fetchJobsDailyHistory(days = 90, clearCache = false): Promise<DailyHistoryResponse> {
+    const params = new URLSearchParams({ days: days.toString() });
+    const options = withRequestId('api/jobs/daily-history', clearCache ? withCacheCleared() : {
+        params: { days },
+    });
+
+    const response = await queueRequest(() =>
+        axios.get(`jobs/daily-history?${params}`, options)
+    );
+    return response.data;
+}
+
 export async function cancelJob(jobId: number): Promise<CancelJobResponse> {
     const options = withRequestId(`api/jobs/${jobId}/cancel`, {});
     

@@ -101,12 +101,12 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
 
     if (!invoiceData) {
         return (
-            <div>
-                {/*<h2 className={styles.sectionTitle}>📄 PDF Preview</h2>*/}
-                <div className={styles.emptyState}>
-                    <h3 style={{color: '#B0B0B0', marginBottom: '10px'}}>No Invoice Data</h3>
-                    <p>Create a valid invoice in the Creation tab to generate and preview PDFs here.</p>
-                </div>
+            <div className={styles.invoiceForm} style={{textAlign: 'center', padding: '60px 20px'}}>
+                <div style={{fontSize: '3rem', marginBottom: '16px', opacity: 0.5}}>📄</div>
+                <h3 style={{color: '#fafafa', marginBottom: '8px', fontWeight: 600}}>No Invoice Data</h3>
+                <p style={{color: '#b0b0b0', fontSize: '0.9rem', margin: 0}}>
+                    Create or edit an invoice in the <strong>Create Invoice</strong> tab first, then come back here to preview.
+                </p>
             </div>
         );
     }
@@ -125,7 +125,7 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                     flexWrap: 'wrap',
                     gap: '10px'
                 }}>
-                    <h3 style={{color: '#FAFAFA', margin: 0}}>PDF Controls</h3>
+                    <h3>PDF Controls</h3>
                     <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
                         <button
                             className={styles.primaryBtn}
@@ -175,7 +175,7 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                         <div><strong style={{color: '#7B68EE'}}>Invoice:</strong> {invoiceData.invoiceNumber}</div>
                         <div><strong style={{color: '#7B68EE'}}>Project:</strong> {invoiceData.projectName}</div>
                         <div><strong style={{color: '#7B68EE'}}>Client:</strong> {invoiceData.to.name}</div>
-                        <div><strong style={{color: '#7B68EE'}}>Total:</strong> ${invoiceData.total.toFixed(2)}</div>
+                        <div><strong style={{color: '#7B68EE'}}>Total:</strong> {({USD:'$',INR:'\u20B9',GBP:'\u00A3',EUR:'\u20AC',AUD:'A$'}[invoiceData.currency] || '$')}{invoiceData.total.toFixed(2)}</div>
                     </div>
                 </div>
             </div>
@@ -252,16 +252,20 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                     </div>
                 </div>
             ) : (
-                <div className={styles.invoiceForm}>
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '40px',
-                        color: '#B0B0B0'
-                    }}>
-                        <div style={{fontSize: '3rem', marginBottom: '15px'}}>📄</div>
-                        <h3 style={{marginBottom: '10px'}}>No PDF Preview Generated</h3>
-                        <p>Click "Generate Preview" to create and display your invoice PDF here.</p>
-                    </div>
+                <div className={styles.invoiceForm} style={{textAlign: 'center', padding: '60px 20px'}}>
+                    <div style={{fontSize: '3rem', marginBottom: '16px', opacity: 0.5}}>📄</div>
+                    <h3 style={{color: '#fafafa', marginBottom: '8px', fontWeight: 600}}>Ready to Preview</h3>
+                    <p style={{color: '#b0b0b0', fontSize: '0.9rem', marginBottom: '20px'}}>
+                        Click the button below to generate your invoice PDF.
+                    </p>
+                    <button
+                        className={styles.primaryBtn}
+                        onClick={handlePreviewPDF}
+                        disabled={loading}
+                        style={{padding: '10px 24px', fontSize: '0.95rem'}}
+                    >
+                        {loading ? 'Generating...' : 'Generate Preview'}
+                    </button>
                 </div>
             )}
 

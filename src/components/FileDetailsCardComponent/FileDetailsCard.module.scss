@@ -1,18 +1,38 @@
 .card {
+  background-color: #1a2938;
+  border: 1px solid #2a3a50;
+  border-left: 4px solid #7b68ee;
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  background-color: #121C24 !important;
-  padding: 16px 8px;
-  border-top: 0.1px solid #E5E8EB;
-  @media(max-width: 520px) {
-    gap: 5px;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #7b68ee;
+    box-shadow: 0 2px 8px rgba(123, 104, 238, 0.15);
   }
 }
 
-.bankIcon {
-  min-width: 10%;
-  text-align: center;
+.cardFailed {
+  border-left-color: #ef4444;
+}
+
+.cardSkipped {
+  border-left-color: #f59e0b;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bankIconWrap {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,45 +43,138 @@
   }
 }
 
-.details {
-  color: #8A9EBF !important;
-  min-width: 70%;
-  text-align: left;
+.headerInfo {
+  flex: 1;
+  min-width: 0;
+}
 
+.bankName {
+  color: #fafafa;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
 
-  &__fileName {
-    font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
-    @media(max-width: 520px) {
-      font-size: 0.85rem !important;
-    }
+.subject {
+  color: #8b8b8b;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+
+  &.processed {
+    background-color: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
   }
 
-  &__info {
-    color: #FAFAFA;
-    font-size: 0.85rem;
-    margin-top: 2px;
-    @media(max-width: 520px) {
-      font-size: 0.8rem !important;
-    }
+  &.skipped {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+  }
+
+  &.failed {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
   }
 }
 
-.actions {
-  min-width: 20%;
-  text-align: right;
+.cardBody {
+  padding-top: 8px;
+  border-top: 1px solid #2a3a50;
+}
+
+.statsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background-color: rgba(123, 104, 238, 0.08);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #b0b0b0;
+
+  strong {
+    color: #fafafa;
+  }
+}
+
+.statGreen {
+  color: #4ade80;
+
+  strong {
+    color: #4ade80;
+  }
+}
+
+.statYellow {
+  color: #f59e0b;
+
+  strong {
+    color: #f59e0b;
+  }
+}
+
+.summaryText {
+  color: #8b8b8b;
+  font-size: 0.78rem;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.cardFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
 
-  &__icon {
-    color: #FAFAFA;
-    margin-left: 8px;
+.date {
+  color: #6b7f9a;
+  font-size: 0.75rem;
+}
 
-    &:hover {
-      color: #e53935;
-    }
+.actions {
+  display: flex;
+  gap: 2px;
+}
+
+// Responsive
+@media screen and (max-width: 480px) {
+  .card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .bankName {
+    font-size: 0.88rem;
+  }
+
+  .subject {
+    font-size: 0.75rem;
+  }
+
+  .statsRow {
+    gap: 6px;
+  }
+
+  .stat {
+    font-size: 0.7rem;
+    padding: 2px 8px;
   }
 }

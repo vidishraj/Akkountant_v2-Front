@@ -34,6 +34,10 @@
 
 }
 
+.sortRow {
+  padding: 4px 12px;
+}
+
 .transactionCards {
   padding: 16px 12px;
   overflow-y: auto;
@@ -47,6 +51,27 @@
 
 .transactionCards::-webkit-scrollbar {
   display: none; /* Hide scrollbar for WebKit browsers */
+}
+
+.fileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  padding: 16px 12px;
+  overflow-y: auto;
+  max-height: 400px;
+  min-height: 400px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
 
 .pagination {

@@ -24,16 +24,12 @@ import { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
 import { useAuth } from "../../contexts/AuthContext";
 import SettingsIcon from "@mui/icons-material/Settings";
-import AssuredWorkloadIcon from "@mui/icons-material/AssuredWorkload";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import ChangepasswordDialog from "../ChangePasswordDialog/ChangepasswordDialog.tsx";
-import { fetchOptedBanks } from "../../services/transactionService.ts";
 import { useMessage } from "../../contexts/MessageContext.tsx";
-import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WorkIcon from "@mui/icons-material/Work";
 import MenuIcon from "@mui/icons-material/Menu";
-import OptBanksDialog from "../OptBanksDialogComponent/OptBanksDialog.tsx";
 import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
 import { getFileTimeStamps } from "../../services/investmentService.ts";
 import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
@@ -45,8 +41,6 @@ const Header = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [isBankDialogOpen, setBankDialogOpen] = useState(false);
-  const [optedBanks, setOptedBanks] = useState<any>({});
   const [fileStamps, setFileStamps] = useState<any>({});
   const { setPayload } = useMessage();
   const { currentUser, loading } = useAuth();
@@ -62,27 +56,9 @@ const Header = () => {
   })();
 
   const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
-  const [optedBanksDialog, setOptedBanksDialog] = useState<boolean>(false);
   const [jobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
   useEffect(() => {
     if (currentUser) {
-      fetchOptedBanks()
-        .then((data) => {
-          if (Array.isArray(data)) {
-            const obj: any = {};
-            data.forEach(
-              (bank, index) =>
-                (obj[`Bank ${index + 1}`] = bank.replace(/_/g, " "))
-            );
-            setOptedBanks(obj);
-          }
-        })
-        .catch(() =>
-          setPayload({
-            type: "error",
-            message: "Failed to fetch opted banks. Please try again!",
-          })
-        );
       getFileTimeStamps()
         .then((res) => {
           setFileStamps(res);
@@ -100,7 +76,7 @@ const Header = () => {
     <>
       <AppBar
         position="static"
-        sx={{ backgroundColor: "inherit", borderBottom: "0.7px solid white", zIndex: 1300, overflow: "visible" }}
+        sx={{ backgroundColor: "inherit", borderBottom: "0.7px solid white", zIndex: 1100, overflow: "visible" }}
       >
         <Toolbar sx={{ justifyContent: "space-between", overflow: "visible" }}>
           <Box className={styles.linkContainer}>
@@ -147,12 +123,12 @@ const Header = () => {
                 <Button
                   sx={{ mx: 1 }}
                   onClick={() => {
-                    navigate("/job-scanner");
+                    navigate("/files");
                   }}
                   className={styles.links}
                 >
-                  <Link style={{ color: "#FAFAFA" }} to={"/job-scanner"}>
-                    Job Scanner
+                  <Link style={{ color: "#FAFAFA" }} to={"/files"}>
+                    Files
                   </Link>
                 </Button>
               </>
@@ -288,12 +264,12 @@ const Header = () => {
             </ListItem>
             <ListItem
               onClick={() => {
-                navigate("/job-scanner");
+                navigate("/files");
                 setMobileMenuOpen(false);
               }}
               sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
             >
-              <ListItemText primary="Job Scanner" sx={{ color: "white" }} />
+              <ListItemText primary="Files" sx={{ color: "white" }} />
             </ListItem>
           </List>
         </Box>
@@ -320,33 +296,11 @@ const Header = () => {
           <Divider />
           <List>
             <ListItem
-              onClick={() => setBankDialogOpen(true)}
-              sx={{ cursor: "pointer" }}
-            >
-              <AssuredWorkloadIcon style={{ marginRight: "0.5rem" }} />
-              <Typography>Select Banks</Typography>
-            </ListItem>
-            <ListItem
               onClick={() => setChangePasswordOpen(true)}
               sx={{ cursor: "pointer" }}
             >
               <LockResetIcon style={{ marginRight: "0.5rem" }} />
               <Typography>Change Password</Typography>
-            </ListItem>
-            <ListItem
-              sx={{
-                cursor: "pointer",
-                "&:hover": {
-                  backgroundColor: "rgb(50, 62, 74)",
-                },
-              }}
-              onClick={() => setOptedBanksDialog(true)}
-            >
-              <SavingsIcon style={{ marginRight: "0.5rem" }} />
-              <ListItemText
-                primary="OptedBanks"
-                sx={{ color: "white", cursor: "pointer" }}
-              />
             </ListItem>
             <ListItem
               sx={{
@@ -381,16 +335,6 @@ const Header = () => {
             <ChangepasswordDialog
               open={isChangePasswordOpen}
               onClose={() => setChangePasswordOpen(false)}
-            />
-            <OptBanksDialog
-              isBankDialogOpen={isBankDialogOpen}
-              setBankDialogOpen={setBankDialogOpen}
-            />
-            <ObjectDetailsDialog
-              open={optedBanksDialog}
-              onClose={() => setOptedBanksDialog(false)}
-              title="Opted Banks"
-              data={optedBanks}
             />
             <ObjectDetailsDialog
               open={isTimeStampDialogOpen}

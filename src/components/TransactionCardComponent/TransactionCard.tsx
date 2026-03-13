@@ -13,41 +13,51 @@ interface TransactionPage {
     style?: React.CSSProperties;
 }
 
+const cleanDescription = (desc: string): string => {
+    if (!desc) return desc;
+    let cleaned = desc;
+    // Strip UPI- prefix and extract payee name
+    if (cleaned.startsWith("UPI-") || cleaned.startsWith("UPI/")) {
+        const parts = cleaned.substring(4).split(/[-/@]/);
+        if (parts.length > 0 && parts[0].trim().length > 0) {
+            cleaned = parts[0].trim();
+        }
+    }
+    // Clean up common noise
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    return cleaned;
+};
+
 const TransactionCard: React.FC<TransactionPage> = (props) => {
-    const {date, description, amount, bank, style} = props;
+    const {date, description, amount, tag, bank, style} = props;
+    const isCredit = amount < 0;
 
     return (
         <Card className={styles.card} style={style}>
-            {/* Bank Icon Section */}
             <Box className={styles.bankIcon}>
-                <BankIcon
-                    bankKey={bank}
-                    width={40}
-                    height={40}
-                />
+                <BankIcon bankKey={bank} width={40} height={40} />
             </Box>
 
-            {/* Description and Date Section */}
             <Box className={styles.description}>
-                <Typography className={styles.description__text}>
-                    {description}
+                <Typography className={styles.description__text} title={description}>
+                    {cleanDescription(description)}
                 </Typography>
                 <Typography className={styles.description__date}>
                     {convertToLocaleString(date)}
                 </Typography>
             </Box>
 
-            {/* Amount and Tag Section */}
             <Box className={styles.amount}>
                 <Typography
-                    className={`${styles.amount__value} ${
-                        amount >= 0 ? styles.positive : styles.negative
-                    }`}
+                    className={`${styles.amount__value} ${isCredit ? styles.credit : styles.debit}`}
                 >
                     ₹{amount.toLocaleString()}
                 </Typography>
-                {/*Not sure about how to render tag*/}
-                {/*<Typography className={styles.amount__tag}>{tag}</Typography>*/}
+                {tag && (
+                    <Typography className={styles.amount__tag}>
+                        {tag}
+                    </Typography>
+                )}
             </Box>
         </Card>
     );

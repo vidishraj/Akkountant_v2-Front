@@ -10,10 +10,13 @@ import {
     TableContainer,
     TableRow,
     Paper,
+    Tabs,
+    Tab,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import ConfirmationDialog from "../ConfirmationDialogComponent.tsx";
+import InvestmentEmails from "../InvestmentEmails/InvestmentEmails.tsx";
 import MSNSummary from "../MSNHome/MSNSummary.tsx";
 import {EPGResponse} from "../../utils/interfaces.ts";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
@@ -38,6 +41,7 @@ const EPGHome = () => {
     const [summaryState, setSummaryState] = useState<EPGResponse>();
     const [listState, setListState] = useState<EPGlist[]>([]);
     const [deleteConfirmation, setDeleteConfirmation] = useState(false);
+    const [epgTab, setEpgTab] = useState(0);
 
     const getContextKey = () =>
         state.selectedCard.ppf
@@ -132,6 +136,13 @@ const EPGHome = () => {
         return null;
     };
 
+    const getEmailCategory = () => {
+        if (isEPF) return "epf_passbook";
+        if (isGold) return "gold_receipt";
+        if (isPPF) return "investment_confirmation";
+        return undefined;
+    };
+
     const metrics = getMetrics();
 
     return (
@@ -195,51 +206,64 @@ const EPGHome = () => {
             )}
 
             <div className={style.listBackButton} style={{minWidth: "320px"}}>
-                {listState.length > 0 ? (
-                    <TableContainer component={Paper} className={style.tableContainer}>
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell><b>Date</b></TableCell>
-                                    {!isPPF && <TableCell><b>Description</b></TableCell>}
-                                    <TableCell><b>Amount</b></TableCell>
-                                    <TableCell><b>Profit</b></TableCell>
-                                    {isGold && <TableCell><b>Qty</b></TableCell>}
-                                    {isGold && <TableCell><b>Type</b></TableCell>}
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {listState.map((item, index) => {
-                                    const profit = Number(item.interest);
-                                    return (
-                                        <TableRow key={index}>
-                                            <TableCell>{formatDateString(item.date)}</TableCell>
-                                            {!isPPF && <TableCell>{item.description}</TableCell>}
-                                            <TableCell>₹{formatINR(item.amount)}</TableCell>
-                                            <TableCell className={profit >= 0 ? style.profitPositive : style.profitNegative}>
-                                                {profit >= 0 ? '+' : ''}₹{formatINR(profit)}
-                                            </TableCell>
-                                            {isGold && <TableCell>{item.quantity}g</TableCell>}
-                                            {isGold && <TableCell>{item.goldType}K</TableCell>}
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                <Tabs
+                    value={epgTab}
+                    onChange={(_e, newValue) => setEpgTab(newValue)}
+                    className={style.epgTabs}
+                    variant="fullWidth"
+                >
+                    <Tab label="Deposits" />
+                    <Tab label="Emails" />
+                </Tabs>
+                {epgTab === 0 ? (
+                    listState.length > 0 ? (
+                        <TableContainer component={Paper} className={style.tableContainer}>
+                            <Table stickyHeader>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell><b>Date</b></TableCell>
+                                        {!isPPF && <TableCell><b>Description</b></TableCell>}
+                                        <TableCell><b>Amount</b></TableCell>
+                                        <TableCell><b>Profit</b></TableCell>
+                                        {isGold && <TableCell><b>Qty</b></TableCell>}
+                                        {isGold && <TableCell><b>Type</b></TableCell>}
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {listState.map((item, index) => {
+                                        const profit = Number(item.interest);
+                                        return (
+                                            <TableRow key={index}>
+                                                <TableCell>{formatDateString(item.date)}</TableCell>
+                                                {!isPPF && <TableCell>{item.description}</TableCell>}
+                                                <TableCell>₹{formatINR(item.amount)}</TableCell>
+                                                <TableCell className={profit >= 0 ? style.profitPositive : style.profitNegative}>
+                                                    {profit >= 0 ? '+' : ''}₹{formatINR(profit)}
+                                                </TableCell>
+                                                {isGold && <TableCell>{item.quantity}g</TableCell>}
+                                                {isGold && <TableCell>{item.goldType}K</TableCell>}
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    ) : (
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '200px',
+                            color: '#7a7d85',
+                            textAlign: 'center',
+                        }}>
+                            <Typography variant="body2">
+                                No data!<br/>Upload statement or add instrument.
+                            </Typography>
+                        </Box>
+                    )
                 ) : (
-                    <Box sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        minHeight: '200px',
-                        color: '#7a7d85',
-                        textAlign: 'center',
-                    }}>
-                        <Typography variant="body2">
-                            No data!<br/>Upload statement or add instrument.
-                        </Typography>
-                    </Box>
+                    <InvestmentEmails category={getEmailCategory()} />
                 )}
             </div>
 

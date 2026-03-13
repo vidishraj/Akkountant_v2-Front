@@ -4,10 +4,12 @@ import IciciAmazonPayIcon from "../assets/icons/icici-amazon-pay.png";
 import YesBankAceIcon from "../assets/icons/yes-bank-ace.png";
 import YesBankDebitIcon from "../assets/icons/yes-bank-debit.webp";
 import BoiIcon from "../assets/icons/boi.png";
+import HdfcRegaliaIcon from "../assets/icons/hdfc-regalia.png";
 
 const bankIcons: Record<string, string> = {
     Millenia_Credit: MilleniaCreditIcon,
     HDFC_DEBIT: HdfcDebitIcon,
+    HDFC_REGALIA: HdfcRegaliaIcon,
     ICICI_AMAZON_PAY: IciciAmazonPayIcon,
     YES_BANK_ACE: YesBankAceIcon,
     YES_BANK_DEBIT: YesBankDebitIcon,

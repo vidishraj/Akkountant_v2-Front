@@ -105,6 +105,28 @@
   min-height: 0;
 }
 
+// EPG tab bar
+.epgTabs {
+  min-height: 36px;
+  margin-bottom: 8px;
+
+  :global(.MuiTab-root) {
+    min-height: 36px;
+    text-transform: none;
+    font-size: 13px;
+    color: #7a7d85;
+    padding: 6px 16px;
+
+    &:global(.Mui-selected) {
+      color: #fafafa;
+    }
+  }
+
+  :global(.MuiTabs-indicator) {
+    background-color: #4a9eff;
+  }
+}
+
 .backButton {
   align-self: flex-start;
   margin-bottom: 8px !important;

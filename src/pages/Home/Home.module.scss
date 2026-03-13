@@ -1,39 +1,55 @@
 .homeContainer {
   display: flex;
-  flex-direction: row;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   min-height: 100%;
   width: 100%;
   margin: 0;
-  gap: 0;
+  gap: 24px;
+  padding: 24px;
+  box-sizing: border-box;
+
   @media (max-width: 900px) {
-    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
   }
 }
 
 .investmentsContainer,
 .transactionsContainer,
 .freelanceContainer,
-.jobScannerContainer {
+.jobScannerContainer,
+.filesContainer {
   display: flex;
   justify-content: center;
   align-items: center;
-  flex: 1;
-  margin-top: -2rem;
+  width: 220px;
+  height: 220px;
   border: 1px solid white;
-  transform: scale(0.6);
-  transform-origin: center;
+  border-radius: 8px;
   box-sizing: border-box;
   flex-direction: column;
   cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s;
+
+  &:hover {
+    border-color: #7b68ee;
+    transform: scale(1.05);
+  }
+
+  @media (max-width: 900px) {
+    width: 160px;
+    height: 160px;
+  }
 }
 
 .investmentsTag,
 .transactionsTag,
 .freelanceTag,
-.jobScannerTag {
-  font-size: 1.5rem;
+.jobScannerTag,
+.filesTag {
+  font-size: 1.2rem;
   font-weight: bold;
+  margin-top: 8px;
 }
-

@@ -2,19 +2,9 @@
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  //transition: transform 0.2s ease-in-out;
   background-color: #121C24 !important;
-  padding: 16px 8px;
-  border-top: 0.1px solid #E5E8EB;
-
-  @media(max-width: 520px) {
-  }
-}
-
-
-.refresh {
-  max-height: fit-content;
-  background-color: white !important;
+  padding: 12px 8px;
+  border-top: 0.1px solid #1e2e3e;
 }
 
 .bankIcon {
@@ -40,6 +30,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+    cursor: default;
 
     @media(max-width: 520px) {
       font-size: 0.85rem !important;
@@ -47,17 +38,16 @@
   }
 
   &__date {
-    color: #FAFAFA;
-    font-size: 0.85rem;
+    color: #5e7490;
+    font-size: 0.8rem;
     margin-top: 2px;
 
     @media(max-width: 520px) {
-      font-size: 0.85rem !important;
+      font-size: 0.75rem !important;
     }
   }
 
   @media(max-width: 520px) {
-
     min-width: 60%;
     padding: 0px 10px;
   }
@@ -67,8 +57,10 @@
   min-width: 20%;
   text-align: right;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
 
   @media(max-width: 520px) {
     width: 40%;
@@ -77,23 +69,30 @@
   &__value {
     width: 100%;
     border-radius: 2rem;
-    background-color: #29384D;
-    color: #FAFAFA;
     text-align: center;
     font-weight: 600;
+    padding: 2px 8px;
 
-    &.positive {
-      //color: green;
+    &.credit {
+      background-color: rgba(74, 222, 128, 0.1);
+      color: #4ade80;
     }
 
-    &.negative {
-      //color: red;
+    &.debit {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
     }
   }
 
   &__tag {
-    color: #777;
-    background-color: pink;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    color: #8b8b8b;
+    background-color: #1a2730;
+    border-radius: 10px;
+    padding: 1px 8px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

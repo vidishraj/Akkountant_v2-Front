@@ -1,7 +1,7 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useMemo, useCallback} from "react";
 import {
-    LineChart,
-    Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -15,146 +15,174 @@ import {
 } from "recharts";
 import {
     fetchFreelanceDashboard,
-    fetchEarningsByDateRange,
+    fetchInvoiceById,
 } from "../../services/freelanceService";
-import {FreelanceDashboard as DashboardData, FreelanceEarning} from "../../utils/interfaces";
+import {FreelanceDashboard as DashboardData, InvoiceData} from "../../utils/interfaces";
 import {useMessage} from "../../contexts/MessageContext";
+import {Dialog, DialogTitle, DialogContent, IconButton, CircularProgress} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import InvoicePDFPreview from "../InvoiceCreator/InvoicePDFPreview";
 import {currencyService} from "../../services/currencyService";
 import styles from "../../pages/Freelance/Freelance.module.scss";
+import ownStyles from "./FreelanceDashboard.module.scss";
 
 interface FreelanceDashboardProps {
     refreshTrigger?: number;
     isActive?: boolean;
+    onNavigateToManage?: () => void;
 }
 
-const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboardProps = {}) => {
-    const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-        null
-    );
+type DatePreset = "thisMonth" | "last3Months" | "currentFY" | "previousFY" | "allTime";
+
+// Indian Financial Year: April 1 – March 31
+const getFYDates = (offset: number = 0) => {
+    const now = new Date();
+    const fyStartYear = (now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1) + offset;
+    return {
+        start: new Date(fyStartYear, 3, 1),      // April 1
+        end: new Date(fyStartYear + 1, 2, 31),    // March 31
+    };
+};
+
+const formatMonthLabel = (month: string) => {
+    const [y, m] = month.split("-");
+    const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${labels[parseInt(m, 10) - 1]} '${y.slice(2)}`;
+};
+
+const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage}: FreelanceDashboardProps = {}) => {
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showDateFilter, setShowDateFilter] = useState(false);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
-    const [filteredEarnings, setFilteredEarnings] = useState<FreelanceEarning[]>([]);
-    const [showFilteredResults, setShowFilteredResults] = useState(false);
-    const [selectedClientInfo, setSelectedClientInfo] = useState<{
-        client: string;
-        totalAmount: number;
-        paidAmount: number;
-        pendingAmount: number
-    } | null>(null);
+    const [activePreset, setActivePreset] = useState<DatePreset | null>("currentFY");
+    const [initialFilterApplied, setInitialFilterApplied] = useState(false);
+    const [previewInvoice, setPreviewInvoice] = useState<InvoiceData | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const {setPayload} = useMessage();
 
-    useEffect(() => {
-        loadDashboardData();
-    }, [refreshTrigger]);
-
-    useEffect(() => {
-        if (isActive) {
-            loadDashboardData();
+    const handleInvoiceClick = async (invoiceNumber: string) => {
+        setPreviewOpen(true);
+        setPreviewLoading(true);
+        setPreviewInvoice(null);
+        try {
+            const data = await fetchInvoiceById(invoiceNumber);
+            setPreviewInvoice(data);
+        } catch {
+            setPayload({type: "error", message: "Failed to load invoice preview."});
+            setPreviewOpen(false);
+        } finally {
+            setPreviewLoading(false);
         }
-    }, [isActive]);
+    };
 
-    const loadDashboardData = async () => {
+    const loadDashboardData = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await fetchFreelanceDashboard(); // Cache automatically cleared
+            const data = await fetchFreelanceDashboard();
             setDashboardData(data);
-
-            // Update currency rates in background
             currencyService.updateExchangeRates().catch(console.warn);
         } catch (error) {
-            setPayload({
-                type: "error",
-                message: "Failed to load dashboard data. Backend connection required.",
-            });
+            setPayload({type: "error", message: "Failed to load dashboard data. Backend connection required."});
             console.error("Dashboard loading error:", error);
         } finally {
             setLoading(false);
         }
+    }, [setPayload]);
+
+    useEffect(() => {
+        loadDashboardData();
+    }, [refreshTrigger, loadDashboardData]);
+
+    useEffect(() => {
+        if (isActive) loadDashboardData();
+    }, [isActive, loadDashboardData]);
+
+    // Auto-apply "Current FY" filter on first data load
+    useEffect(() => {
+        if (dashboardData && !initialFilterApplied) {
+            setInitialFilterApplied(true);
+            const now = new Date();
+            const fy = getFYDates(0);
+            const end = fy.end > now ? now : fy.end;
+            setStartDate(fy.start.toISOString().split("T")[0]);
+            setEndDate(end.toISOString().split("T")[0]);
+            setActivePreset("currentFY");
+        }
+    }, [dashboardData, initialFilterApplied]);
+
+    const applyPreset = (preset: DatePreset) => {
+        const now = new Date();
+        let start: Date;
+        let end: Date = now;
+
+        switch (preset) {
+            case "thisMonth":
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                break;
+            case "last3Months":
+                start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+                break;
+            case "currentFY": {
+                const fy = getFYDates(0);
+                start = fy.start;
+                end = fy.end > now ? now : fy.end;
+                break;
+            }
+            case "previousFY": {
+                const fy = getFYDates(-1);
+                start = fy.start;
+                end = fy.end;
+                break;
+            }
+            case "allTime":
+                setStartDate("");
+                setEndDate("");
+                setActivePreset("allTime");
+                return;
+        }
+
+        setStartDate(start.toISOString().split("T")[0]);
+        setEndDate(end.toISOString().split("T")[0]);
+        setActivePreset(preset);
     };
 
-    const handleDateRangeFilter = async () => {
+    const applyCustomRange = () => {
         if (!startDate || !endDate) {
-            setPayload({
-                type: "error",
-                message: "Please select both start and end dates",
-            });
+            setPayload({type: "error", message: "Please select both start and end dates"});
             return;
         }
-
         if (new Date(startDate) > new Date(endDate)) {
-            setPayload({
-                type: "error",
-                message: "Start date cannot be after end date",
-            });
+            setPayload({type: "error", message: "Start date cannot be after end date"});
             return;
         }
-
-        try {
-            setLoading(true);
-            const earnings = await fetchEarningsByDateRange(startDate, endDate);
-            setFilteredEarnings(earnings);
-            setShowFilteredResults(true);
-            setPayload({
-                type: "success",
-                message: `Found ${earnings.length} earnings in selected date range`,
-            });
-        } catch (error) {
-            setPayload({
-                type: "error",
-                message:
-                    "Failed to fetch earnings for date range. Backend connection required.",
-            });
-            console.error("Date range filter error:", error);
-        } finally {
-            setLoading(false);
-        }
+        setActivePreset(null);
     };
 
     const clearDateFilter = () => {
-        setShowFilteredResults(false);
-        setFilteredEarnings([]);
         setStartDate("");
         setEndDate("");
-        setShowDateFilter(false);
+        setActivePreset(null);
     };
 
     const formatCurrency = (amount: number, currency: string = "INR") => {
         const locale = currency === "INR" ? "en-IN" : "en-US";
-        return new Intl.NumberFormat(locale, {
-            style: "currency",
-            currency: currency,
-        }).format(amount);
+        return new Intl.NumberFormat(locale, {style: "currency", currency}).format(amount);
     };
 
-    const formatBaseCurrency = (amount: number) => {
-        return formatCurrency(amount, "INR");
-    };
+    const formatBaseCurrency = (amount: number) => formatCurrency(amount, "INR");
 
     const getINRConversion = (amount: number, currency: string) => {
         if (currency === "INR") return amount;
         return currencyService.convertToINRSync(amount, currency);
     };
 
-    const formatWithINRConversion = (amount: number, currency: string) => {
-        const originalFormatted = formatCurrency(amount, currency);
-        if (currency === "INR") {
-            return originalFormatted;
-        }
-        const inrAmount = getINRConversion(amount, currency);
-        return `${originalFormatted} (₹${inrAmount.toLocaleString("en-IN")})`;
-    };
-
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "paid":
-                return "#4ADE80"; // Better green for dark theme
-            case "overdue":
-                return "#EF4444"; // Better red for dark theme
-            default:
-                // Treat any non-paid status as pending
-                return "#F59E0B"; // Better orange/amber for dark theme
+            case "paid": return "#4ADE80";
+            case "overdue": return "#EF4444";
+            default: return "#F59E0B";
         }
     };
 
@@ -163,717 +191,409 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true}: FreelanceDashboar
     };
 
     const COLORS = ["#7B68EE", "#32CD32", "#FFD700", "#FF6347", "#20B2AA", "#FF69B4", "#FFA500", "#9932CC"];
-    const COLORS_SECONDARY = ["#9370DB", "#3CB371", "#F0E68C", "#FA8072", "#48D1CC", "#DA70D6", "#FFB84D", "#BA55D3"];
 
-    const calculateClientDistribution = () => {
-        if (!dashboardData?.earningsByClientCombined) {
-            return [];
-        }
-
-        // Create client distribution from combined earnings and recent invoices
-        const clientTotals: Record<string, {
-            client: string;
-            paidAmount: number;
-            pendingAmount: number;
-            totalAmount: number;
-        }> = {};
-
-        // Add combined earnings as total amounts
-        dashboardData.earningsByClientCombined.forEach(item => {
-            clientTotals[item.client] = {
-                client: item.client,
-                paidAmount: 0, // Will be calculated below
-                pendingAmount: 0, // Will be calculated below
-                totalAmount: item.earnings
-            };
-        });
-
-        // Get paid amounts from earningsByClient
-        dashboardData.earningsByClient.forEach(item => {
-            if (clientTotals[item.client]) {
-                clientTotals[item.client].paidAmount = item.earnings;
-                clientTotals[item.client].pendingAmount = clientTotals[item.client].totalAmount - item.earnings;
-            }
-        });
-
-        // Ensure pending amounts are not negative
-        Object.values(clientTotals).forEach(client => {
-            if (client.pendingAmount < 0) {
-                client.pendingAmount = 0;
-            }
-        });
-
-        return Object.values(clientTotals)
-            .filter(item => item.totalAmount > 0)
-            .sort((a, b) => b.totalAmount - a.totalAmount);
-    };
-
-
-    if (loading) {
-        return (
-            <div className={styles.loadingSpinner}>
-                <div>Loading dashboard...</div>
-            </div>
+    // Compute derived metrics
+    const unpaidTotal = useMemo(() => {
+        if (!dashboardData?.unpaidByCurrency?.length) return 0;
+        return dashboardData.unpaidByCurrency.reduce(
+            (sum, item) => sum + getINRConversion(item.amount, item.currency), 0
         );
+    }, [dashboardData]);
+
+    const avgInvoiceValue = useMemo(() => {
+        if (!dashboardData) return 0;
+        const totalProjects = dashboardData.completedProjects;
+        if (totalProjects === 0) return 0;
+        return dashboardData.totalEarnings / totalProjects;
+    }, [dashboardData]);
+
+    const collectionRate = useMemo(() => {
+        if (!dashboardData) return 0;
+        const total = dashboardData.totalEarnings + unpaidTotal;
+        if (total === 0) return 0;
+        return (dashboardData.totalEarnings / total) * 100;
+    }, [dashboardData, unpaidTotal]);
+
+    // Filter earningsByMonth to date range (for charts)
+    const filteredMonthlyData = useMemo(() => {
+        if (!dashboardData?.earningsByMonth) return [];
+        if (!startDate || !endDate) return dashboardData.earningsByMonth;
+        const sMonth = startDate.slice(0, 7); // "YYYY-MM"
+        const eMonth = endDate.slice(0, 7);
+        return dashboardData.earningsByMonth.filter(m => m.month >= sMonth && m.month <= eMonth);
+    }, [dashboardData, startDate, endDate]);
+
+    // Filtered metrics from filteredMonthlyData
+    const filteredTotalEarnings = useMemo(() => {
+        return filteredMonthlyData.reduce((sum, m) => sum + m.earnings, 0);
+    }, [filteredMonthlyData]);
+
+    // Trend: compare current range's monthly avg to previous equivalent period's avg
+    const monthlyTrend = useMemo(() => {
+        if (!dashboardData?.earningsByMonth || filteredMonthlyData.length === 0) return null;
+        if (!startDate || !endDate) return null;
+
+        const rangeMonths = filteredMonthlyData.length;
+        const currentAvg = filteredTotalEarnings / rangeMonths;
+
+        // Shift start/end back by rangeMonths to get previous equivalent period
+        const sDate = new Date(startDate);
+        sDate.setMonth(sDate.getMonth() - rangeMonths);
+        const eDate = new Date(endDate);
+        eDate.setMonth(eDate.getMonth() - rangeMonths);
+        const prevStart = `${sDate.getFullYear()}-${String(sDate.getMonth() + 1).padStart(2, "0")}`;
+        const prevEnd = `${eDate.getFullYear()}-${String(eDate.getMonth() + 1).padStart(2, "0")}`;
+
+        const prevData = dashboardData.earningsByMonth.filter(m => m.month >= prevStart && m.month <= prevEnd);
+        if (prevData.length === 0) return null;
+
+        const prevAvg = prevData.reduce((sum, m) => sum + m.earnings, 0) / prevData.length;
+        if (prevAvg === 0) return currentAvg > 0 ? 100 : 0;
+        return ((currentAvg - prevAvg) / prevAvg) * 100;
+    }, [dashboardData, filteredMonthlyData, filteredTotalEarnings, startDate, endDate]);
+
+    // Paid vs Unpaid monthly data (from filtered)
+    const paidVsUnpaidData = useMemo(() => {
+        return filteredMonthlyData.map(m => ({
+            month: m.month,
+            paid: m.earnings,
+        }));
+    }, [filteredMonthlyData]);
+
+    // Filter recent invoices to date range
+    const filteredInvoices = useMemo(() => {
+        if (!dashboardData?.recentInvoices?.length) return [];
+        if (!startDate || !endDate) return dashboardData.recentInvoices;
+        return dashboardData.recentInvoices.filter(inv => {
+            const d = inv.date;
+            return d >= startDate && d <= endDate;
+        });
+    }, [dashboardData, startDate, endDate]);
+
+    // Status distribution from filtered invoices
+    const statusDistribution = useMemo(() => {
+        if (!filteredInvoices.length) return null;
+        const total = filteredInvoices.length;
+        const paid = filteredInvoices.filter(i => i.status === "paid").length;
+        const pending = filteredInvoices.filter(i => i.status !== "paid" && i.status !== "overdue").length;
+        const overdue = filteredInvoices.filter(i => i.status === "overdue").length;
+        return {
+            total, paid, pending, overdue,
+            paidPct: (paid / total) * 100,
+            pendingPct: (pending / total) * 100,
+            overduePct: (overdue / total) * 100,
+        };
+    }, [filteredInvoices]);
+
+    if (loading && !dashboardData) {
+        return <div className={styles.loadingSpinner}><div>Loading dashboard...</div></div>;
     }
 
     if (!dashboardData) {
         return <div className={styles.emptyState}>No dashboard data available</div>;
     }
 
+    const renderTrend = (value: number | null, label?: string) => {
+        if (value === null) return null;
+        const suffix = label ? ` ${label}` : "";
+        if (value > 0) return <div className={ownStyles.trendUp}>{"\u25B2"} {value.toFixed(0)}%{suffix}</div>;
+        if (value < 0) return <div className={ownStyles.trendDown}>{"\u25BC"} {Math.abs(value).toFixed(0)}%{suffix}</div>;
+        return <div className={ownStyles.trendNeutral}>{"\u2014"} 0%{suffix}</div>;
+    };
+
     return (
-        <div>
-            {/* Date Filter Controls */}
-            <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "15px",
-                    }}
-                >
-                    <h3 style={{color: "#FAFAFA", margin: 0}}>
-                        📊 Dashboard Analytics
-                    </h3>
+        <div style={{overflow: "hidden"}}>
+            {/* Compact Dashboard Filter Strip */}
+            <div className={ownStyles.dashboardFilterStrip}>
+                <span className={ownStyles.filterLabel}>Range</span>
+                {([
+                    ["currentFY", "This FY"],
+                    ["previousFY", "Prev FY"],
+                    ["thisMonth", "This Month"],
+                    ["last3Months", "3 Months"],
+                    ["allTime", "All"],
+                ] as [DatePreset, string][]).map(([key, label]) => (
                     <button
-                        className={styles.secondaryBtn}
-                        onClick={() => setShowDateFilter(!showDateFilter)}
+                        key={key}
+                        className={`${ownStyles.presetChip} ${activePreset === key ? ownStyles.activeChip : ""}`}
+                        onClick={() => applyPreset(key)}
                     >
-                        {showDateFilter ? "✕ Hide Filter" : "📅 Filter by Date Range"}
+                        {label}
                     </button>
+                ))}
+                <div className={ownStyles.filterDivider} />
+                <input type="date" className={ownStyles.filterDateInput} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <span style={{color: "#b0b0b0", fontSize: "0.75rem"}}>to</span>
+                <input type="date" className={ownStyles.filterDateInput} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <button
+                    className={ownStyles.filterApplyBtn}
+                    onClick={applyCustomRange}
+                    disabled={loading || !startDate || !endDate}
+                >
+                    Apply
+                </button>
+                {(startDate || endDate) && (
+                    <button className={ownStyles.filterClearBtn} onClick={clearDateFilter}>Clear</button>
+                )}
+            </div>
+
+            {/* 1. Primary Metrics Row */}
+            <div className={ownStyles.primaryMetricsGrid}>
+                <div className={ownStyles.metricCardPrimary}>
+                    <div className={`${ownStyles.metricValue} ${ownStyles.metricValueGreen}`}>
+                        {formatBaseCurrency(activePreset === "allTime" || (!startDate && !endDate) ? dashboardData.totalEarnings : filteredTotalEarnings)}
+                    </div>
+                    <div className={ownStyles.metricLabel}>
+                        {activePreset === "allTime" || (!startDate && !endDate) ? "Total Paid Earnings" : "Paid Earnings (Filtered)"}
+                    </div>
+                </div>
+                <div className={ownStyles.metricCardPrimary}>
+                    <div className={`${ownStyles.metricValue} ${ownStyles.metricValueAmber}`}>
+                        {formatBaseCurrency(unpaidTotal)}
+                    </div>
+                    <div className={ownStyles.metricLabel}>Unpaid Value</div>
+                </div>
+                <div className={ownStyles.metricCardPrimary}>
+                    <div className={`${ownStyles.metricValue} ${ownStyles.metricValuePurple}`}>
+                        {formatBaseCurrency(filteredMonthlyData.length > 0 ? filteredTotalEarnings / filteredMonthlyData.length : 0)}
+                    </div>
+                    <div className={ownStyles.metricLabel}>Monthly Avg ({filteredMonthlyData.length} mo)</div>
+                    {renderTrend(monthlyTrend, "vs prev period")}
+                </div>
+            </div>
+
+            {/* 2. Invoice Status Distribution Bar */}
+            {statusDistribution && statusDistribution.total > 0 && (
+                <div className={ownStyles.statusBarContainer}>
+                    <div className={ownStyles.statusBarHeader}>
+                        <span className={ownStyles.statusBarTitle}>Invoice Status Distribution</span>
+                        <div className={ownStyles.statusBarLegend}>
+                            <span className={ownStyles.statusLegendItem}>
+                                <span className={ownStyles.statusLegendDot} style={{backgroundColor: "#4ADE80"}} />
+                                Paid ({statusDistribution.paid})
+                            </span>
+                            <span className={ownStyles.statusLegendItem}>
+                                <span className={ownStyles.statusLegendDot} style={{backgroundColor: "#F59E0B"}} />
+                                Pending ({statusDistribution.pending})
+                            </span>
+                            <span className={ownStyles.statusLegendItem}>
+                                <span className={ownStyles.statusLegendDot} style={{backgroundColor: "#EF4444"}} />
+                                Overdue ({statusDistribution.overdue})
+                            </span>
+                        </div>
+                    </div>
+                    <div className={ownStyles.statusBarTrack}>
+                        <div className={ownStyles.statusBarSegment}
+                             style={{width: `${statusDistribution.paidPct}%`, backgroundColor: "#4ADE80"}} />
+                        <div className={ownStyles.statusBarSegment}
+                             style={{width: `${statusDistribution.pendingPct}%`, backgroundColor: "#F59E0B"}} />
+                        <div className={ownStyles.statusBarSegment}
+                             style={{width: `${statusDistribution.overduePct}%`, backgroundColor: "#EF4444"}} />
+                    </div>
+                </div>
+            )}
+
+            {/* 3. Charts Grid - Area + Pie */}
+            <div className={ownStyles.chartGrid}>
+                <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
+                    <h3 className={styles.sectionTitle}>Monthly Paid Earnings (INR)</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={filteredMonthlyData}>
+                            <defs>
+                                <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#7B68EE" stopOpacity={0.4} />
+                                    <stop offset="95%" stopColor="#7B68EE" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
+                            <XAxis dataKey="month" stroke="#FAFAFA" fontSize={11} tickFormatter={formatMonthLabel}
+                                   angle={-35} textAnchor="end" height={50} interval={0} />
+                            <YAxis stroke="#FAFAFA" fontSize={11} tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`} />
+                            <Tooltip
+                                contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
+                                labelFormatter={formatMonthLabel}
+                                formatter={(value: number) => [formatBaseCurrency(value), "Paid Earnings"]}
+                            />
+                            <Area type="monotone" dataKey="earnings" stroke="#7B68EE" strokeWidth={2}
+                                  fill="url(#earningsGradient)" dot={{fill: "#7B68EE", strokeWidth: 2, r: 4}}
+                                  activeDot={{r: 6, fill: "#9B8AFF"}} />
+                        </AreaChart>
+                    </ResponsiveContainer>
                 </div>
 
-                {showDateFilter && (
-                    <div
-                        style={{
-                            padding: "20px",
-                            backgroundColor: "#121C24",
-                            borderRadius: "8px",
-                            border: "1px solid white",
-                        }}
-                    >
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Start Date</label>
-                                <input
-                                    type="date"
-                                    className={styles.formInput}
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
+                <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
+                    <h3 className={styles.sectionTitle}>Client Distribution (INR)</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie
+                                data={dashboardData.earningsByClient.filter(item => item.earnings > 0)}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({client, percent}) => percent && percent > 0.05 ? `${client}: ${(percent * 100).toFixed(0)}%` : ""}
+                                outerRadius={100}
+                                innerRadius={40}
+                                fill="#8884d8"
+                                dataKey="earnings"
+                            >
+                                {dashboardData.earningsByClient.filter(item => item.earnings > 0).map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
+                                formatter={(value: number) => [formatBaseCurrency(value), "Paid Earnings"]}
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* 5. Secondary Charts - Bar charts side by side */}
+            <div className={ownStyles.secondaryChartGrid}>
+                {paidVsUnpaidData.length > 0 && (
+                    <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
+                        <h3 className={styles.sectionTitle}>Monthly Paid Earnings (Bar)</h3>
+                        <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={paidVsUnpaidData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
+                                <XAxis dataKey="month" stroke="#FAFAFA" fontSize={11} tickFormatter={formatMonthLabel}
+                                       angle={-35} textAnchor="end" height={50} interval={0} />
+                                <YAxis stroke="#FAFAFA" fontSize={11} tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`} />
+                                <Tooltip
+                                    contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
+                                    labelFormatter={formatMonthLabel}
+                                    formatter={(value: number) => [formatBaseCurrency(value), "Paid"]}
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>End Date</label>
-                                <input
-                                    type="date"
-                                    className={styles.formInput}
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
+                                <Bar dataKey="paid" fill="#4ADE80" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                {dashboardData.unpaidByCurrency && dashboardData.unpaidByCurrency.length > 0 && (
+                    <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
+                        <h3 className={styles.sectionTitle}>Unpaid by Currency</h3>
+                        <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={dashboardData.unpaidByCurrency.map(item => ({
+                                ...item,
+                                inrAmount: getINRConversion(item.amount, item.currency)
+                            }))}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
+                                <XAxis dataKey="currency" stroke="#FAFAFA" />
+                                <YAxis stroke="#FAFAFA" />
+                                <Tooltip
+                                    contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
+                                    formatter={(value: number) => [formatBaseCurrency(value), "Unpaid (INR)"]}
                                 />
-                            </div>
-                            <div style={{display: "flex", alignItems: "end", gap: "10px"}}>
-                                <button
-                                    className={styles.primaryBtn}
-                                    onClick={handleDateRangeFilter}
-                                    disabled={loading || !startDate || !endDate}
-                                >
-                                    {loading ? "Filtering..." : "🔍 Apply Filter"}
-                                </button>
-                                {showFilteredResults && (
-                                    <button
-                                        className={styles.secondaryBtn}
-                                        onClick={clearDateFilter}
-                                        disabled={loading}
-                                    >
-                                        ✕ Clear Filter
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+                                <Bar dataKey="inrAmount" fill="#FFD700" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 )}
             </div>
 
-            {/* Show filtered results or dashboard */}
-            {showFilteredResults ? (
-                <div className={styles.chartContainer}>
-                    <h3 className={styles.sectionTitle}>
-                        Earnings from {new Date(startDate).toLocaleDateString()} to{" "}
-                        {new Date(endDate).toLocaleDateString()}
+            {/* 6. Secondary Metrics Row */}
+            <div className={ownStyles.dashboardGrid}>
+                <div className={ownStyles.metricCard}>
+                    <div className={ownStyles.metricValue}>{dashboardData.completedProjects}</div>
+                    <div className={ownStyles.metricLabel}>Completed Projects</div>
+                </div>
+                <div className={ownStyles.metricCard}>
+                    <div className={ownStyles.metricValue}>{dashboardData.activeClients}</div>
+                    <div className={ownStyles.metricLabel}>Active Clients</div>
+                </div>
+                <div className={ownStyles.metricCard}>
+                    <div className={ownStyles.metricValue}>{formatBaseCurrency(avgInvoiceValue)}</div>
+                    <div className={ownStyles.metricLabel}>Avg Invoice Value</div>
+                </div>
+                <div className={ownStyles.metricCard}>
+                    <div className={ownStyles.metricValue} style={{color: collectionRate >= 80 ? "#4ADE80" : collectionRate >= 50 ? "#F59E0B" : "#EF4444"}}>
+                        {collectionRate.toFixed(0)}%
+                    </div>
+                    <div className={ownStyles.metricLabel}>Collection Rate</div>
+                </div>
+            </div>
+
+            {/* 7. Recent Invoices Table (bottom) */}
+            <div className={ownStyles.chartContainer}>
+                <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px"}}>
+                    <h3 className={styles.sectionTitle} style={{marginBottom: 0, borderBottom: "none", paddingBottom: 0}}>
+                        Recent Invoices
                     </h3>
-                    {filteredEarnings.length > 0 ? (
-                        <div style={{overflowX: "auto"}}>
-                            <table className={styles.dataTable}>
-                                <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Invoice #</th>
-                                    <th>Client</th>
-                                    <th>Project</th>
-                                    <th style={{textAlign: "right"}}>Amount</th>
-                                    <th style={{textAlign: "center"}}>Status</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {filteredEarnings.map((earning, index) => (
-                                    <tr key={index}>
-                                        <td>{new Date(earning.date).toLocaleDateString()}</td>
-                                        <td>{earning.invoiceNumber}</td>
-                                        <td>{earning.clientName}</td>
-                                        <td>{earning.projectName}</td>
-                                        <td style={{textAlign: "right", fontWeight: "bold"}}>
-                                            {earning.status === "paid" ? (
-                                                formatBaseCurrency(
-                                                    earning.paidAmount || earning.amount
-                                                )
-                                            ) : (
-                                                <div>
-                                                    <div>
-                                                        {formatCurrency(
-                                                            earning.amount,
-                                                            earning.currency || "USD"
-                                                        )}
-                                                    </div>
-                                                    {earning.currency !== "INR" && (
-                                                        <div
-                                                            style={{fontSize: "0.7rem", color: "#B0B0B0"}}
-                                                        >
-                                                            ≈ ₹
-                                                            {getINRConversion(
-                                                                earning.amount,
-                                                                earning.currency || "USD"
-                                                            ).toLocaleString("en-IN")}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td
-                                            style={{
-                                                color: getStatusColor(earning.status),
-                                                textAlign: "center",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {normalizeStatus(earning.status).toUpperCase()}
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                            <div className={styles.summaryBox}>
-                                <strong>
-                                    Total Paid (INR):{" "}
-                                    {formatBaseCurrency(
-                                        filteredEarnings
-                                            .filter((earning) => earning.status === "paid")
-                                            .reduce(
-                                                (sum, earning) =>
-                                                    sum + (earning.paidAmount || earning.amount),
-                                                0
-                                            )
-                                    )}
-                                </strong>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className={styles.emptyState}>
-                            No earnings found in the selected date range.
-                        </div>
+                    {onNavigateToManage && (
+                        <button className={ownStyles.viewAllLink} onClick={onNavigateToManage}>
+                            View All {"\u2192"}
+                        </button>
                     )}
                 </div>
-            ) : (
-                // Original dashboard content
-                <>
-                    {/* Key Metrics */}
-                    <div className={styles.dashboardGrid}>
-                        <div className={styles.metricCard}>
-                            <div className={styles.metricValue}>
-                                {formatBaseCurrency(dashboardData.totalEarnings)}
-                            </div>
-                            <div className={styles.metricLabel}>Total Paid (INR)</div>
+                <div style={{overflowX: "auto"}}>
+                    <table className={styles.dataTable}>
+                        <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Client</th>
+                            <th style={{textAlign: "right"}}>Amount</th>
+                            <th style={{textAlign: "center"}}>Status</th>
+                            <th>Date</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {filteredInvoices.slice(0, 10).map((invoice, index) => (
+                            <tr key={index}
+                                onClick={() => handleInvoiceClick(invoice.invoiceNumber)}
+                                style={{cursor: "pointer"}}
+                            >
+                                <td>{invoice.invoiceNumber}</td>
+                                <td>{invoice.clientName}</td>
+                                <td style={{textAlign: "right", fontWeight: "bold"}}>
+                                    {invoice.status === "paid"
+                                        ? formatBaseCurrency(invoice.paidAmount || invoice.amount)
+                                        : formatCurrency(invoice.amount, invoice.currency || "USD")}
+                                </td>
+                                <td style={{color: getStatusColor(invoice.status), fontWeight: "bold", textAlign: "center", fontSize: "0.8rem"}}>
+                                    {normalizeStatus(invoice.status).toUpperCase()}
+                                </td>
+                                <td style={{color: "#B0B0B0"}}>
+                                    {new Date(invoice.date).toLocaleDateString()}
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Invoice Preview Dialog */}
+            <Dialog
+                open={previewOpen}
+                onClose={() => setPreviewOpen(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        backgroundColor: "#121C24",
+                        color: "#FAFAFA",
+                        minHeight: "70vh",
+                    },
+                }}
+            >
+                <DialogTitle sx={{display: "flex", justifyContent: "space-between", alignItems: "center", pb: 0}}>
+                    Invoice Preview
+                    <IconButton onClick={() => setPreviewOpen(false)} sx={{color: "#FAFAFA"}}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{display: "flex", flexDirection: "column", flex: 1, minHeight: 0}}>
+                    {previewLoading ? (
+                        <div style={{display: "flex", justifyContent: "center", alignItems: "center", flex: 1, minHeight: "300px"}}>
+                            <CircularProgress sx={{color: "#7b68ee"}} />
                         </div>
-
-                        <div className={styles.metricCard}>
-                            <div className={styles.metricValue}>
-                                {formatBaseCurrency(dashboardData.monthlyEarnings)}
-                            </div>
-                            <div className={styles.metricLabel}>This Month (INR)</div>
-                        </div>
-
-                        <div className={styles.metricCard}>
-                            <div className={styles.metricValue}>
-                                {dashboardData.unpaidByCurrency &&
-                                dashboardData.unpaidByCurrency.length > 0
-                                    ? formatBaseCurrency(
-                                        dashboardData.unpaidByCurrency.reduce(
-                                            (sum, item) =>
-                                                sum + getINRConversion(item.amount, item.currency),
-                                            0
-                                        )
-                                    )
-                                    : formatBaseCurrency(0)}
-                            </div>
-                            <div className={styles.metricLabel}>Unpaid Value (INR)</div>
-                        </div>
-
-                        <div className={styles.metricCard}>
-                            <div className={styles.metricValue}>
-                                {dashboardData.completedProjects}
-                            </div>
-                            <div className={styles.metricLabel}>Completed Projects</div>
-                        </div>
-
-                        <div className={styles.metricCard}>
-                            <div className={styles.metricValue}>
-                                {dashboardData.activeClients}
-                            </div>
-                            <div className={styles.metricLabel}>Active Clients</div>
-                        </div>
-                    </div>
-
-                    {/* Monthly Paid Earnings Chart (Base Currency) */}
-                    <div className={styles.chartContainer}>
-                        <h3 className={styles.sectionTitle}>
-                            Monthly Paid Earnings Trend (INR)
-                        </h3>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={dashboardData.earningsByMonth}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B"/>
-                                <XAxis dataKey="month" stroke="#FAFAFA"/>
-                                <YAxis stroke="#FAFAFA"/>
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "#121C24",
-                                        border: "1px solid white",
-                                        borderRadius: "4px",
-                                        color: "#FAFAFA",
-                                    }}
-                                    formatter={(value: number) => [
-                                        formatBaseCurrency(value),
-                                        "Paid Earnings",
-                                    ]}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="earnings"
-                                    stroke="#32CD32"
-                                    strokeWidth={3}
-                                    dot={{fill: "#32CD32", strokeWidth: 2, r: 6}}
-                                    activeDot={{r: 8, fill: "#228B22"}}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    {/* Unpaid Invoices by Currency */}
-                    {dashboardData.unpaidByCurrency &&
-                        dashboardData.unpaidByCurrency.length > 0 && (
-                            <div className={styles.chartContainer}>
-                                <h3 className={styles.sectionTitle}>
-                                    Unpaid Invoices by Currency
-                                </h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={dashboardData.unpaidByCurrency.map(item => ({
-                                        ...item,
-                                        inrAmount: getINRConversion(item.amount, item.currency)
-                                    }))}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B"/>
-                                        <XAxis dataKey="currency" stroke="#FAFAFA"/>
-                                        <YAxis stroke="#FAFAFA"/>
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: "#121C24",
-                                                border: "1px solid white",
-                                                borderRadius: "4px",
-                                                color: "#FAFAFA",
-                                            }}
-                                            formatter={(_value: number, _name: string, props: {
-                                                payload?: { currency?: string, amount?: number }
-                                            }) => [
-                                                formatWithINRConversion(props.payload?.amount || 0, props.payload?.currency || 'USD'),
-                                                "Unpaid Amount",
-                                            ]}
-                                        />
-                                        <Bar
-                                            dataKey="inrAmount"
-                                            fill="#FFD700"
-                                            radius={[4, 4, 0, 0]}
-                                        />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
-
-                    {/* Paid Earnings by Client Chart (Base Currency) */}
-                    <div className={styles.chartContainer}>
-                        <h3 className={styles.sectionTitle}>
-                            Paid Earnings by Client (INR)
-                        </h3>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={dashboardData.earningsByClient}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B"/>
-                                <XAxis dataKey="client" stroke="#FAFAFA"/>
-                                <YAxis stroke="#FAFAFA"/>
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "#121C24",
-                                        border: "1px solid white",
-                                        borderRadius: "4px",
-                                        color: "#FAFAFA",
-                                    }}
-                                    formatter={(value: number) => [
-                                        formatBaseCurrency(value),
-                                        "Paid Earnings",
-                                    ]}
-                                />
-                                <Bar dataKey="earnings" fill="#7B68EE" radius={[4, 4, 0, 0]}/>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    {/* Client Distribution Analysis */}
-                    <div className={styles.chartContainer}>
-                        <h3 className={styles.sectionTitle}>
-                            Client Distribution Analysis (All Converted to INR)
-                        </h3>
-
-                        {/* Client Information Display */}
-                        {selectedClientInfo && (
-                            <div className={styles.clientInfo}>
-                                <h4>
-                                    📊 {selectedClientInfo.client} - Detailed Breakdown
-                                </h4>
-                                <div className={styles.infoGrid}>
-                                    <div>
-                                        <strong style={{color: '#4ADE80'}}>Total Paid:</strong><br/>
-                                        {formatBaseCurrency(selectedClientInfo.paidAmount)}
-                                    </div>
-                                    <div>
-                                        <strong style={{color: '#F59E0B'}}>Pending:</strong><br/>
-                                        {formatBaseCurrency(selectedClientInfo.pendingAmount)}
-                                    </div>
-                                    <div>
-                                        <strong style={{color: '#7B68EE'}}>Total Value:</strong><br/>
-                                        {formatBaseCurrency(selectedClientInfo.totalAmount)}
-                                    </div>
-                                </div>
-                                <button
-                                    className={styles.secondaryBtn}
-                                    onClick={() => setSelectedClientInfo(null)}
-                                    style={{marginTop: '10px', padding: '5px 10px', fontSize: '0.8rem'}}
-                                >
-                                    ✕ Close
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Summary Table of All Clients */}
-                        <div style={{marginBottom: '20px', overflowX: 'auto'}}>
-                            {calculateClientDistribution().length > 0 ? (
-                                <table className={styles.dataTable}>
-                                    <thead>
-                                    <tr>
-                                        <th>Client</th>
-                                        <th style={{color: '#4ADE80', textAlign: 'right'}}>Paid (INR)</th>
-                                        <th style={{color: '#F59E0B', textAlign: 'right'}}>Pending (INR)</th>
-                                        <th style={{color: '#7B68EE', textAlign: 'right'}}>Total (INR)</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {calculateClientDistribution().map((client) => (
-                                        <tr key={client.client}>
-                                            <td style={{fontWeight: 'bold'}}>
-                                                {client.client}
-                                            </td>
-                                            <td style={{color: '#4ADE80', textAlign: 'right'}}>
-                                                {formatBaseCurrency(client.paidAmount || 0)}
-                                            </td>
-                                            <td style={{color: '#F59E0B', textAlign: 'right'}}>
-                                                {formatBaseCurrency(client.pendingAmount || 0)}
-                                            </td>
-                                            <td style={{
-                                                color: '#7B68EE',
-                                                textAlign: 'right',
-                                                fontWeight: 'bold'
-                                            }}>
-                                                {formatBaseCurrency(client.totalAmount || 0)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            ) : (
-                                <div style={{
-                                    padding: '20px',
-                                    textAlign: 'center',
-                                    backgroundColor: '#121C24',
-                                    borderRadius: '8px',
-                                    color: '#F59E0B'
-                                }}>
-                                    ⚠️ Client distribution data not available. Make sure your backend includes the
-                                    earningsByClientCombined field.
-                                </div>
-                            )}
-                        </div>
-
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr',
-                            gap: '20px'
-                        }}>
-                            {/* Paid Earnings Pie Chart */}
-                            <div>
-                                <h4 style={{color: '#FAFAFA', textAlign: 'center', marginBottom: '15px'}}>
-                                    Paid Earnings Distribution
-                                </h4>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <PieChart>
-                                        <Pie
-                                            data={dashboardData.earningsByClient.filter(item => item.earnings > 0)}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            label={({client, percent}) =>
-                                                percent && percent > 0 ? `${client}: ${((percent) * 100).toFixed(0)}%` : ''
-                                            }
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            dataKey="earnings"
-                                        >
-                                            {dashboardData.earningsByClient.filter(item => item.earnings > 0).map((_, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={COLORS[index % COLORS.length]}
-                                                />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: "#121C24",
-                                                border: "1px solid white",
-                                                borderRadius: "4px",
-                                                color: "#FAFAFA",
-                                            }}
-                                            formatter={(value: number) => [
-                                                formatBaseCurrency(value),
-                                                "Paid Earnings",
-                                            ]}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-
-                            {/* Total Client Distribution Pie Chart (Paid + Pending) */}
-                            <div>
-                                <h4 style={{color: '#FAFAFA', textAlign: 'center', marginBottom: '15px'}}>
-                                    Total Client Distribution (All Currencies → INR)
-                                </h4>
-                                {dashboardData?.earningsByClientCombined && dashboardData.earningsByClientCombined.filter(item => item.earnings > 0).length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
-                                            <Pie
-                                                data={dashboardData.earningsByClientCombined.filter(item => item.earnings > 0)}
-                                                cx="50%"
-                                                cy="50%"
-                                                labelLine={false}
-                                                label={({client, percent}) =>
-                                                    percent && percent > 0 ? `${client}: ${((percent) * 100).toFixed(0)}%` : ''
-                                                }
-                                                outerRadius={80}
-                                                fill="#8884d8"
-                                                dataKey="earnings"
-                                                onClick={(data) => {
-                                                    // Find the client data from calculated distribution for detailed breakdown
-                                                    const clientData = calculateClientDistribution().find(item => item.client === data.client);
-                                                    if (clientData) {
-                                                        setSelectedClientInfo(clientData);
-                                                    }
-                                                }}
-                                                style={{cursor: 'pointer'}}
-                                            >
-                                                {dashboardData.earningsByClientCombined.filter(item => item.earnings > 0).map((_, index) => (
-                                                    <Cell
-                                                        key={`cell-total-${index}`}
-                                                        fill={COLORS_SECONDARY[index % COLORS_SECONDARY.length]}
-                                                    />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip
-                                                contentStyle={{
-                                                    backgroundColor: "#121C24",
-                                                    border: "1px solid white",
-                                                    borderRadius: "4px",
-                                                    color: "#FAFAFA",
-                                                }}
-                                                formatter={(value: number) => [
-                                                    formatBaseCurrency(value),
-                                                    "Total Value (Paid + Pending)",
-                                                ]}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div style={{
-                                        height: '300px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        backgroundColor: '#121C24',
-                                        borderRadius: '8px',
-                                        color: '#F59E0B'
-                                    }}>
-                                        📊 Waiting for earningsByClientCombined data from backend
-                                    </div>
-                                )}
-                                <div style={{textAlign: 'center', marginTop: '10px'}}>
-                                    <p style={{
-                                        color: '#B0B0B0',
-                                        fontSize: '0.8rem',
-                                        marginBottom: '5px'
-                                    }}>
-                                        💡 Click on a sector to see detailed breakdown
-                                    </p>
-                                    <p style={{
-                                        color: '#A0A0A0',
-                                        fontSize: '0.7rem',
-                                        fontStyle: 'italic'
-                                    }}>
-                                        Exchange rates: USD→INR ({currencyService.getExchangeRate('USD')}),
-                                        GBP→INR ({currencyService.getExchangeRate('GBP')}),EUR→INR
-                                        ({currencyService.getExchangeRate('EUR')}), INR (1:1)
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Recent Invoices */}
-                    <div className={styles.chartContainer}>
-                        <h3 className={styles.sectionTitle}>Recent Invoices</h3>
-                        <div style={{overflowX: "auto"}}>
-                            <table style={{width: "100%", borderCollapse: "collapse"}}>
-                                <thead>
-                                <tr style={{borderBottom: "2px solid #5B5B7B"}}>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Invoice #
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Client
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Project
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Amount
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Status
-                                    </th>
-                                    <th
-                                        style={{
-                                            color: "#FAFAFA",
-                                            padding: "12px",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        Date
-                                    </th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {dashboardData.recentInvoices.map((invoice, index) => (
-                                    <tr
-                                        key={index}
-                                        style={{borderBottom: "1px solid #5B5B7B"}}
-                                    >
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {invoice.invoiceNumber}
-                                        </td>
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {invoice.clientName}
-                                        </td>
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {invoice.projectName}
-                                        </td>
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {invoice.status === "paid" ? (
-                                                formatBaseCurrency(
-                                                    invoice.paidAmount || invoice.amount
-                                                )
-                                            ) : (
-                                                <div>
-                                                    <div>
-                                                        {formatCurrency(
-                                                            invoice.amount,
-                                                            invoice.currency || "USD"
-                                                        )}
-                                                    </div>
-                                                    {invoice.currency !== "INR" && (
-                                                        <div
-                                                            style={{fontSize: "0.7rem", color: "#B0B0B0"}}
-                                                        >
-                                                            ≈ ₹
-                                                            {getINRConversion(
-                                                                invoice.amount,
-                                                                invoice.currency || "USD"
-                                                            ).toLocaleString("en-IN")}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td
-                                            style={{
-                                                color: getStatusColor(invoice.status),
-                                                padding: "12px",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {normalizeStatus(invoice.status).toUpperCase()}
-                                        </td>
-                                        <td style={{color: "#FAFAFA", padding: "12px"}}>
-                                            {new Date(invoice.date).toLocaleDateString()}
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </>
-            )}
+                    ) : (
+                        <InvoicePDFPreview invoiceData={previewInvoice} />
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

@@ -7,7 +7,8 @@ import Transactions from "./pages/Transactions/Transactions.tsx";
 import PrivateRoute from "./utils/PrivateRoute.tsx";
 import Investments from './pages/Investments/Investments.tsx';
 import Freelance from './pages/Freelance/Freelance.tsx';
-import JobScanner from './pages/JobScanner/JobScanner.tsx';
+import Files from './pages/Files/Files.tsx';
+
 import {useLoading} from "./contexts/LoadingContext.tsx";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {useEffect} from "react";
@@ -100,7 +101,7 @@ function App() {
                     <Route path="/transactions" element={<PrivateRoute><Transactions/></PrivateRoute>}/>
                     <Route path="/investments" element={<PrivateRoute><Investments/></PrivateRoute>}/>
                     <Route path="/freelance" element={<PrivateRoute><Freelance/></PrivateRoute>}/>
-                    <Route path="/job-scanner" element={<PrivateRoute><JobScanner/></PrivateRoute>}/>
+                    <Route path="/files" element={<PrivateRoute><Files/></PrivateRoute>}/>
                 </>
             }
         </Routes>

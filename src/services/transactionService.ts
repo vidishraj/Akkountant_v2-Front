@@ -1,4 +1,5 @@
-import axios from './AxiosConfig.tsx';
+import axios, {API_BASE_URL} from './AxiosConfig.tsx';
+import Axios from 'axios';
 import {queueRequest} from './AxiosQueueManager.tsx';
 import {
     TransactionRequestBody,
@@ -8,6 +9,7 @@ import {
     GoogleStatusResponse,
     OptedBankPasswordsRequestBody,
 } from '../utils/interfaces.ts';
+import {auth} from '../components/FirebaseConfig';
 
 /**
  * Helper to clear cache by adding the `cache-control: no-cache` header.
@@ -141,13 +143,25 @@ export async function triggerStatementCheck(dateTo: string,
 }
 
 /**
+ * Fetch statement periods (coverage data) for the user, optionally filtered by bank.
+ */
+export async function fetchStatementPeriods(bank?: string): Promise<any> {
+    const params = bank ? {bank} : {};
+    return queueRequest(() =>
+        axios.get('/statementPeriods', {params}).then((res) => res.data)
+    );
+}
+
+/**
  * Trigger statement check for a date from and date to
  */
 export async function downloadFile(fileId: string): Promise<any> {
-    return queueRequest(() => axios.get('/downloadFile', {
-        params: {fileId: fileId},
-        responseType: 'blob'
-    }).then((res) => res));
+    const uid = auth.currentUser?.uid;
+    return Axios.get(`${API_BASE_URL}downloadFile`, {
+        params: {fileId},
+        responseType: 'blob',
+        headers: uid ? {'X-Firebase-ID': uid} : {},
+    });
 }
 
 /**

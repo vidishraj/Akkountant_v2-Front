@@ -69,7 +69,7 @@ const OptBanksDialog: React.FC<OptBanksDialogProps> = (props) => {
         ))
     }
     const allPasswordsFilled = selectedBanks.every((bank) => bankPasswords[bank]?.trim() !== "");
-    const banks = ["Millenia_Credit", "HDFC_DEBIT", "ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"];
+    const banks = ["Millenia_Credit", "HDFC_DEBIT", "HDFC_REGALIA", "ICICI_AMAZON_PAY", "YES_BANK_DEBIT", "YES_BANK_ACE", "BOI"];
     return (
         <Dialog open={isBankDialogOpen} onClose={() => setBankDialogOpen(false)} fullWidth PaperProps={{
             sx: {

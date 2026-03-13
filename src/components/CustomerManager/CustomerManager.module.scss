@@ -1,0 +1,705 @@
+// Customer card styles
+.customerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+
+  @media screen and (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.customerCard {
+  padding: 18px;
+  background-color: #1a2938;
+  border-radius: 8px;
+  border: 1px solid #2a3a50;
+  border-left: 4px solid #5b5b7b;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #7b68ee;
+    box-shadow: 0 2px 8px rgba(123, 104, 238, 0.15);
+  }
+
+  &.activityRecent {
+    border-left-color: #4ade80;
+  }
+
+  &.activityModerate {
+    border-left-color: #f59e0b;
+  }
+
+  &.activityOld {
+    border-left-color: #5b5b7b;
+  }
+}
+
+.customerCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  @media screen and (max-width: 480px) {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+.customerAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #7b68ee;
+  color: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.customerInfo {
+  flex: 1;
+  min-width: 0;
+
+  h4 {
+    color: #fafafa;
+    margin: 0 0 2px 0;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .customerCompany {
+    color: #b0b0b0;
+    font-size: 0.85rem;
+  }
+
+  .customerContact {
+    color: #8b8b8b;
+    font-size: 0.8rem;
+    margin-top: 2px;
+  }
+}
+
+.customerActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+
+  @media screen and (max-width: 480px) {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+.customerStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #2a3a50;
+}
+
+.customerStatBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background-color: rgba(123, 104, 238, 0.08);
+  border-radius: 12px;
+  font-size: 0.78rem;
+  color: #b0b0b0;
+
+  strong {
+    color: #fafafa;
+  }
+
+  &.earnings {
+    color: #4ade80;
+    strong { color: #4ade80; }
+  }
+
+  &.templateBadge {
+    color: #7b68ee;
+    strong { color: #7b68ee; }
+  }
+}
+
+// Customer detail modal
+.detailModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.detailModalContent {
+  background-color: #121c24;
+  border: 1px solid #2a3a50;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid #2a3a50;
+
+  .customerAvatar {
+    width: 56px;
+    height: 56px;
+    font-size: 1.3rem;
+  }
+
+  @media screen and (max-width: 480px) {
+    padding: 16px;
+    gap: 12px;
+  }
+}
+
+.detailHeaderInfo {
+  flex: 1;
+  min-width: 0;
+
+  h3 {
+    color: #fafafa;
+    margin: 0 0 4px 0;
+    font-size: 1.3rem;
+  }
+
+  .detailCompany {
+    color: #b0b0b0;
+    font-size: 0.95rem;
+  }
+}
+
+.detailCloseBtn {
+  background: none;
+  border: none;
+  color: #b0b0b0;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    color: #fafafa;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.detailBody {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media screen and (max-width: 480px) {
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+.detailContactGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.detailContactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .contactLabel {
+    color: #8b8b8b;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .contactValue {
+    color: #fafafa;
+    font-size: 0.9rem;
+    word-break: break-word;
+  }
+}
+
+.detailStatsBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+  background-color: rgba(123, 104, 238, 0.06);
+  border-radius: 8px;
+}
+
+.detailStat {
+  flex: 1;
+  min-width: 120px;
+  text-align: center;
+  padding: 8px;
+
+  .statValue {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #7b68ee;
+    margin-bottom: 2px;
+  }
+
+  .statLabel {
+    color: #b0b0b0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  &.green .statValue {
+    color: #4ade80;
+  }
+}
+
+.detailInvoiceSection {
+  h4 {
+    color: #fafafa;
+    margin: 0 0 12px 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.detailInvoiceTableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.detailInvoiceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 480px;
+
+  thead th {
+    color: #b0b0b0;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 1px solid #2a3a50;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(42, 58, 80, 0.5);
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: rgba(123, 104, 238, 0.06);
+    }
+  }
+
+  tbody td {
+    color: #fafafa;
+    padding: 10px;
+  }
+}
+
+.statusBadge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+
+  &.paid {
+    background-color: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+
+  &.sent {
+    background-color: rgba(123, 104, 238, 0.15);
+    color: #7b68ee;
+  }
+
+  &.draft {
+    background-color: rgba(176, 176, 176, 0.15);
+    color: #b0b0b0;
+  }
+
+  &.overdue {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+}
+
+// Customer dialog form grid
+.dialogFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  @media screen and (max-width: 500px) {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+// Detail tab bar
+.detailTabBar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #2a3a50;
+}
+
+.detailTab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  color: #8b8b8b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+
+  &:hover {
+    color: #fafafa;
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.activeDetailTab {
+  color: #fafafa;
+  border-bottom-color: #7b68ee;
+}
+
+// Email tab header
+.emailTabHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.linkEmailBtn {
+  background-color: transparent;
+  color: #7b68ee;
+  border: 1px solid #7b68ee;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: rgba(123, 104, 238, 0.15);
+  }
+}
+
+// Email list
+.emailList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emailCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background-color: rgba(42, 58, 80, 0.3);
+  border-radius: 6px;
+  border: 1px solid #2a3a50;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: rgba(123, 104, 238, 0.3);
+  }
+}
+
+.emailCardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.emailCardSubject {
+  color: #fafafa;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emailCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  color: #8b8b8b;
+  font-size: 0.75rem;
+}
+
+.emailCategoryBadge {
+  display: inline-flex;
+  padding: 1px 6px;
+  background-color: rgba(123, 104, 238, 0.12);
+  color: #7b68ee;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+
+.linkedByBadge {
+  display: inline-flex;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  &.auto {
+    background-color: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+  }
+
+  &.manual {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+  }
+}
+
+.unlinkBtn {
+  background: none;
+  border: 1px solid transparent;
+  color: #8b8b8b;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+    background-color: rgba(239, 68, 68, 0.08);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Email search results (link modal)
+.emailSearchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.emailSearchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background-color: rgba(42, 58, 80, 0.3);
+  border-radius: 6px;
+  border: 1px solid #2a3a50;
+}
+
+.emailSearchInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.emailSearchSubject {
+  color: #fafafa;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emailSearchMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 3px;
+  color: #8b8b8b;
+  font-size: 0.73rem;
+}
+
+// Email viewer modal
+.emailViewerOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1100;
+}
+
+.emailViewerContent {
+  background-color: #121c24;
+  border: 1px solid #2a3a50;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 750px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.emailViewerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid #2a3a50;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fafafa;
+  min-height: 0;
+
+  span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  button {
+    background: none;
+    border: none;
+    color: #8b8b8b;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-left: 12px;
+
+    &:hover {
+      color: #fafafa;
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.emailViewerBody {
+  padding: 16px 18px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.emailMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: #ccd0d5;
+}
+
+.emailMetaKey {
+  min-width: 65px;
+  color: #7a7d85;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.emailBodyArea {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #2a3a50;
+  flex: 1;
+}
+
+.emailIframe {
+  width: 100%;
+  min-height: 300px;
+  border: none;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.emailTextPre {
+  background-color: #1a2530;
+  border: 1px solid #2a3a50;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 0.78rem;
+  color: #ccd0d5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.emailBodyLoader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100px;
+  color: #8b8b8b;
+  font-size: 0.85rem;
+}
+
+.detailEmpty {
+  text-align: center;
+  padding: 24px;
+  color: #8b8b8b;
+  font-size: 0.9rem;
+}
+
+.detailLoading {
+  text-align: center;
+  padding: 20px;
+  color: #b0b0b0;
+  font-size: 0.85rem;
+}
