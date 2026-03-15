@@ -75,6 +75,36 @@
   }
 }
 
+.sourceToggle {
+  display: flex;
+  gap: 2px;
+  background-color: #1a2730;
+  border: 1px solid #2a3a50;
+  border-radius: 6px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.sourceBtn {
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 4px !important;
+  color: #8b8b8b !important;
+  font-size: 11px !important;
+  text-transform: none !important;
+  min-width: auto !important;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: #243340 !important;
+  }
+}
+
+.sourceBtnActive {
+  background-color: #29384d !important;
+  color: #fafafa !important;
+}
+
 .actionButtons {
   display: flex;
   gap: 0.4rem;

@@ -6,6 +6,7 @@ import ClearFilterButton from "../ClearFilterComponent.tsx";
 import DateModal from "../DateModalComponent.tsx";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import EmailIcon from "@mui/icons-material/Email";
+import DescriptionIcon from "@mui/icons-material/Description";
 import {triggerEmailCheck} from "../../services/transactionService.ts";
 import {useMessage} from "../../contexts/MessageContext.tsx";
 
@@ -45,6 +46,25 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                         ₹{net ? formatAmount(net) : '0.00'}
                     </Typography>
                 </Box>
+            </Box>
+
+            <Box className={styles.divider} />
+
+            <Box className={styles.sourceToggle}>
+                <Button
+                    className={`${styles.sourceBtn} ${state.source === 'statement' ? styles.sourceBtnActive : ''}`}
+                    onClick={() => dispatch({type: "SET_SOURCE", payload: "statement"})}
+                >
+                    <DescriptionIcon sx={{fontSize: 16, mr: 0.3}} />
+                    Statements
+                </Button>
+                <Button
+                    className={`${styles.sourceBtn} ${state.source === 'email' ? styles.sourceBtnActive : ''}`}
+                    onClick={() => dispatch({type: "SET_SOURCE", payload: "email"})}
+                >
+                    <EmailIcon sx={{fontSize: 16, mr: 0.3}} />
+                    Emails
+                </Button>
             </Box>
 
             <Box className={styles.divider} />
