@@ -152,7 +152,7 @@ export async function deleteAll(
             : {params: {serviceType}}
     );
 
-    return queueRequest(() => axios.get('deleteAllInvestments', options));
+    return queueRequest(() => axios.delete('deleteAllInvestments', options));
 }
 
 /**

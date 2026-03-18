@@ -7,6 +7,20 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/';
 const instance = Axios.create({baseURL: API_BASE_URL});
 const axios = setupCache(instance);
 
+// Cache the auth ready promise so we only create one listener
+let authReadyPromise: Promise<string | null> | null = null;
+
+function waitForAuth(): Promise<string | null> {
+    if (!authReadyPromise) {
+        authReadyPromise = new Promise((resolve) => {
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                unsubscribe();
+                resolve(user ? user.uid : null);
+            });
+        });
+    }
+    return authReadyPromise;
+}
 
 export const setupAxiosInterceptors = () => {
     axios.interceptors.request.use(
@@ -21,14 +35,10 @@ export const setupAxiosInterceptors = () => {
             }
             const user = auth.currentUser;
             if (!user) {
-                await new Promise((resolve) => {
-                    onAuthStateChanged(auth, (loggedInUser) => {
-                        if (loggedInUser) {
-                            config.headers["X-Firebase-ID"] = loggedInUser.uid;
-                        }
-                        resolve(null);
-                    });
-                });
+                const uid = await waitForAuth();
+                if (uid) {
+                    config.headers["X-Firebase-ID"] = uid;
+                }
             } else {
                 config.headers["X-Firebase-ID"] = user.uid;
             }

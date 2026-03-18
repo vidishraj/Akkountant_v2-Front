@@ -14,6 +14,7 @@ import {MessageProvider} from "./contexts/MessageContext.tsx";
 import {AgentChatBridgeProvider} from "./contexts/AgentChatBridgeContext.tsx";
 import {KiteProvider} from "./contexts/KiteContext.tsx";
 import NotificationMessage from "./components/NotificationBanner/NotificationBanner.tsx";
+import ErrorBoundary from "./components/ErrorBoundary.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <Router>
@@ -30,7 +31,9 @@ createRoot(document.getElementById("root")!).render(
                                         <div className="layout">
                                             <div className="header"><Header/></div>
                                             <div className="content">
-                                                <App/>
+                                                <ErrorBoundary>
+                                                    <App/>
+                                                </ErrorBoundary>
                                             </div>
                                             <div className="footer">© 2025 Akkountant</div>
                                         </div>
