@@ -29,10 +29,12 @@ import ChangepasswordDialog from "../ChangePasswordDialog/ChangepasswordDialog.t
 import { useMessage } from "../../contexts/MessageContext.tsx";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WorkIcon from "@mui/icons-material/Work";
+import PublicIcon from "@mui/icons-material/Public";
 import MenuIcon from "@mui/icons-material/Menu";
 import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
 import { getFileTimeStamps } from "../../services/investmentService.ts";
 import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
+import PortfolioVisitorsModal from "../PortfolioVisitorsModal/PortfolioVisitorsModal.tsx";
 
 const Header = () => {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -57,6 +59,7 @@ const Header = () => {
 
   const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
   const [jobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
+  const [visitorsModalOpen, setVisitorsModalOpen] = useState<boolean>(false);
   useEffect(() => {
     if (currentUser) {
       getFileTimeStamps()
@@ -332,6 +335,21 @@ const Header = () => {
                 sx={{ color: "white", cursor: "pointer" }}
               />
             </ListItem>
+            <ListItem
+              sx={{
+                cursor: "pointer",
+                "&:hover": {
+                  backgroundColor: "rgb(50, 62, 74)",
+                },
+              }}
+              onClick={() => setVisitorsModalOpen(true)}
+            >
+              <PublicIcon style={{ marginRight: "0.5rem" }} />
+              <ListItemText
+                primary="Visitors"
+                sx={{ color: "white", cursor: "pointer" }}
+              />
+            </ListItem>
             <ChangepasswordDialog
               open={isChangePasswordOpen}
               onClose={() => setChangePasswordOpen(false)}
@@ -342,9 +360,13 @@ const Header = () => {
               title="File Timestamps"
               data={fileStamps}
             />
-            <JobsDialog 
-              open={jobsDialogOpen} 
+            <JobsDialog
+              open={jobsDialogOpen}
               onClose={() => setJobsDialogOpen(false)}
+            />
+            <PortfolioVisitorsModal
+              open={visitorsModalOpen}
+              onClose={() => setVisitorsModalOpen(false)}
             />
           </List>
         </Box>
