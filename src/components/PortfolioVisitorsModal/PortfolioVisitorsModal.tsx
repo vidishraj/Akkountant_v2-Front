@@ -105,10 +105,10 @@ const PortfolioVisitorsModal: React.FC<PortfolioVisitorsModalProps> = ({open, on
     };
 
     const formatDateTime = (iso: string) => {
-        // visited_at is a naive datetime in IST like "2026-03-25T19:39:21".
-        // Append +05:30 so the browser converts to the user's local time correctly.
+        // visited_at is stored as UTC (datetime.utcnow()) but sent without timezone.
+        // Append Z so the browser converts UTC to the user's local time.
         const d = iso.includes('T') && !iso.includes('+') && !iso.includes('Z')
-            ? new Date(iso + '+05:30')
+            ? new Date(iso + 'Z')
             : new Date(iso);
         return d.toLocaleString('en-IN', {
             day: '2-digit', month: 'short', year: 'numeric',
