@@ -93,22 +93,23 @@ const PortfolioVisitorsModal: React.FC<PortfolioVisitorsModalProps> = ({open, on
         loadVisitors(true);
     };
 
-    const parseIST = (iso: string) => {
-        // Backend stores timestamps in IST but sends without timezone info.
-        // Append +05:30 so the browser interprets them correctly.
-        if (!iso.includes('+') && !iso.includes('Z') && !iso.endsWith('+05:30')) {
-            return new Date(iso + '+05:30');
-        }
-        return new Date(iso);
-    };
-
     const formatDate = (iso: string) => {
-        const d = parseIST(iso);
-        return d.toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'});
+        // Daily stats send date-only strings like "2026-03-25".
+        // Split and format directly to avoid timezone shifting.
+        const parts = iso.split('-');
+        if (parts.length === 3) {
+            const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            return d.toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'});
+        }
+        return iso;
     };
 
     const formatDateTime = (iso: string) => {
-        const d = parseIST(iso);
+        // visited_at is a naive datetime in IST like "2026-03-25T19:39:21".
+        // Append +05:30 so the browser converts to the user's local time correctly.
+        const d = iso.includes('T') && !iso.includes('+') && !iso.includes('Z')
+            ? new Date(iso + '+05:30')
+            : new Date(iso);
         return d.toLocaleString('en-IN', {
             day: '2-digit', month: 'short', year: 'numeric',
             hour: '2-digit', minute: '2-digit',
