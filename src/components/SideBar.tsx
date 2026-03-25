@@ -5,13 +5,16 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import PaidIcon from '@mui/icons-material/Paid';
 import LogoutIcon from '@mui/icons-material/Logout';
 import WorkIcon from '@mui/icons-material/Work';
+import PublicIcon from '@mui/icons-material/Public';
 import {getAuth, signOut} from 'firebase/auth';
 import HomeIcon from '@mui/icons-material/Home';
 import JobsDialog from './JobsDialogComponent/JobsDialogComponent.tsx';
+import PortfolioVisitorsModal from './PortfolioVisitorsModal/PortfolioVisitorsModal.tsx';
 
 const SideBar = () => {
     const [collapsed, setCollapsed] = useState(true);
     const [jobsDialogOpen, setJobsDialogOpen] = useState(false);
+    const [visitorsModalOpen, setVisitorsModalOpen] = useState(false);
     const navigate = useNavigate()
 
     async function logOut() {
@@ -52,14 +55,21 @@ const SideBar = () => {
                     <MenuItem icon={<WorkIcon/>} onClick={() => setJobsDialogOpen(true)}>
                         Jobs
                     </MenuItem>
+                    <MenuItem icon={<PublicIcon/>} onClick={() => setVisitorsModalOpen(true)}>
+                        Visitors
+                    </MenuItem>
                     <MenuItem icon={<LogoutIcon/>} onClick={logOut} component={<Link to="/"/>}>
                         Log Out
                     </MenuItem>
                 </Menu>
             </Sidebar>
-            <JobsDialog 
-                open={jobsDialogOpen} 
+            <JobsDialog
+                open={jobsDialogOpen}
                 onClose={() => setJobsDialogOpen(false)}
+            />
+            <PortfolioVisitorsModal
+                open={visitorsModalOpen}
+                onClose={() => setVisitorsModalOpen(false)}
             />
         </div>
     );
