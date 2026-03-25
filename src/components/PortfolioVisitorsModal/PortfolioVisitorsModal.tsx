@@ -93,13 +93,22 @@ const PortfolioVisitorsModal: React.FC<PortfolioVisitorsModalProps> = ({open, on
         loadVisitors(true);
     };
 
+    const parseIST = (iso: string) => {
+        // Backend stores timestamps in IST but sends without timezone info.
+        // Append +05:30 so the browser interprets them correctly.
+        if (!iso.includes('+') && !iso.includes('Z') && !iso.endsWith('+05:30')) {
+            return new Date(iso + '+05:30');
+        }
+        return new Date(iso);
+    };
+
     const formatDate = (iso: string) => {
-        const d = new Date(iso);
+        const d = parseIST(iso);
         return d.toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'});
     };
 
     const formatDateTime = (iso: string) => {
-        const d = new Date(iso);
+        const d = parseIST(iso);
         return d.toLocaleString('en-IN', {
             day: '2-digit', month: 'short', year: 'numeric',
             hour: '2-digit', minute: '2-digit',
