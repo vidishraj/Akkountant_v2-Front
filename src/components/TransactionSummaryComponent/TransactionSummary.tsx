@@ -80,7 +80,7 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
         }, 3000);
     }, [refreshTransactions, setPayload, stopPolling]);
     return (
-        <Box className={styles.summaryContainer}>
+        <Box className={styles.summaryContainer} style={scanning ? {paddingBottom: '1.4rem'} : undefined}>
             <Box className={styles.metricsGroup}>
                 <Box className={`${styles.metricCard} ${styles.creditCard}`}>
                     <Typography className={styles.metricLabel}>Credit</Typography>
@@ -150,14 +150,14 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
             </Box>
 
             {scanning && (
-                <Box sx={{width: '100%', mt: 1}}>
-                    <Typography variant="caption" sx={{color: '#8899AA', fontSize: '0.7rem'}}>
+                <Box className={styles.scanProgress}>
+                    <Typography variant="caption" sx={{color: '#8899AA', fontSize: '0.65rem', whiteSpace: 'nowrap'}}>
                         {scanStage}
                     </Typography>
                     <LinearProgress
                         sx={{
-                            mt: 0.5,
-                            height: 3,
+                            flex: 1,
+                            height: 2,
                             borderRadius: 2,
                             backgroundColor: '#29384D',
                             '& .MuiLinearProgress-bar': {backgroundColor: '#7b68ee'},

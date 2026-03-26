@@ -378,10 +378,10 @@ const PortfolioVisitorsModal: React.FC<PortfolioVisitorsModalProps> = ({open, on
                                     ) : (
                                         visitors.map((v) => (
                                             <TableRow key={v.id} hover>
-                                                <TableCell sx={{whiteSpace: 'nowrap', fontSize: '0.8rem'}}>
+                                                <TableCell sx={{fontSize: isMobile ? '0.7rem' : '0.8rem', whiteSpace: isMobile ? 'normal' : 'nowrap'}}>
                                                     {formatDateTime(v.visited_at)}
                                                 </TableCell>
-                                                <TableCell sx={{fontFamily: 'monospace', fontSize: '0.8rem'}}>
+                                                <TableCell sx={{fontFamily: 'monospace', fontSize: isMobile ? '0.7rem' : '0.8rem', wordBreak: 'break-all'}}>
                                                     {v.ip}
                                                 </TableCell>
                                                 {!isMobile && (

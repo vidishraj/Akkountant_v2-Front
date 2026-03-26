@@ -15,6 +15,11 @@
       border-bottom: 1px solid #2a3a4c;
       padding: 8px 12px;
       font-size: 0.85rem;
+
+      @media (max-width: 600px) {
+        padding: 6px 8px;
+        font-size: 0.75rem;
+      }
     }
 
     .MuiTableHead-root .MuiTableCell-root {
@@ -139,6 +144,13 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  overflow: hidden;
+
+  :global {
+    .MuiTableContainer-root {
+      overflow-x: auto;
+    }
+  }
 }
 
 .pagination {
@@ -149,6 +161,13 @@
     .MuiTablePagination-toolbar {
       color: #FAFAFA !important;
       min-height: 44px;
+
+      @media (max-width: 600px) {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 4px;
+        min-height: unset;
+      }
     }
 
     .MuiTablePagination-selectLabel,
@@ -156,6 +175,10 @@
     .MuiTablePagination-select {
       color: #FAFAFA !important;
       font-size: 0.8rem;
+
+      @media (max-width: 600px) {
+        font-size: 0.7rem;
+      }
     }
 
     .MuiTablePagination-actions .MuiIconButton-root {

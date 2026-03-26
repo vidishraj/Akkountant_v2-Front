@@ -5,10 +5,23 @@
   padding: 0.6rem 0.75rem;
   background-color: #121c24;
   border-radius: 8px;
+  position: relative;
+  flex-wrap: wrap;
 
   @media (max-width: 768px) {
     flex-wrap: wrap;
   }
+}
+
+.scanProgress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0 0.75rem 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .metricsGroup {
