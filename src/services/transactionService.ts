@@ -121,14 +121,20 @@ export async function fetchCalendarTransactions(
 
 
 /**
- * Trigger email check for a date from and date to
+ * Trigger async email scan — returns scan_id immediately.
  */
 export async function triggerEmailCheck(dateTo: string,
                                         dateFrom: string,
                                         clearCache = false): Promise<any> {
     const options = clearCache ? withCacheCleared({dateTo, dateFrom}) : {params: {dateTo, dateFrom}};
     return queueRequest(() => axios.get('/readEmails', options).then((res) => res));
+}
 
+/**
+ * Poll email scan progress by scan_id.
+ */
+export async function getEmailScanStatus(scanId: string): Promise<any> {
+    return axios.get('/readEmails/status', {params: {scan_id: scanId}}).then((res) => res.data);
 }
 
 /**

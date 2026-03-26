@@ -1,5 +1,5 @@
-import React, {useState} from "react";
-import {Box, Button, Typography} from "@mui/material";
+import React, {useState, useRef, useCallback} from "react";
+import {Box, Button, Typography, LinearProgress} from "@mui/material";
 import {useFilterContext} from "../../contexts/FilterContext.tsx";
 import styles from "./TransactionSummary.module.scss";
 import ClearFilterButton from "../ClearFilterComponent.tsx";
@@ -7,7 +7,7 @@ import DateModal from "../DateModalComponent.tsx";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import EmailIcon from "@mui/icons-material/Email";
 import DescriptionIcon from "@mui/icons-material/Description";
-import {triggerEmailCheck} from "../../services/transactionService.ts";
+import {triggerEmailCheck, getEmailScanStatus} from "../../services/transactionService.ts";
 import {useMessage} from "../../contexts/MessageContext.tsx";
 
 interface TransactionSummaryProps {
@@ -23,8 +23,62 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
     const credit = state.transactions.credits;
     const debit = state.transactions.debits;
     const [dateModalState, setDateModalState] = useState(false);
+    const [scanning, setScanning] = useState(false);
+    const [scanStage, setScanStage] = useState('');
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const net = -1 * (debit - (-1 * credit));
     const {setPayload} = useMessage();
+
+    const stopPolling = useCallback(() => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+    }, []);
+
+    const startPolling = useCallback((scanId: string) => {
+        setScanning(true);
+        setScanStage('Starting scan...');
+
+        pollRef.current = setInterval(async () => {
+            try {
+                const status = await getEmailScanStatus(scanId);
+
+                // Update stage display
+                const stageLabels: Record<string, string> = {
+                    fetching_emails: 'Fetching emails...',
+                    fetched_emails: `Fetched ${status.total_emails_fetched || 0} emails`,
+                    classifying: 'Classifying emails...',
+                    classified: `Classified ${status.emails_classified || 0} financial emails`,
+                    processing_emails: `Processing ${status.text_emails_total || 0} text + ${status.pdf_emails_total || 0} PDF emails...`,
+                };
+                setScanStage(stageLabels[status.stage] || status.stage || 'Processing...');
+
+                if (status.status === 'completed') {
+                    stopPolling();
+                    setScanning(false);
+                    const r = status.result || {};
+                    const textCount = r.text_emails_processed || 0;
+                    const pdfCount = r.pdf_emails_processed || 0;
+                    const errorCount = r.errors?.length || 0;
+                    setPayload({
+                        type: 'success',
+                        message: `${textCount + pdfCount} emails processed (${r.total_emails_fetched || 0} fetched, ${r.pre_skipped || 0} skipped). ${errorCount} errors`,
+                    });
+                    refreshTransactions();
+                } else if (status.status === 'failed') {
+                    stopPolling();
+                    setScanning(false);
+                    setPayload({
+                        type: 'error',
+                        message: `Scan failed: ${status.errors?.[0] || 'Unknown error'}`,
+                    });
+                }
+            } catch {
+                // Status endpoint failed — keep polling, might be transient
+            }
+        }, 3000);
+    }, [refreshTransactions, setPayload, stopPolling]);
     return (
         <Box className={styles.summaryContainer}>
             <Box className={styles.metricsGroup}>
@@ -82,9 +136,10 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                 <Button
                     className={styles.scanBtn}
                     onClick={() => setDateModalState(true)}
+                    disabled={scanning}
                 >
                     <EmailIcon fontSize="small" sx={{mr: 0.5}} />
-                    Scan
+                    {scanning ? 'Scanning…' : 'Scan'}
                 </Button>
                 <ClearFilterButton
                     apply={() => {
@@ -94,27 +149,36 @@ const TransactionSummary: React.FC<TransactionSummaryProps> = (props) => {
                 />
             </Box>
 
+            {scanning && (
+                <Box sx={{width: '100%', mt: 1}}>
+                    <Typography variant="caption" sx={{color: '#8899AA', fontSize: '0.7rem'}}>
+                        {scanStage}
+                    </Typography>
+                    <LinearProgress
+                        sx={{
+                            mt: 0.5,
+                            height: 3,
+                            borderRadius: 2,
+                            backgroundColor: '#29384D',
+                            '& .MuiLinearProgress-bar': {backgroundColor: '#7b68ee'},
+                        }}
+                    />
+                </Box>
+            )}
+
             <DateModal
                 title={"Scan Emails"}
                 isOpen={dateModalState}
                 onSubmit={(dates) => {
                     setDateModalState(false);
                     triggerEmailCheck(dates.to, dates.from, false).then((r) => {
-                        if (r.status === 200) {
-                            const msg = r.data.Message;
-                            const textCount = msg.text_emails_processed || 0;
-                            const pdfCount = msg.pdf_emails_processed || 0;
-                            const errorCount = msg.errors?.length || 0;
-                            setPayload({
-                                type: "success",
-                                message: `${textCount + pdfCount} emails processed (${msg.total_emails_fetched || 0} fetched, ${msg.pre_skipped || 0} skipped). ${errorCount} errors`,
-                            });
-                            refreshTransactions();
+                        if (r.status === 202 && r.data.scan_id) {
+                            startPolling(r.data.scan_id);
                         }
                     }).catch(() => {
                         setPayload({
                             type: "error",
-                            message: "Error while scanning emails.",
+                            message: "Error while triggering email scan.",
                         });
                     });
                 }}
