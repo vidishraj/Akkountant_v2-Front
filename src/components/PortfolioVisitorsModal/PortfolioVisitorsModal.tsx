@@ -43,8 +43,6 @@ interface PortfolioVisitorsModalProps {
 const PortfolioVisitorsModal: React.FC<PortfolioVisitorsModalProps> = ({open, onClose}) => {
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
     const [tab, setTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [visitors, setVisitors] = useState<PortfolioVisitor[]>([]);
@@ -355,9 +353,9 @@ const PortfolioVisitorsModal: React.FC<PortfolioVisitorsModalProps> = ({open, on
                                     <TableRow>
                                         <TableCell>Time</TableCell>
                                         <TableCell>IP</TableCell>
-                                        {!isMobile && <TableCell>City</TableCell>}
-                                        {!isMobile && <TableCell>Country</TableCell>}
-                                        {!isMobile && <TableCell>ISP</TableCell>}
+                                        <TableCell>City</TableCell>
+                                        <TableCell>Country</TableCell>
+                                        <TableCell>ISP</TableCell>
                                         <TableCell>Browser</TableCell>
                                         <TableCell>Type</TableCell>
                                     </TableRow>
@@ -365,53 +363,47 @@ const PortfolioVisitorsModal: React.FC<PortfolioVisitorsModalProps> = ({open, on
                                 <TableBody>
                                     {loading ? (
                                         <TableRow>
-                                            <TableCell colSpan={isMobile ? 4 : 7} align="center">
+                                            <TableCell colSpan={7} align="center">
                                                 <Typography variant="body2">Loading...</Typography>
                                             </TableCell>
                                         </TableRow>
                                     ) : visitors.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={isMobile ? 4 : 7} align="center">
+                                            <TableCell colSpan={7} align="center">
                                                 <Typography variant="body2">No visitors found.</Typography>
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         visitors.map((v) => (
                                             <TableRow key={v.id} hover>
-                                                <TableCell sx={{fontSize: isMobile ? '0.7rem' : '0.8rem', whiteSpace: isMobile ? 'normal' : 'nowrap'}}>
+                                                <TableCell sx={{whiteSpace: 'nowrap', fontSize: '0.8rem'}}>
                                                     {formatDateTime(v.visited_at)}
                                                 </TableCell>
-                                                <TableCell sx={{fontFamily: 'monospace', fontSize: isMobile ? '0.7rem' : '0.8rem', wordBreak: 'break-all'}}>
+                                                <TableCell sx={{fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'nowrap'}}>
                                                     {v.ip}
                                                 </TableCell>
-                                                {!isMobile && (
-                                                    <TableCell>{v.city || '-'}</TableCell>
-                                                )}
-                                                {!isMobile && (
-                                                    <TableCell>
-                                                        <Box display="flex" alignItems="center" gap={0.5}>
-                                                            {v.country_code && (
-                                                                <img
-                                                                    src={`https://flagcdn.com/16x12/${v.country_code.toLowerCase()}.png`}
-                                                                    alt={v.country_code}
-                                                                    style={{width: 16, height: 12}}
-                                                                    onError={(e) => {
-                                                                        (e.target as HTMLImageElement).style.display = 'none';
-                                                                    }}
-                                                                />
-                                                            )}
-                                                            {v.country || '-'}
-                                                        </Box>
-                                                    </TableCell>
-                                                )}
-                                                {!isMobile && (
-                                                    <TableCell sx={{
-                                                        maxWidth: 150, overflow: 'hidden',
-                                                        textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                                                    }}>
-                                                        {v.isp || '-'}
-                                                    </TableCell>
-                                                )}
+                                                <TableCell sx={{whiteSpace: 'nowrap'}}>{v.city || '-'}</TableCell>
+                                                <TableCell sx={{whiteSpace: 'nowrap'}}>
+                                                    <Box display="flex" alignItems="center" gap={0.5}>
+                                                        {v.country_code && (
+                                                            <img
+                                                                src={`https://flagcdn.com/16x12/${v.country_code.toLowerCase()}.png`}
+                                                                alt={v.country_code}
+                                                                style={{width: 16, height: 12}}
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {v.country || '-'}
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell sx={{
+                                                    maxWidth: 150, overflow: 'hidden',
+                                                    textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                                                }}>
+                                                    {v.isp || '-'}
+                                                </TableCell>
                                                 <TableCell>{truncateUA(v.user_agent)}</TableCell>
                                                 <TableCell>
                                                     <Chip
