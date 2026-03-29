@@ -12,10 +12,12 @@ interface SignaturePosition {
 }
 
 interface SignaturePlacerProps {
-  invoiceData: InvoiceData | null;
+  invoiceData?: InvoiceData | null;
+  pdfBlobUrl?: string | null;
   signatureUrl: string;
   onPositionChange: (pos: SignaturePosition) => void;
   initialPosition: SignaturePosition;
+  currentPage?: number;
 }
 
 // A4 dimensions in mm
@@ -24,9 +26,11 @@ const A4_HEIGHT = 297;
 
 const SignaturePlacer = ({
   invoiceData,
+  pdfBlobUrl,
   signatureUrl,
   onPositionChange,
   initialPosition,
+  currentPage = 0,
 }: SignaturePlacerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pdfImageUrl, setPdfImageUrl] = useState<string | null>(null);
@@ -39,6 +43,11 @@ const SignaturePlacer = ({
 
   // Generate PDF preview image
   useEffect(() => {
+    if (pdfBlobUrl) {
+      // Use provided PDF blob URL directly (for document signing)
+      setPdfImageUrl(pdfBlobUrl + (currentPage ? `#page=${currentPage + 1}` : ''));
+      return;
+    }
     if (!invoiceData) return;
     let cancelled = false;
 
@@ -57,14 +66,14 @@ const SignaturePlacer = ({
     return () => {
       cancelled = true;
     };
-  }, [invoiceData]);
+  }, [invoiceData, pdfBlobUrl, currentPage]);
 
-  // Cleanup URL on unmount
+  // Cleanup URL on unmount (only if we generated it, not if passed via pdfBlobUrl)
   useEffect(() => {
     return () => {
-      if (pdfImageUrl) URL.revokeObjectURL(pdfImageUrl);
+      if (pdfImageUrl && !pdfBlobUrl) URL.revokeObjectURL(pdfImageUrl);
     };
-  }, [pdfImageUrl]);
+  }, [pdfImageUrl, pdfBlobUrl]);
 
   // Sync initial position
   useEffect(() => {
@@ -209,11 +218,11 @@ const SignaturePlacer = ({
     onPositionChange(defaultPos);
   };
 
-  if (!invoiceData) {
+  if (!invoiceData && !pdfBlobUrl) {
     return (
       <div className={placerStyles.placerContainer}>
         <div style={{ textAlign: "center", padding: "40px", color: "#B0B0B0" }}>
-          Select an invoice to see the preview
+          {pdfBlobUrl === undefined ? "Select an invoice to see the preview" : "Upload a PDF to see the preview"}
         </div>
       </div>
     );
