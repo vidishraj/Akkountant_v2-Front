@@ -6,11 +6,12 @@ import InvoiceCreator from "../../components/InvoiceCreator/InvoiceCreator";
 import InvoiceManager from "../../components/InvoiceManager/InvoiceManager";
 import InvoiceSigner from "../../components/InvoiceSigner/InvoiceSigner";
 import DocumentSigner from "../../components/DocumentSigner/DocumentSigner";
+import InvoiceExporter from "../../components/InvoiceExporter/InvoiceExporter";
 import CustomerManager from "../../components/CustomerManager/CustomerManager";
 import AgentChat from "../../components/AgentChat/AgentChat";
 import { InvoiceData } from "../../utils/interfaces";
 
-type TabType = "dashboard" | "create" | "manage" | "signer" | "docsigner" | "customers";
+type TabType = "dashboard" | "create" | "manage" | "signer" | "docsigner" | "export" | "customers";
 
 const Freelance = () => {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
@@ -93,6 +94,8 @@ const Freelance = () => {
         return <InvoiceSigner />;
       case "docsigner":
         return <DocumentSigner />;
+      case "export":
+        return <InvoiceExporter />;
       case "customers":
         return <CustomerManager />;
       default:
@@ -106,6 +109,7 @@ const Freelance = () => {
     { key: "manage" as TabType, label: "Manage Invoices", icon: "📋" },
     { key: "signer" as TabType, label: "Sign Invoices", icon: "✍️" },
     { key: "docsigner" as TabType, label: "Sign Document", icon: "📄" },
+    { key: "export" as TabType, label: "Export", icon: "📥" },
     { key: "customers" as TabType, label: "Customers", icon: "👥" },
   ];
 
