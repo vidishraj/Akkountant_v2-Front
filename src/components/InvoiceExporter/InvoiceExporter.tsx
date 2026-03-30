@@ -19,7 +19,17 @@ const InvoiceExporter = () => {
         }
         try {
             setLoading(true);
-            const {invoices} = await fetchAllInvoices(1, 500, undefined, 'issue_date', 'asc');
+            // Fetch all invoices (paginate since backend caps at 100)
+            let allInvoices: InvoiceData[] = [];
+            let page = 1;
+            let hasMore = true;
+            while (hasMore) {
+                const resp = await fetchAllInvoices(page, 100, undefined, 'issue_date', 'asc');
+                allInvoices = allInvoices.concat(resp.invoices);
+                hasMore = allInvoices.length < resp.total_count;
+                page++;
+            }
+            const invoices = allInvoices;
             const from = new Date(dateFrom);
             const to = new Date(dateTo);
             to.setHours(23, 59, 59, 999);
@@ -127,7 +137,7 @@ const InvoiceExporter = () => {
         <div>
             <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
                 <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>Export Invoices to Excel</h4>
-                <div style={{display: "flex", gap: "15px", alignItems: "flex-end", flexWrap: "wrap"}}>
+                <div style={{display: "flex", gap: "15px", flexWrap: "wrap"}}>
                     <div className={styles.formGroup} style={{flex: "1", minWidth: "150px"}}>
                         <label className={styles.formLabel}>From Date</label>
                         <input
@@ -146,7 +156,9 @@ const InvoiceExporter = () => {
                             onChange={(e) => { setDateTo(e.target.value); setFilteredInvoices(null); }}
                         />
                     </div>
-                    <button className={styles.primaryBtn} onClick={handleFetch} disabled={loading} style={{height: "38px"}}>
+                </div>
+                <div style={{marginTop: "15px"}}>
+                    <button className={styles.primaryBtn} onClick={handleFetch} disabled={loading}>
                         {loading ? "Fetching..." : "Fetch Invoices"}
                     </button>
                 </div>
