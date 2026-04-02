@@ -523,122 +523,111 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
     doc.text(`Total:`, totalsX, yPosition + 3);
     doc.text(`${currencySymbol}${invoiceData.total.toFixed(2)}`, pageWidth - margin, yPosition + 3, {align: 'right'});
 
-    yPosition += 20;
+    // ── Footer block: Notes + Terms + Signature (kept together) ──────────
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const bottomMargin = 20;
+    const maxY = pageHeight - bottomMargin;
+    const usingCustomY = signatureData?.y !== undefined;
+    const sigH = signatureData?.height || 20;
+    const lineHeight = 5;
+    const contentWidth = pageWidth - 2 * margin;
 
-    // Notes and Terms
-    if (invoiceData.notes || invoiceData.terms) {
-        doc.setFont('helvetica', 'normal');
+    // Pre-calculate how much vertical space the footer block needs
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+
+    let notesHeight = 0;
+    if (invoiceData.notes) {
+        const notesLines = doc.splitTextToSize(invoiceData.notes, contentWidth);
+        notesHeight = 7 + notesLines.length * lineHeight + 5; // label + text + gap
+    }
+
+    let termsHeight = 0;
+    if (invoiceData.terms) {
+        const termsLines = doc.splitTextToSize(invoiceData.terms, contentWidth);
+        termsHeight = 7 + termsLines.length * lineHeight;
+    }
+
+    const signatureBlockHeight = 7 + sigH + 5; // label + image/line
+    const footerHeight = notesHeight + termsHeight + 15 + signatureBlockHeight; // 15 = pre-sig gap
+
+    // Default spacing values (compressible)
+    const defaultPostTotals = 20;
+    const defaultPreSignature = 15;
+    const defaultPostNotes = 5;
+    const totalDefaultGaps = defaultPostTotals + defaultPreSignature + defaultPostNotes;
+    const minGapScale = 0.15; // Compress gaps down to 15% at most
+
+    const remainingSpace = maxY - yPosition;
+    const spaceNeeded = defaultPostTotals + footerHeight;
+
+    let postTotalsGap = defaultPostTotals;
+    let postNotesGap = defaultPostNotes;
+    let preSignatureGap = defaultPreSignature;
+
+    if (remainingSpace >= spaceNeeded) {
+        // Fits normally — use default spacing
+    } else if (remainingSpace >= spaceNeeded * 0.4) {
+        // Between 40-100%: compress gaps proportionally to make it fit
+        const deficit = spaceNeeded - remainingSpace;
+        const scale = Math.max(minGapScale, 1 - deficit / totalDefaultGaps);
+        postTotalsGap = defaultPostTotals * scale;
+        postNotesGap = defaultPostNotes * scale;
+        preSignatureGap = defaultPreSignature * scale;
+    } else {
+        // Less than 40% remaining — overflow all to next page
+        doc.addPage();
+        yPosition = margin;
+        postTotalsGap = defaultPostTotals;
+    }
+
+    yPosition += postTotalsGap;
+
+    // Draw Notes
+    if (invoiceData.notes) {
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-
-        if (invoiceData.notes) {
-            doc.setFont('helvetica', 'bold');
-            doc.text('Notes:', margin, yPosition);
-            doc.setFont('helvetica', 'normal');
-            yPosition = addText(invoiceData.notes, margin, yPosition + 6, pageWidth - 2 * margin);
-            yPosition += 5;
-        }
-
-        if (invoiceData.terms) {
-            doc.setFont('helvetica', 'bold');
-            doc.text('Terms & Conditions:', margin, yPosition);
-            doc.setFont('helvetica', 'normal');
-            yPosition = addText(invoiceData.terms, margin, yPosition + 6, pageWidth - 2 * margin);
-        }
+        doc.text('Notes:', margin, yPosition);
+        doc.setFont('helvetica', 'normal');
+        yPosition = addText(invoiceData.notes, margin, yPosition + 6, contentWidth);
+        yPosition += postNotesGap;
     }
 
-    // Add signature section with smart page break check
-    yPosition += 15; // Space before signature
-    
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const bottomMargin = 20; // Bottom margin
-    const maxY = pageHeight - bottomMargin;
-    
-    // Only add page break logic if using default positioning (not custom Y position)
-    const usingCustomY = signatureData?.y !== undefined;
-    const signatureHeight = signatureData?.height || 20; // Default 20mm tall signature
-    
-    if (!usingCustomY) {
-        // Only check for page break when using automatic positioning
-        const signatureSpaceRequired = 7 + signatureHeight; // "Authorized Signature:" text + signature height
-        
-        // Only add new page if signature truly won't fit
-        if (yPosition + signatureSpaceRequired > maxY) {
-            doc.addPage();
-            yPosition = margin; // Reset to top margin on new page
-        }
+    // Draw Terms
+    if (invoiceData.terms) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        doc.text('Terms & Conditions:', margin, yPosition);
+        doc.setFont('helvetica', 'normal');
+        yPosition = addText(invoiceData.terms, margin, yPosition + 6, contentWidth);
     }
-    
+
+    // Draw Signature
+    yPosition += preSignatureGap;
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     doc.text('Authorized Signature:', margin, yPosition);
-    
-    // Add signature image if provided, otherwise draw signature line
+
     if (signatureData?.signatureUrl) {
         try {
-            // Use configured values or defaults
             const signatureX = signatureData.x !== undefined ? signatureData.x : margin;
-            const signatureY = signatureData.y !== undefined ? signatureData.y : yPosition + 5;
-            const signatureWidth = signatureData.width || 50; // Default 50mm wide signature
-            const signatureHeight = signatureData.height || 20; // Default 20mm tall signature
-            
-            // Only check page overflow for custom positioning
-            if (usingCustomY && signatureY + signatureHeight > maxY) {
-                doc.addPage();
-                const newPageY = margin;
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-                doc.text('Authorized Signature:', margin, newPageY);
-                doc.addImage(signatureData.signatureUrl, 'PNG', signatureX, newPageY + 5, signatureWidth, signatureHeight);
-            } else {
-                doc.addImage(signatureData.signatureUrl, 'PNG', signatureX, signatureY, signatureWidth, signatureHeight);
-            }
+            const signatureY = usingCustomY ? signatureData.y! : yPosition + 5;
+            const signatureWidth = signatureData.width || 50;
+            doc.addImage(signatureData.signatureUrl, 'PNG', signatureX, signatureY, signatureWidth, sigH);
         } catch (error) {
             console.warn('Failed to add signature image to PDF:', error);
-            // Draw signature line as fallback
-            const signatureLineY = yPosition + 15;
-            const signatureLineWidth = 60; // 60mm wide line
-            
-            // Only check page break for fallback line if not using custom Y
-            if (!usingCustomY && signatureLineY > maxY) {
-                doc.addPage();
-                const newPageY = margin + 15;
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-                doc.text('Authorized Signature:', margin, margin);
-                doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
-                doc.setLineWidth(0.5);
-                doc.line(margin, newPageY, margin + signatureLineWidth, newPageY);
-            } else {
-                doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
-                doc.setLineWidth(0.5);
-                doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
-            }
+            doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+            doc.setLineWidth(0.5);
+            doc.line(margin, yPosition + 15, margin + 60, yPosition + 15);
         }
     } else {
-        // Draw signature line if no signature provided
-        const signatureLineY = yPosition + 15;
-        const signatureLineWidth = 60; // 60mm wide line
-        
-        // Only check page break if truly necessary
-        if (!usingCustomY && signatureLineY > maxY) {
-            doc.addPage();
-            const newPageY = margin + 15;
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-            doc.text('Authorized Signature:', margin, margin);
-            doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
-            doc.setLineWidth(0.5);
-            doc.line(margin, newPageY, margin + signatureLineWidth, newPageY);
-        } else {
-            doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
-            doc.setLineWidth(0.5);
-            doc.line(margin, signatureLineY, margin + signatureLineWidth, signatureLineY);
-        }
+        doc.setDrawColor(textColor[0], textColor[1], textColor[2]);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition + 15, margin + 60, yPosition + 15);
     }
 
     return doc;
