@@ -196,12 +196,12 @@ function generatePDFCore(invoiceData: InvoiceData, signatureData?: SignatureData
     const primaryColor = [123, 104, 238]; // #7B68EE
     const textColor = [51, 51, 51]; // #333
 
-    // Currency symbols
+    // Currency symbols (use ASCII-safe alternatives for jsPDF's default Helvetica font)
     const currencySymbols: Record<string, string> = {
         'USD': '$',
-        'INR': '₹',
-        'GBP': '£',
-        'EUR': '€',
+        'INR': 'Rs.',
+        'GBP': 'GBP ',
+        'EUR': 'EUR ',
         'AUD': 'A$'
     };
     const currencySymbol = currencySymbols[invoiceData.currency] || '$';
