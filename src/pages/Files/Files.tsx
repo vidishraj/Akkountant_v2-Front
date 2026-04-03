@@ -15,7 +15,7 @@ import {
 } from '../../services/fileStorageService';
 import {useMessage} from '../../contexts/MessageContext';
 
-const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'];
+const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'zip'];
 
 function formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
@@ -41,10 +41,14 @@ const Files = () => {
     // Upload dialog
     const [showUpload, setShowUpload] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [uploadMode, setUploadMode] = useState<'file' | 'folder'>('file');
     const [label, setLabel] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState('');
     const [dragging, setDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
 
     // Preview modal
     const [previewFile, setPreviewFile] = useState<UserFileData | null>(null);
@@ -100,30 +104,53 @@ const Files = () => {
         setLoading(true);
     };
 
-    // Upload
+    // Upload single file or folder of files
     const handleUpload = async () => {
-        if (!selectedFile) return;
-        const ext = selectedFile.name.split('.').pop()?.toLowerCase() || '';
-        if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            setPayload({type: 'error', message: `File type .${ext} is not allowed`});
-            return;
+        const filesToUpload = uploadMode === 'folder' ? selectedFiles : selectedFile ? [selectedFile] : [];
+        if (filesToUpload.length === 0) return;
+
+        // Validate all files
+        for (const file of filesToUpload) {
+            const ext = file.name.split('.').pop()?.toLowerCase() || '';
+            if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                setPayload({type: 'error', message: `File type .${ext} is not allowed (${file.name})`});
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                setPayload({type: 'error', message: `${file.name} exceeds 10 MB limit`});
+                return;
+            }
         }
-        if (selectedFile.size > 10 * 1024 * 1024) {
-            setPayload({type: 'error', message: 'File must be under 10 MB'});
-            return;
-        }
+
         setUploading(true);
+        let uploaded = 0;
+        let failed = 0;
         try {
-            await uploadVaultFile(selectedFile, label || undefined, currentFolderId);
-            setPayload({type: 'success', message: 'File uploaded successfully'});
+            for (const file of filesToUpload) {
+                try {
+                    setUploadProgress(`Uploading ${uploaded + 1}/${filesToUpload.length}: ${file.name}`);
+                    await uploadVaultFile(file, uploadMode === 'file' ? (label || undefined) : undefined, currentFolderId);
+                    uploaded++;
+                } catch {
+                    failed++;
+                }
+            }
+            if (failed === 0) {
+                setPayload({type: 'success', message: `${uploaded} file${uploaded > 1 ? 's' : ''} uploaded`});
+            } else {
+                setPayload({type: 'error', message: `${uploaded} uploaded, ${failed} failed`});
+            }
             setShowUpload(false);
             setSelectedFile(null);
+            setSelectedFiles([]);
             setLabel('');
+            setUploadProgress('');
             await loadFiles(currentFolderId, true);
         } catch {
             setPayload({type: 'error', message: 'Upload failed'});
         } finally {
             setUploading(false);
+            setUploadProgress('');
         }
     };
 
@@ -278,8 +305,15 @@ const Files = () => {
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setDragging(false);
-        if (e.dataTransfer.files.length > 0) {
-            setSelectedFile(e.dataTransfer.files[0]);
+        const droppedFiles = Array.from(e.dataTransfer.files);
+        if (droppedFiles.length > 1) {
+            setUploadMode('folder');
+            setSelectedFiles(droppedFiles);
+            setSelectedFile(null);
+        } else if (droppedFiles.length === 1) {
+            setUploadMode('file');
+            setSelectedFile(droppedFiles[0]);
+            setSelectedFiles([]);
         }
     };
 
@@ -531,50 +565,112 @@ const Files = () => {
                 <div className={style.uploadOverlay} onClick={() => setShowUpload(false)}>
                     <div className={style.uploadDialog} onClick={(e) => e.stopPropagation()}>
                         <div className={style.uploadDialogHeader}>
-                            <h3>Upload File</h3>
+                            <h3>Upload {uploadMode === 'folder' ? 'Folder' : 'File'}</h3>
                             <button onClick={() => setShowUpload(false)}>&times;</button>
                         </div>
 
-                        {!selectedFile ? (
-                            <div
-                                className={`${style.dropZone} ${dragging ? style.dragging : ''}`}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                                onClick={() => fileInputRef.current?.click()}
+                        <div className={style.uploadModeTabs}>
+                            <button
+                                className={uploadMode === 'file' ? style.activeTab : ''}
+                                onClick={() => { setUploadMode('file'); setSelectedFiles([]); }}
                             >
-                                Drop a file here or click to browse
-                                <br />
-                                <small>PDF, PNG, JPG, GIF, BMP, WebP (max 10 MB)</small>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(',')}
-                                    style={{display: 'none'}}
-                                    onChange={(e) => {
-                                        if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
-                                    }}
-                                />
-                            </div>
-                        ) : (
-                            <div className={style.selectedFile}>
-                                <span>{selectedFile.name}</span>
-                                <button onClick={() => setSelectedFile(null)}>&times;</button>
-                            </div>
-                        )}
-
-                        <div className={style.labelInput}>
-                            <label>Label (optional)</label>
-                            <input
-                                value={label}
-                                onChange={(e) => setLabel(e.target.value)}
-                                placeholder="e.g. Driving Licence, PAN Card"
-                            />
+                                File
+                            </button>
+                            <button
+                                className={uploadMode === 'folder' ? style.activeTab : ''}
+                                onClick={() => { setUploadMode('folder'); setSelectedFile(null); }}
+                            >
+                                Folder
+                            </button>
                         </div>
+
+                        {uploadMode === 'file' ? (
+                            <>
+                                {!selectedFile ? (
+                                    <div
+                                        className={`${style.dropZone} ${dragging ? style.dragging : ''}`}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        Drop a file here or click to browse
+                                        <br />
+                                        <small>PDF, PNG, JPG, GIF, BMP, WebP, ZIP (max 10 MB)</small>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(',')}
+                                            style={{display: 'none'}}
+                                            onChange={(e) => {
+                                                if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className={style.selectedFile}>
+                                        <span>{selectedFile.name}</span>
+                                        <button onClick={() => setSelectedFile(null)}>&times;</button>
+                                    </div>
+                                )}
+                                <div className={style.labelInput}>
+                                    <label>Label (optional)</label>
+                                    <input
+                                        value={label}
+                                        onChange={(e) => setLabel(e.target.value)}
+                                        placeholder="e.g. Driving Licence, PAN Card"
+                                    />
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {selectedFiles.length === 0 ? (
+                                    <div
+                                        className={`${style.dropZone} ${dragging ? style.dragging : ''}`}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                        onClick={() => folderInputRef.current?.click()}
+                                    >
+                                        Click to select a folder
+                                        <br />
+                                        <small>All supported files in the folder will be uploaded</small>
+                                        <input
+                                            ref={folderInputRef}
+                                            type="file"
+                                            /* @ts-expect-error webkitdirectory is not in React types */
+                                            webkitdirectory=""
+                                            multiple
+                                            style={{display: 'none'}}
+                                            onChange={(e) => {
+                                                if (e.target.files) {
+                                                    const files = Array.from(e.target.files).filter(f => {
+                                                        const ext = f.name.split('.').pop()?.toLowerCase() || '';
+                                                        return ALLOWED_EXTENSIONS.includes(ext) && f.size <= 10 * 1024 * 1024;
+                                                    });
+                                                    setSelectedFiles(files);
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className={style.selectedFile}>
+                                        <span>{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected</span>
+                                        <button onClick={() => setSelectedFiles([])}>&times;</button>
+                                    </div>
+                                )}
+                            </>
+                        )}
 
                         {currentFolderId && (
                             <div className={style.uploadFolder}>
                                 Uploading to: <strong>{breadcrumbs[breadcrumbs.length - 1]?.name}</strong>
+                            </div>
+                        )}
+
+                        {uploadProgress && (
+                            <div className={style.uploadFolder}>
+                                <small>{uploadProgress}</small>
                             </div>
                         )}
 
@@ -584,17 +680,19 @@ const Files = () => {
                                 onClick={() => {
                                     setShowUpload(false);
                                     setSelectedFile(null);
+                                    setSelectedFiles([]);
                                     setLabel('');
+                                    setUploadProgress('');
                                 }}
                             >
                                 Cancel
                             </button>
                             <button
                                 className={style.submitBtn}
-                                disabled={!selectedFile || uploading}
+                                disabled={(uploadMode === 'file' ? !selectedFile : selectedFiles.length === 0) || uploading}
                                 onClick={handleUpload}
                             >
-                                {uploading ? 'Uploading...' : 'Upload'}
+                                {uploading ? 'Uploading...' : uploadMode === 'folder' ? `Upload ${selectedFiles.length} files` : 'Upload'}
                             </button>
                         </div>
                     </div>

@@ -461,6 +461,35 @@
   }
 }
 
+.uploadModeTabs {
+  display: flex;
+  gap: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #2a3a50;
+
+  button {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    background-color: transparent;
+    color: #8b8b8b;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #fafafa;
+      background-color: rgba(123, 104, 238, 0.1);
+    }
+
+    &.activeTab {
+      background-color: #7b68ee;
+      color: #fff;
+    }
+  }
+}
+
 .dropZone {
   border: 2px dashed #2a3a50;
   border-radius: 8px;
