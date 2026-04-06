@@ -52,6 +52,10 @@ const InvoiceManager = ({
     // Default signature for signed downloads
     const [defaultSignature, setDefaultSignature] = useState<Signature | null>(null);
 
+    // Quick payment dialog for marking as paid from list
+    const [paymentDialog, setPaymentDialog] = useState<{invoice: InvoiceData} | null>(null);
+    const [quickPayment, setQuickPayment] = useState({method: 'bank_transfer', amount: 0, date: ''});
+
     const {setPayload} = useMessage();
     const itemsPerPage = 10;
 
@@ -135,10 +139,9 @@ const InvoiceManager = ({
     const handleStatusChange = async (invoice: InvoiceData, newStatus: string) => {
         if (newStatus === "paid") {
             if (!invoice.payment || !invoice.payment.paymentMethod || invoice.payment.amountReceived <= 0) {
-                setPayload({
-                    type: "error",
-                    message: `Cannot mark invoice ${invoice.invoiceNumber} as paid. Please add payment information first by editing the invoice.`,
-                });
+                // Open quick payment dialog instead of blocking
+                setPaymentDialog({invoice});
+                setQuickPayment({method: 'bank_transfer', amount: invoice.total || 0, date: new Date().toISOString().split('T')[0]});
                 return;
             }
         }
@@ -151,6 +154,35 @@ const InvoiceManager = ({
         } catch (error) {
             setPayload({type: "error", message: "Failed to update invoice status"});
             console.error("Error updating invoice status:", error);
+        }
+    };
+
+    const handleQuickPaymentSubmit = async () => {
+        if (!paymentDialog) return;
+        if (!quickPayment.method || quickPayment.amount <= 0) {
+            setPayload({type: "error", message: "Payment method and amount are required"});
+            return;
+        }
+        try {
+            const updatedInvoice = {
+                ...paymentDialog.invoice,
+                status: "paid" as const,
+                payment: {
+                    paymentMethod: quickPayment.method,
+                    amountReceived: quickPayment.amount,
+                    paymentDate: quickPayment.date || undefined,
+                    breakdown: {},
+                    notes: '',
+                },
+            };
+            await updateInvoice(paymentDialog.invoice.invoiceNumber, updatedInvoice);
+            setPayload({type: "success", message: `Invoice ${paymentDialog.invoice.invoiceNumber} marked as paid`});
+            setPaymentDialog(null);
+            await loadInvoices();
+            onInvoiceUpdated?.();
+        } catch (error) {
+            setPayload({type: "error", message: "Failed to update invoice"});
+            console.error("Error updating invoice:", error);
         }
     };
 
@@ -560,6 +592,49 @@ const InvoiceManager = ({
                     </span>
                     <button className={styles.secondaryBtn} onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage === totalPages || loading}>Next</button>
+                </div>
+            )}
+            {/* Quick Payment Dialog */}
+            {paymentDialog && (
+                <div className={ownStyles.paymentOverlay} onClick={() => setPaymentDialog(null)}>
+                    <div className={ownStyles.paymentDialog} onClick={(e) => e.stopPropagation()}>
+                        <h3 style={{color: '#FAFAFA', margin: '0 0 12px'}}>
+                            Mark {paymentDialog.invoice.invoiceNumber} as Paid
+                        </h3>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                            <div>
+                                <label style={{color: '#aaa', fontSize: '0.8rem', display: 'block', marginBottom: '4px'}}>Payment Method *</label>
+                                <select className={styles.formInput} value={quickPayment.method}
+                                        onChange={(e) => setQuickPayment(p => ({...p, method: e.target.value}))}>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="check">Check</option>
+                                    <option value="paypal">PayPal</option>
+                                    <option value="credit_card">Credit Card</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{color: '#aaa', fontSize: '0.8rem', display: 'block', marginBottom: '4px'}}>Amount Received (INR) *</label>
+                                <input type="number" className={styles.formInput} value={quickPayment.amount}
+                                       onChange={(e) => setQuickPayment(p => ({...p, amount: parseFloat(e.target.value) || 0}))}
+                                       min={0} step="0.01" />
+                            </div>
+                            <div>
+                                <label style={{color: '#aaa', fontSize: '0.8rem', display: 'block', marginBottom: '4px'}}>Payment Date</label>
+                                <input type="date" className={styles.formInput} value={quickPayment.date}
+                                       onChange={(e) => setQuickPayment(p => ({...p, date: e.target.value}))} />
+                            </div>
+                        </div>
+                        <div style={{display: 'flex', gap: '10px', marginTop: '16px', justifyContent: 'flex-end'}}>
+                            <button className={styles.secondaryBtn} onClick={() => setPaymentDialog(null)}>Cancel</button>
+                            <button className={styles.primaryBtn} onClick={handleQuickPaymentSubmit}
+                                    disabled={!quickPayment.method || quickPayment.amount <= 0}>
+                                Mark as Paid
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

@@ -64,3 +64,26 @@
     cursor: not-allowed;
   }
 }
+
+// Quick payment dialog overlay
+.paymentOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.paymentDialog {
+  background-color: #121c24;
+  border: 1px solid #2a3a50;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+}

@@ -876,8 +876,8 @@ const InvoiceFormTab = ({
                 )}
             </div>
 
-            {/* Payment Info (shown when status is paid) */}
-            {formData.status === 'paid' && (
+            {/* Payment Info */}
+            {(
                 <div className={styles.invoiceForm} style={{marginBottom: '15px'}}>
                     {sectionHeader('Payment Information', 'payment')}
                     {!collapsedSections.payment && (
