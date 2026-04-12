@@ -1,8 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { InvoiceData } from "../../utils/interfaces";
 import { generateInvoicePDFLocal } from "../../services/freelanceService";
+import * as pdfjsLib from "pdfjs-dist";
 import placerStyles from "./SignaturePlacer.module.scss";
 import styles from "../../pages/Freelance/Freelance.module.scss";
+
+// Use bundled worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.mjs",
+  import.meta.url
+).toString();
 
 interface SignaturePosition {
   x: number;
@@ -20,10 +27,6 @@ interface SignaturePlacerProps {
   currentPage?: number;
 }
 
-// A4 dimensions in mm
-const A4_WIDTH = 210;
-const A4_HEIGHT = 297;
-
 const SignaturePlacer = ({
   invoiceData,
   pdfBlobUrl,
@@ -33,47 +36,80 @@ const SignaturePlacer = ({
   currentPage = 0,
 }: SignaturePlacerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [pdfImageUrl, setPdfImageUrl] = useState<string | null>(null);
+  const [previewImgUrl, setPreviewImgUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [position, setPosition] = useState(initialPosition);
   const [showTooltip, setShowTooltip] = useState(false);
+  // Actual PDF page dimensions in mm (detected from the PDF)
+  const [pageDims, setPageDims] = useState({ width: 210, height: 297 });
   const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0 });
   const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, w: 0, h: 0 });
 
-  // Generate PDF preview image
-  useEffect(() => {
-    if (pdfBlobUrl) {
-      // Use provided PDF blob URL directly (for document signing)
-      setPdfImageUrl(pdfBlobUrl + (currentPage ? `#page=${currentPage + 1}` : ''));
-      return;
+  // Render a PDF page to a data URL image using pdfjs
+  const renderPdfPage = useCallback(async (pdfData: ArrayBuffer | string, pageNum: number) => {
+    try {
+      const loadingTask = typeof pdfData === "string"
+        ? pdfjsLib.getDocument(pdfData)
+        : pdfjsLib.getDocument({ data: pdfData });
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(Math.min(pageNum, pdf.numPages));
+      const viewport = page.getViewport({ scale: 2 }); // 2x for sharpness
+
+      // Store actual page dimensions in mm (PDF points / 72 * 25.4)
+      const ptToMm = 25.4 / 72;
+      setPageDims({
+        width: page.getViewport({ scale: 1 }).width * ptToMm,
+        height: page.getViewport({ scale: 1 }).height * ptToMm,
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d")!;
+      await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+      return canvas.toDataURL("image/png");
+    } catch (e) {
+      console.error("Failed to render PDF page:", e);
+      return null;
     }
-    if (!invoiceData) return;
+  }, []);
+
+  // Generate preview when data changes
+  useEffect(() => {
     let cancelled = false;
 
-    const generatePreview = async () => {
-      try {
-        const blob = await generateInvoicePDFLocal(invoiceData);
-        if (cancelled) return;
-        const url = URL.createObjectURL(blob);
-        setPdfImageUrl(url);
-      } catch (error) {
-        console.error("Failed to generate PDF preview:", error);
+    const generate = async () => {
+      let imgUrl: string | null = null;
+
+      if (pdfBlobUrl) {
+        // Document signing: fetch blob and render
+        try {
+          const resp = await fetch(pdfBlobUrl);
+          const buf = await resp.arrayBuffer();
+          imgUrl = await renderPdfPage(buf, currentPage + 1);
+        } catch (e) {
+          console.error("Failed to fetch PDF blob:", e);
+        }
+      } else if (invoiceData) {
+        // Invoice signing: generate PDF then render
+        try {
+          const blob = await generateInvoicePDFLocal(invoiceData);
+          const buf = await blob.arrayBuffer();
+          imgUrl = await renderPdfPage(buf, 1);
+        } catch (e) {
+          console.error("Failed to generate invoice preview:", e);
+        }
+      }
+
+      if (!cancelled && imgUrl) {
+        setPreviewImgUrl(imgUrl);
       }
     };
 
-    generatePreview();
-    return () => {
-      cancelled = true;
-    };
-  }, [invoiceData, pdfBlobUrl, currentPage]);
-
-  // Cleanup URL on unmount (only if we generated it, not if passed via pdfBlobUrl)
-  useEffect(() => {
-    return () => {
-      if (pdfImageUrl && !pdfBlobUrl) URL.revokeObjectURL(pdfImageUrl);
-    };
-  }, [pdfImageUrl, pdfBlobUrl]);
+    generate();
+    return () => { cancelled = true; };
+  }, [invoiceData, pdfBlobUrl, currentPage, renderPdfPage]);
 
   // Sync initial position
   useEffect(() => {
@@ -86,45 +122,45 @@ const SignaturePlacer = ({
     return { width: rect.width, height: rect.height };
   }, []);
 
-  // Convert mm to container pixels
+  // Convert mm to container pixels (using actual page dims)
   const mmToPixels = useCallback(
     (mm: number, axis: "x" | "y") => {
       const dims = getContainerDimensions();
-      if (axis === "x") return (mm / A4_WIDTH) * dims.width;
-      return (mm / A4_HEIGHT) * dims.height;
+      if (axis === "x") return (mm / pageDims.width) * dims.width;
+      return (mm / pageDims.height) * dims.height;
     },
-    [getContainerDimensions]
+    [getContainerDimensions, pageDims]
   );
 
-  // Convert container pixels to mm
+  // Convert container pixels to mm (using actual page dims)
   const pixelsToMm = useCallback(
     (px: number, axis: "x" | "y") => {
       const dims = getContainerDimensions();
-      if (axis === "x") return (px / dims.width) * A4_WIDTH;
-      return (px / dims.height) * A4_HEIGHT;
+      if (axis === "x") return (px / dims.width) * pageDims.width;
+      return (px / dims.height) * pageDims.height;
     },
-    [getContainerDimensions]
+    [getContainerDimensions, pageDims]
   );
 
   const clampPosition = useCallback(
     (x: number, y: number, w: number, h: number) => {
       return {
-        x: Math.max(5, Math.min(x, A4_WIDTH - w - 5)),
-        y: Math.max(5, Math.min(y, A4_HEIGHT - h - 5)),
-        width: Math.max(15, Math.min(w, A4_WIDTH - 10)),
-        height: Math.max(5, Math.min(h, A4_HEIGHT - 10)),
+        x: Math.max(2, Math.min(x, pageDims.width - w - 2)),
+        y: Math.max(2, Math.min(y, pageDims.height - h - 2)),
+        width: Math.max(15, Math.min(w, pageDims.width - 4)),
+        height: Math.max(5, Math.min(h, pageDims.height - 4)),
       };
     },
-    []
+    [pageDims]
   );
 
-  // Drag handlers (mouse + touch)
+  // Drag handlers
   const handlePointerDown = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       if (isResizing) return;
       e.preventDefault();
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       setIsDragging(true);
       setShowTooltip(true);
       dragStartRef.current = {
@@ -141,8 +177,8 @@ const SignaturePlacer = ({
     (e: React.MouseEvent | React.TouchEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       setIsResizing(true);
       setShowTooltip(true);
       resizeStartRef.current = {
@@ -159,8 +195,8 @@ const SignaturePlacer = ({
     if (!isDragging && !isResizing) return;
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
       if (isDragging) {
         const dx = pixelsToMm(clientX - dragStartRef.current.mouseX, "x");
@@ -222,7 +258,9 @@ const SignaturePlacer = ({
     return (
       <div className={placerStyles.placerContainer}>
         <div style={{ textAlign: "center", padding: "40px", color: "#B0B0B0" }}>
-          {pdfBlobUrl === undefined ? "Select an invoice to see the preview" : "Upload a PDF to see the preview"}
+          {pdfBlobUrl === undefined
+            ? "Select an invoice to see the preview"
+            : "Upload a PDF to see the preview"}
         </div>
       </div>
     );
@@ -236,12 +274,12 @@ const SignaturePlacer = ({
   return (
     <div className={placerStyles.placerContainer}>
       <div className={placerStyles.pdfPreviewWrapper} ref={containerRef}>
-        {pdfImageUrl ? (
-          <iframe
-            src={pdfImageUrl}
+        {previewImgUrl ? (
+          <img
+            src={previewImgUrl}
             className={placerStyles.pdfPreview}
-            title="PDF Preview"
-            style={{ pointerEvents: "none" }}
+            alt="PDF Preview"
+            draggable={false}
           />
         ) : (
           <div
