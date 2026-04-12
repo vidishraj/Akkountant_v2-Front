@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -22,17 +22,21 @@ import {
     FormControl,
     InputLabel
 } from "@mui/material";
+import {LinearProgress} from "@mui/material";
 import {
     fetchJobsSummary,
     fetchJobsByTitleStatus,
     fetchJobsDailyHistory,
     cancelJob,
     cancelJobsBulk,
+    runJobNow,
+    getRunStatus,
     JobSummary,
     JobDetail,
-    DailyHistory
+    DailyHistory,
+    RunStatusResponse,
 } from '../../services/jobService.ts';
-import {startJob, fetchJobsTable} from '../../services/investmentService.ts';
+import {fetchJobsTable} from '../../services/investmentService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
@@ -107,6 +111,49 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const [hoveredDay, setHoveredDay] = useState<string | null>(null);
     const {setPayload} = useMessage();
     const isMobile = useMediaQuery("(max-width:768px)");
+
+    // Active runs (run-now with polling)
+    const [activeRuns, setActiveRuns] = useState<Record<string, RunStatusResponse>>({});
+    const pollRefs = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+
+    const startRunPolling = useCallback((runId: string, title: string) => {
+        setActiveRuns(prev => ({
+            ...prev,
+            [runId]: {run_id: runId, job_id: 0, title, status: 'running', started_at: new Date().toISOString()},
+        }));
+        pollRefs.current[runId] = setInterval(async () => {
+            try {
+                const status = await getRunStatus(runId);
+                setActiveRuns(prev => ({...prev, [runId]: status}));
+                if (status.status === 'Completed' || status.status === 'Failed') {
+                    clearInterval(pollRefs.current[runId]);
+                    delete pollRefs.current[runId];
+                    loadJobsSummary(true);
+                    setPayload({
+                        type: status.status === 'Completed' ? 'success' : 'error',
+                        message: `${title}: ${status.result || status.error || status.status} (${status.duration_seconds}s)`,
+                    });
+                    // Auto-dismiss after 15 seconds
+                    setTimeout(() => {
+                        setActiveRuns(prev => {
+                            const next = {...prev};
+                            delete next[runId];
+                            return next;
+                        });
+                    }, 15000);
+                }
+            } catch {
+                // Polling failed — will retry next interval
+            }
+        }, 3000);
+    }, [setPayload]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            Object.values(pollRefs.current).forEach(clearInterval);
+        };
+    }, []);
 
     const dateRange = generateDateRange(HISTORY_DAYS);
 
@@ -329,28 +376,18 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
 
     const handleJobCreation = async () => {
         if (!selectedJob) {
-            setPayload({
-                type: "warning",
-                message: "Please select a job to start",
-            });
+            setPayload({type: "warning", message: "Please select a job to start"});
             return;
         }
 
         try {
-            const response = await startJob(selectedJob);
-            if (response.status === 200) {
-                setPayload({
-                    type: "success",
-                    message: "Job started successfully",
-                });
-                setSelectedJob("");
-                loadJobsSummary(true);
-            }
-        } catch (error) {
-            setPayload({
-                type: "error",
-                message: "Failed to start job. Please try again!",
-            });
+            const response = await runJobNow(selectedJob);
+            setPayload({type: "success", message: `${selectedJob} started — running now`});
+            startRunPolling(response.run_id, selectedJob);
+            setSelectedJob("");
+        } catch (error: any) {
+            const msg = error?.response?.data?.message || "Failed to start job";
+            setPayload({type: "error", message: msg});
             console.error("Error starting job:", error);
         }
     };
@@ -549,7 +586,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {isMobile ? 'Start' : 'Start Job'}
+                            {isMobile ? 'Run' : 'Run Now'}
                         </Button>
                     </Box>
 
@@ -574,6 +611,27 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             </DialogTitle>
 
             <DialogContent sx={{padding: 0, overflow: 'auto'}}>
+                {/* Active Runs */}
+                {Object.keys(activeRuns).length > 0 && (
+                    <div className={cardStyles.activeRunsSection}>
+                        {Object.values(activeRuns).map(run => (
+                            <div key={run.run_id} className={cardStyles.activeRunCard}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <Typography variant="body2" sx={{color: '#fafafa', fontWeight: 600}}>
+                                        {run.title}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{color: run.status === 'Completed' ? '#4ADE80' : run.status === 'Failed' ? '#EF4444' : '#F59E0B'}}>
+                                        {run.status === 'running' ? 'Running...' : `${run.status} (${run.duration_seconds}s)`}
+                                    </Typography>
+                                </div>
+                                {run.status === 'running' && <LinearProgress sx={{mt: 1, borderRadius: 2, '& .MuiLinearProgress-bar': {backgroundColor: '#7b68ee'}}} />}
+                                {run.result && <Typography variant="caption" sx={{color: '#aaa', mt: 0.5, display: 'block'}}>{run.result}</Typography>}
+                                {run.error && <Typography variant="caption" sx={{color: '#EF4444', mt: 0.5, display: 'block'}}>{run.error}</Typography>}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div className={cardStyles.cardList}>
                     {/* Legend at top */}
                     <div className={cardStyles.legend}>

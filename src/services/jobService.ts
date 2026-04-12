@@ -226,9 +226,44 @@ export async function cancelJob(jobId: number): Promise<CancelJobResponse> {
  */
 export async function cancelJobsBulk(jobIds: number[]): Promise<CancelJobResponse> {
     const options = withRequestId('api/jobs/cancel-bulk', {});
-    
+
     const response = await queueRequest(() =>
         axios.post('jobs/cancel-bulk', { job_ids: jobIds }, options)
     );
     return response.data;
-} 
+}
+
+// Run-now types and functions
+
+export interface RunJobResponse {
+    run_id: string;
+    job_id: number;
+    status: string;
+}
+
+export interface RunStatusResponse {
+    run_id: string;
+    job_id: number;
+    title: string;
+    status: 'running' | 'Completed' | 'Failed';
+    started_at: string;
+    completed_at?: string;
+    duration_seconds?: number;
+    result?: string;
+    error?: string;
+}
+
+export async function runJobNow(title: string): Promise<RunJobResponse> {
+    const options = withRequestId('api/jobs/run-now', withCacheCleared());
+    const response = await queueRequest(() =>
+        axios.post('jobs/run-now', {title}, options)
+    );
+    return response.data;
+}
+
+export async function getRunStatus(runId: string): Promise<RunStatusResponse> {
+    const response = await queueRequest(() =>
+        axios.get(`jobs/run-status?run_id=${runId}`)
+    );
+    return response.data;
+}

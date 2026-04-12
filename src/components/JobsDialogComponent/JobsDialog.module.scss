@@ -1,3 +1,18 @@
+.activeRunsSection {
+  padding: 12px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activeRunCard {
+  background-color: #1a2938;
+  border: 1px solid #7b68ee;
+  border-left: 4px solid #7b68ee;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
 .cardList {
   display: flex;
   flex-direction: column;
