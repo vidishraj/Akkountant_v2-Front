@@ -2,14 +2,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { InvoiceData } from "../../utils/interfaces";
 import { generateInvoicePDFLocal } from "../../services/freelanceService";
 import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 import placerStyles from "./SignaturePlacer.module.scss";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 
-// Use bundled worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.mjs",
-  import.meta.url
-).toString();
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 interface SignaturePosition {
   x: number;

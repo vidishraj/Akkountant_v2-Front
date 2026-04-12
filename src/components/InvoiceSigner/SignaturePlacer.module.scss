@@ -1,10 +1,13 @@
 .placerContainer {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   background-color: #1a2938;
   border-radius: 8px;
   border: 1px solid #2a3a50;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .pdfPreviewWrapper {
