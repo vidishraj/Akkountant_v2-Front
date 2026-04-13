@@ -1,8 +1,9 @@
 .investmentsParentContainer {
   display: flex;
-  //height: 100%;
   width: 100%;
   flex-wrap: nowrap;
+  overflow-x: hidden;
+  box-sizing: border-box;
   background-color: #121c24 !important;
 }
 
@@ -43,6 +44,8 @@
   gap: 10px;
   width: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   justify-content: center;
   //height: max-content;
 }

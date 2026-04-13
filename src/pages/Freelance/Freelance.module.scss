@@ -12,6 +12,7 @@ p.freelanceContainer {
 
 .fullPageCard {
   width: 100%;
+  max-width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -19,12 +20,15 @@ p.freelanceContainer {
   border: 1px solid #fafafa !important;
   border-radius: 8px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .tabContent {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   background-color: #121c24 !important;
 }
 
@@ -35,8 +39,10 @@ p.freelanceContainer {
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   gap: 20px;
   padding: 20px;
+  box-sizing: border-box;
   background-color: #121c24 !important;
   border-right: 1px solid #fafafa !important;
 }
@@ -55,6 +61,8 @@ p.freelanceContainer {
   gap: 20px;
   width: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   background-color: #121c24 !important;
 }
 
@@ -73,6 +81,9 @@ p.freelanceContainer {
   border: 1px solid #fafafa;
   border-radius: 8px;
   padding: 20px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
 
   h3 {
     color: #fafafa;
