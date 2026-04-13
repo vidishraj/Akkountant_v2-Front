@@ -62,6 +62,32 @@
   }
 }
 
+.textBoxOverlay {
+  position: absolute;
+  cursor: grab;
+  padding: 2px 4px;
+  border: 1px dashed #4ade80;
+  border-radius: 2px;
+  background-color: rgba(74, 222, 128, 0.08);
+  color: #1a1a1a;
+  font-family: Helvetica, Arial, sans-serif;
+  white-space: nowrap;
+  user-select: none;
+  touch-action: none;
+  z-index: 2;
+
+  &:hover {
+    border-color: #22c55e;
+    background-color: rgba(74, 222, 128, 0.15);
+  }
+
+  &.dragging {
+    cursor: grabbing;
+    border-color: #7b68ee;
+    background-color: rgba(123, 104, 238, 0.1);
+  }
+}
+
 .resizeHandle {
   position: absolute;
   width: 12px;

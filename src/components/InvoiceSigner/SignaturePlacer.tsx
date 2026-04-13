@@ -15,6 +15,14 @@ interface SignaturePosition {
   height: number;
 }
 
+export interface TextBox {
+  id: string;
+  text: string;
+  x: number;       // mm
+  y: number;       // mm
+  fontSize: number; // pt
+}
+
 interface SignaturePlacerProps {
   invoiceData?: InvoiceData | null;
   pdfBlobUrl?: string | null;
@@ -22,6 +30,8 @@ interface SignaturePlacerProps {
   onPositionChange: (pos: SignaturePosition) => void;
   initialPosition: SignaturePosition;
   currentPage?: number;
+  textBoxes?: TextBox[];
+  onTextBoxChange?: (id: string, updates: Partial<TextBox>) => void;
 }
 
 const SignaturePlacer = ({
@@ -31,6 +41,8 @@ const SignaturePlacer = ({
   onPositionChange,
   initialPosition,
   currentPage = 0,
+  textBoxes = [],
+  onTextBoxChange,
 }: SignaturePlacerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [previewImgUrl, setPreviewImgUrl] = useState<string | null>(null);
@@ -38,6 +50,8 @@ const SignaturePlacer = ({
   const [isResizing, setIsResizing] = useState(false);
   const [position, setPosition] = useState(initialPosition);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [draggingTextBoxId, setDraggingTextBoxId] = useState<string | null>(null);
+  const textDragRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
   // Actual PDF page dimensions in mm (detected from the PDF)
   const [pageDims, setPageDims] = useState({ width: 210, height: 297 });
   const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0 });
@@ -245,6 +259,46 @@ const SignaturePlacer = ({
     };
   }, [isDragging, isResizing, position, pixelsToMm, clampPosition, onPositionChange]);
 
+  // Text box drag handlers
+  const handleTextBoxPointerDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent, boxId: string, box: TextBox) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      setDraggingTextBoxId(boxId);
+      textDragRef.current = { mouseX: clientX, mouseY: clientY, startX: box.x, startY: box.y };
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!draggingTextBoxId) return;
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      const dx = pixelsToMm(clientX - textDragRef.current.mouseX, "x");
+      const dy = pixelsToMm(clientY - textDragRef.current.mouseY, "y");
+      const newX = Math.max(2, Math.min(textDragRef.current.startX + dx, pageDims.width - 10));
+      const newY = Math.max(2, Math.min(textDragRef.current.startY + dy, pageDims.height - 5));
+      onTextBoxChange?.(draggingTextBoxId, { x: newX, y: newY });
+    };
+
+    const handleEnd = () => setDraggingTextBoxId(null);
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleEnd);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleEnd);
+    };
+  }, [draggingTextBoxId, pixelsToMm, pageDims, onTextBoxChange]);
+
   const handleReset = () => {
     const defaultPos = { x: 20, y: 250, width: 50, height: 20 };
     setPosition(defaultPos);
@@ -322,6 +376,23 @@ const SignaturePlacer = ({
             />
           </div>
         )}
+
+        {/* Draggable text box overlays */}
+        {textBoxes.map((box) => (
+          <div
+            key={box.id}
+            className={`${placerStyles.textBoxOverlay} ${draggingTextBoxId === box.id ? placerStyles.dragging : ""}`}
+            style={{
+              left: `${mmToPixels(box.x, "x")}px`,
+              top: `${mmToPixels(box.y, "y")}px`,
+              fontSize: `${box.fontSize * (getContainerDimensions().width / (pageDims.width * 2.8346))}px`,
+            }}
+            onMouseDown={(e) => handleTextBoxPointerDown(e, box.id, box)}
+            onTouchStart={(e) => handleTextBoxPointerDown(e, box.id, box)}
+          >
+            {box.text || "Text"}
+          </div>
+        ))}
       </div>
 
       {/* Coordinate display */}

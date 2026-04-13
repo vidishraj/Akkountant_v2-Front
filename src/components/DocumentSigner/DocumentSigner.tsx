@@ -1,11 +1,11 @@
 import {useState, useEffect, useRef, useCallback} from "react";
-import {PDFDocument} from "pdf-lib";
+import {PDFDocument, rgb, StandardFonts} from "pdf-lib";
 import {fetchUserSignatures, uploadSignature, deleteSignature, setDefaultSignature} from "../../services/freelanceService";
 import {Signature} from "../../utils/interfaces";
 import {useMessage} from "../../contexts/MessageContext";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 import ownStyles from "../InvoiceSigner/InvoiceSigner.module.scss";
-import SignaturePlacer from "../InvoiceSigner/SignaturePlacer";
+import SignaturePlacer, {TextBox} from "../InvoiceSigner/SignaturePlacer";
 
 const DocumentSigner = () => {
     const [signatures, setSignatures] = useState<Signature[]>([]);
@@ -19,9 +19,23 @@ const DocumentSigner = () => {
     const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
     const [pageCount, setPageCount] = useState(1);
     const [targetPage, setTargetPage] = useState(0);
+    const [textBoxes, setTextBoxes] = useState<TextBox[]>([]);
     const sigFileInputRef = useRef<HTMLInputElement>(null);
     const pdfFileInputRef = useRef<HTMLInputElement>(null);
     const {setPayload} = useMessage();
+
+    const addTextBox = () => {
+        const id = `tb_${Date.now()}`;
+        setTextBoxes(prev => [...prev, {id, text: "", x: 20, y: 200, fontSize: 10}]);
+    };
+
+    const updateTextBox = (id: string, updates: Partial<TextBox>) => {
+        setTextBoxes(prev => prev.map(b => b.id === id ? {...b, ...updates} : b));
+    };
+
+    const removeTextBox = (id: string) => {
+        setTextBoxes(prev => prev.filter(b => b.id !== id));
+    };
 
     const MAX_SIGNATURES = 3;
 
@@ -178,6 +192,23 @@ const DocumentSigner = () => {
                 height: sigH,
             });
 
+            // Embed text boxes on the same page
+            if (textBoxes.length > 0) {
+                const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                for (const box of textBoxes) {
+                    if (!box.text.trim()) continue;
+                    const txX = box.x * mmToPt;
+                    const txY = pageHeight - (box.y * mmToPt) - (box.fontSize);
+                    page.drawText(box.text, {
+                        x: txX,
+                        y: txY,
+                        size: box.fontSize,
+                        font,
+                        color: rgb(0, 0, 0),
+                    });
+                }
+            }
+
             // Save and download
             const signedBytes = await pdfDoc.save();
             const blob = new Blob([signedBytes], {type: 'application/pdf'});
@@ -298,16 +329,57 @@ const DocumentSigner = () => {
                 )}
             </div>
 
-            {/* Signature Placement */}
+            {/* Signature & Text Placement */}
             {pdfBlobUrl && selectedSignature && (
                 <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
-                    <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>Place Signature</h4>
+                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "8px"}}>
+                        <h4 style={{color: "#FAFAFA", margin: 0}}>Place Signature & Text</h4>
+                        <button className={styles.secondaryBtn} onClick={addTextBox} style={{padding: "5px 12px", fontSize: "0.8rem"}}>
+                            + Add Text
+                        </button>
+                    </div>
+
+                    {textBoxes.length > 0 && (
+                        <div style={{display: "flex", flexDirection: "column", gap: "8px", marginBottom: "15px"}}>
+                            {textBoxes.map((box) => (
+                                <div key={box.id} style={{display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap"}}>
+                                    <input
+                                        className={styles.formInput}
+                                        value={box.text}
+                                        onChange={(e) => updateTextBox(box.id, {text: e.target.value})}
+                                        placeholder="Enter text (e.g. date, address)"
+                                        style={{flex: 1, minWidth: "150px"}}
+                                    />
+                                    <select
+                                        className={styles.formInput}
+                                        value={box.fontSize}
+                                        onChange={(e) => updateTextBox(box.id, {fontSize: Number(e.target.value)})}
+                                        style={{width: "70px"}}
+                                    >
+                                        {[7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24].map(s => (
+                                            <option key={s} value={s}>{s}pt</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        className={styles.dangerBtn}
+                                        onClick={() => removeTextBox(box.id)}
+                                        style={{padding: "4px 8px", fontSize: "0.8rem"}}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <SignaturePlacer
                         pdfBlobUrl={pdfBlobUrl}
                         signatureUrl={selectedSignature}
                         onPositionChange={(pos) => setSignaturePosition(pos)}
                         initialPosition={signaturePosition}
                         currentPage={targetPage}
+                        textBoxes={textBoxes}
+                        onTextBoxChange={updateTextBox}
                     />
                 </div>
             )}
