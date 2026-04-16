@@ -1,12 +1,11 @@
 .filesPage {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   background-color: #121c24;
   border: 1px solid #fafafa;
   border-radius: 8px;
-  overflow: auto;
   box-sizing: border-box;
 }
 
@@ -127,8 +126,6 @@
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
   padding: 20px 24px;
-  overflow-y: auto;
-  flex: 1;
 
   @media (max-width: 600px) {
     grid-template-columns: repeat(2, 1fr);
