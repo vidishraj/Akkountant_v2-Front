@@ -60,16 +60,30 @@ const GlobalInvestmentsCharts = () => {
 
     useEffect(() => {
         const updateSize = () => {
-            setIsMobile(window.innerWidth <= 900);
-            if (containerRef.current) {
-                const w = containerRef.current.offsetWidth - 40; // account for carousel padding
-                setChartWidth(Math.max(280, Math.min(w, 600)));
+            const mobile = window.innerWidth <= 900;
+            setIsMobile(mobile);
+            // On mobile, use window width since container may be hidden inside ExtendablePage
+            if (mobile) {
+                setChartWidth(Math.max(280, Math.min(window.innerWidth - 60, 600)));
+            } else if (containerRef.current) {
+                const w = containerRef.current.offsetWidth - 40;
+                if (w > 40) setChartWidth(Math.max(280, Math.min(w, 600)));
             }
         };
 
         updateSize();
         window.addEventListener('resize', updateSize);
-        return () => window.removeEventListener('resize', updateSize);
+
+        let observer: ResizeObserver | null = null;
+        if (containerRef.current) {
+            observer = new ResizeObserver(updateSize);
+            observer.observe(containerRef.current);
+        }
+
+        return () => {
+            window.removeEventListener('resize', updateSize);
+            observer?.disconnect();
+        };
     }, []);
 
     useEffect(() => {
@@ -124,7 +138,7 @@ const GlobalInvestmentsCharts = () => {
         speed: 500,
         slidesToShow: 1,
         slidesToScroll: 1,
-        adaptiveHeight: true,
+        adaptiveHeight: false,
         centerMode: false,
         arrows: !isMobile,
     };

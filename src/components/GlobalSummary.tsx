@@ -58,6 +58,16 @@ const GlobalSummary = () => {
     const formatCurrency = (value: number): string =>
         value.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+    const formatCompact = (value: number): string => {
+        const abs = Math.abs(value);
+        if (abs >= 1_00_00_000) return (value / 1_00_00_000).toFixed(2) + 'Cr';
+        if (abs >= 1_00_000) return (value / 1_00_000).toFixed(2) + 'L';
+        if (abs >= 1_000) return (value / 1_000).toFixed(1) + 'K';
+        return value.toFixed(2);
+    };
+
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 500;
+
     // Compute per-type allocation breakdown
     const allocation = useMemo(() => {
         const breakdown: { key: string; value: number; pct: number }[] = [];
@@ -118,7 +128,7 @@ const GlobalSummary = () => {
     }, [state.lists, summary.currentValue]);
 
     const renderSummaryItem = (label: string, value: number | string, color?: string) => (
-        <Grid item xs={12} sm={4} sx={{textAlign: "center"}}>
+        <Grid item xs={4} sx={{textAlign: "center"}}>
             <Typography variant="subtitle1" className={style.label}>
                 {label}
             </Typography>
@@ -161,16 +171,16 @@ const GlobalSummary = () => {
                 <Divider sx={{borderColor: "#29384D", borderWidth: 1, my: 1.5}}/>
 
                 {/* Details Section */}
-                <Grid container spacing={1} alignItems="center" justifyContent="center" flexWrap={'nowrap'}>
+                <Grid container spacing={1} alignItems="center" justifyContent="center">
                     {renderSummaryItem(
                         "Invested",
-                        `₹${formatCurrency(summary.totalInvestment)}`
+                        `₹${isMobile ? formatCompact(summary.totalInvestment) : formatCurrency(summary.totalInvestment)}`
                     )}
                     {renderSummaryItem(
                         "Change",
                         summary.profit >= 0
-                            ? `+₹${formatCurrency(summary.profit)}`
-                            : `₹${formatCurrency(summary.profit)}`,
+                            ? `+₹${isMobile ? formatCompact(summary.profit) : formatCurrency(summary.profit)}`
+                            : `₹${isMobile ? formatCompact(summary.profit) : formatCurrency(summary.profit)}`,
                         summary.profit >= 0 ? "green" : "red"
                     )}
                     {renderSummaryItem(
@@ -252,36 +262,42 @@ const GlobalSummary = () => {
                         </Typography>
                         {realizedPnl && realizedPnl.tradeCount > 0 && (
                             <Box className={style.realizedLine}>
-                                <Typography sx={{color: "#ccd0d5", fontSize: "13px"}}>
+                                <Typography sx={{color: "#ccd0d5", fontSize: "13px", whiteSpace: "nowrap"}}>
                                     Equity P&L
                                 </Typography>
-                                <Typography sx={{
-                                    fontSize: "13px",
-                                    fontWeight: 600,
-                                    color: realizedPnl.netRealizedPnL >= 0 ? "#4caf50" : "#f44336",
-                                }}>
-                                    {realizedPnl.netRealizedPnL >= 0 ? "+" : ""}₹{formatCurrency(realizedPnl.netRealizedPnL)}
-                                    <span style={{color: "#7a7d85", fontWeight: 400, marginLeft: 6}}>
-                                        ({realizedPnl.tradeCount} trades)
-                                    </span>
-                                </Typography>
+                                <Box sx={{textAlign: "right"}}>
+                                    <Typography component="span" sx={{
+                                        fontSize: "13px",
+                                        fontWeight: 600,
+                                        color: realizedPnl.netRealizedPnL >= 0 ? "#4caf50" : "#f44336",
+                                        whiteSpace: "nowrap",
+                                    }}>
+                                        {realizedPnl.netRealizedPnL >= 0 ? "+" : ""}₹{isMobile ? formatCompact(realizedPnl.netRealizedPnL) : formatCurrency(realizedPnl.netRealizedPnL)}
+                                    </Typography>
+                                    <Typography component="span" sx={{color: "#7a7d85", fontSize: "11px", ml: 0.5}}>
+                                        ({realizedPnl.tradeCount})
+                                    </Typography>
+                                </Box>
                             </Box>
                         )}
                         {foSummary && foSummary.tradeCount > 0 && (
                             <Box className={style.realizedLine}>
-                                <Typography sx={{color: "#ccd0d5", fontSize: "13px"}}>
+                                <Typography sx={{color: "#ccd0d5", fontSize: "13px", whiteSpace: "nowrap"}}>
                                     F&O P&L
                                 </Typography>
-                                <Typography sx={{
-                                    fontSize: "13px",
-                                    fontWeight: 600,
-                                    color: foSummary.netPnL >= 0 ? "#4caf50" : "#f44336",
-                                }}>
-                                    {foSummary.netPnL >= 0 ? "+" : ""}₹{formatCurrency(foSummary.netPnL)}
-                                    <span style={{color: "#7a7d85", fontWeight: 400, marginLeft: 6}}>
-                                        ({foSummary.tradeCount} contracts)
-                                    </span>
-                                </Typography>
+                                <Box sx={{textAlign: "right"}}>
+                                    <Typography component="span" sx={{
+                                        fontSize: "13px",
+                                        fontWeight: 600,
+                                        color: foSummary.netPnL >= 0 ? "#4caf50" : "#f44336",
+                                        whiteSpace: "nowrap",
+                                    }}>
+                                        {foSummary.netPnL >= 0 ? "+" : ""}₹{isMobile ? formatCompact(foSummary.netPnL) : formatCurrency(foSummary.netPnL)}
+                                    </Typography>
+                                    <Typography component="span" sx={{color: "#7a7d85", fontSize: "11px", ml: 0.5}}>
+                                        ({foSummary.tradeCount})
+                                    </Typography>
+                                </Box>
                             </Box>
                         )}
                     </Box>

@@ -67,14 +67,23 @@
 .dValue {
   color: #FAFAFA;
   font-size: 15px;
+  white-space: nowrap;
+
+  @media screen and (max-width: 450px) {
+    font-size: 12px;
+  }
 }
 
 .label {
   color: #7a7d85;
   font-weight: 600;
-  text-wrap: nowrap;
+  white-space: nowrap;
   font-size: 12px;
   margin-bottom: 2px;
+
+  @media screen and (max-width: 450px) {
+    font-size: 10px;
+  }
 }
 
 .status {
@@ -542,6 +551,18 @@
 .realizedLine {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   padding: 4px 0;
+  gap: 6px;
+
+  > :first-child {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  > :last-child {
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }

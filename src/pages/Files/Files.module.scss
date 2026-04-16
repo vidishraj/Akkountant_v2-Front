@@ -6,7 +6,8 @@
   background-color: #121c24;
   border: 1px solid #fafafa;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
+  box-sizing: border-box;
 }
 
 .header {
@@ -130,9 +131,13 @@
   flex: 1;
 
   @media (max-width: 600px) {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
-    padding: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px;
+  }
+
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -196,6 +201,7 @@
   transition: border-color 0.2s;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 
   &:hover {
     border-color: #7b68ee;
