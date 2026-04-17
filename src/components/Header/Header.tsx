@@ -275,6 +275,15 @@ const Header = () => {
               <ListItemText primary="Files" sx={{ color: "white" }} />
             </ListItem>
           </List>
+          {activeAgentType && (
+            <>
+              <Divider sx={{ backgroundColor: "#FAFAFA", my: 2 }} />
+              <Typography variant="body2" sx={{ color: "#7a7d85", mb: 1 }}>
+                Ask AI Assistant
+              </Typography>
+              <AgentHeaderInput agentType={activeAgentType} />
+            </>
+          )}
         </Box>
       </Drawer>
 

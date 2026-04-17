@@ -33,6 +33,13 @@
   position: relative;
   flex: 0 1 280px;
   margin: 0 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 960px) {
+    flex: 1;
+    margin: 0;
+  }
 }
 
 .headerInputField {
