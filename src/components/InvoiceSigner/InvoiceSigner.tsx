@@ -31,7 +31,9 @@ const InvoiceSigner = () => {
 
     const getSignatureDataUrl = (signature: Signature): string => {
         if (signature.signature_data.startsWith('data:')) return signature.signature_data;
-        return `data:image/png;base64,${signature.signature_data}`;
+        const isJpeg = signature.signature_data.startsWith('/9j/');
+        const mime = isJpeg ? 'image/jpeg' : 'image/png';
+        return `data:${mime};base64,${signature.signature_data}`;
     };
 
     useEffect(() => {
