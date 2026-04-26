@@ -43,7 +43,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   padding: 12px;
-  width: 100%;
+  flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
@@ -63,8 +63,8 @@
 .npsContainer,
 .epfContainer {
   background-color: #121c24 !important;
-  min-height: 180px;
   border: 1px solid white !important;
   border-radius: 10px;
   box-sizing: border-box;
+  padding: 8px;
 }

@@ -143,50 +143,64 @@ const GlobalInvestmentsCharts = () => {
         arrows: !isMobile,
     };
 
+    const barChart = (
+        <div className={styles.innerBox}>
+            <BarChart
+                xAxis={[{
+                    scaleType: 'band',
+                    data: barChartOrder,
+                    colorMap: {
+                        type: 'ordinal',
+                        colors: allKeys.map(k => CHART_COLORS[k]),
+                    },
+                }]}
+                series={barChartSeries}
+                grid={{horizontal: true}}
+                borderRadius={4}
+                slotProps={{
+                    legend: {
+                        labelStyle: {fill: '#ccd0d5', fontSize: 12},
+                    },
+                }}
+                width={chartWidth}
+                height={300}
+                sx={{...axisSx, ...tooltipSx}}
+            />
+        </div>
+    );
+
+    const pieChart = (
+        <div className={styles.innerBox}>
+            <PieChart
+                series={pieChartSeries}
+                width={chartWidth}
+                height={300}
+                slotProps={{
+                    legend: {
+                        labelStyle: {fill: '#ccd0d5', fontSize: 12},
+                        direction: 'row',
+                        position: {vertical: 'bottom', horizontal: 'middle'},
+                    },
+                }}
+                sx={{...tooltipSx}}
+            />
+        </div>
+    );
+
+    if (isMobile) {
+        return (
+            <div ref={containerRef} className={styles.carousel}>
+                {barChart}
+                {pieChart}
+            </div>
+        );
+    }
+
     return (
         <div ref={containerRef}>
             <Slider {...sliderSettings} className={styles.carousel}>
-                {/* BarChart Slide */}
-                <div className={styles.innerBox}>
-                    <BarChart
-                        xAxis={[{
-                            scaleType: 'band',
-                            data: barChartOrder,
-                            colorMap: {
-                                type: 'ordinal',
-                                colors: allKeys.map(k => CHART_COLORS[k]),
-                            },
-                        }]}
-                        series={barChartSeries}
-                        grid={{horizontal: true}}
-                        borderRadius={4}
-                        slotProps={{
-                            legend: {
-                                labelStyle: {fill: '#ccd0d5', fontSize: 12},
-                            },
-                        }}
-                        width={chartWidth}
-                        height={300}
-                        sx={{...axisSx, ...tooltipSx}}
-                    />
-                </div>
-
-                {/* PieChart Slide */}
-                <div className={styles.innerBox}>
-                    <PieChart
-                        series={pieChartSeries}
-                        width={chartWidth}
-                        height={300}
-                        slotProps={{
-                            legend: {
-                                labelStyle: {fill: '#ccd0d5', fontSize: 12},
-                                direction: 'row',
-                                position: {vertical: 'bottom', horizontal: 'middle'},
-                            },
-                        }}
-                        sx={{...tooltipSx}}
-                    />
-                </div>
+                {barChart}
+                {pieChart}
             </Slider>
         </div>
     );
