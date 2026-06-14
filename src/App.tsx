@@ -6,6 +6,8 @@ import Home from "./pages/Home/Home.tsx";
 import Transactions from "./pages/Transactions/Transactions.tsx";
 import PrivateRoute from "./utils/PrivateRoute.tsx";
 import Investments from './pages/Investments/Investments.tsx';
+import InvestmentsLanding from './pages/Investments/InvestmentsLanding.tsx';
+import InvestmentDetail from './pages/Investments/InvestmentDetail.tsx';
 import Freelance from './pages/Freelance/Freelance.tsx';
 import Files from './pages/Files/Files.tsx';
 
@@ -99,7 +101,10 @@ function App() {
                     <Route path="/login" element={<Login/>}/>
                     <Route path="/home" element={<PrivateRoute><Home/></PrivateRoute>}/>
                     <Route path="/transactions" element={<PrivateRoute><Transactions/></PrivateRoute>}/>
-                    <Route path="/investments" element={<PrivateRoute><Investments/></PrivateRoute>}/>
+                    <Route path="/investments" element={<PrivateRoute><Investments/></PrivateRoute>}>
+                        <Route index element={<InvestmentsLanding/>}/>
+                        <Route path=":asset" element={<InvestmentDetail/>}/>
+                    </Route>
                     <Route path="/freelance" element={<PrivateRoute><Freelance/></PrivateRoute>}/>
                     <Route path="/files" element={<PrivateRoute><Files/></PrivateRoute>}/>
                 </>

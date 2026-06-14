@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {useNavigate} from "react-router-dom";
 import {ReactSearchAutocomplete} from "react-search-autocomplete";
 import {Button, IconButton, Tabs, Tab} from "@mui/material";
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
@@ -20,13 +21,13 @@ const MSNHome = () => {
 
     const {
         state,
-        dispatch,
         fetchAndSetUserSecurities,
         fetchAndSetSearchItems,
         deleteComplete, getServiceType, getContextKey,
         fetchAndSetRealizedPnL,
         fetchAndSetFOSummary,
     } = useMSNContext();
+    const navigate = useNavigate();
     const [searchItems, setSearchItems] = useState<MSNListResponse[]>([]);
     const [detailState, setDetailState] = useState<MSNListResponse | undefined>(undefined);
     const [summaryState, setSummaryState] = useState<MSNSummaryResponse | undefined>(undefined);
@@ -83,9 +84,12 @@ const MSNHome = () => {
                     if (showDetails) {
                         setShowDetails(false);
                     } else {
-                        dispatch({type: "ResetCardSelector"});
+                        // Back to the asset card grid via URL (browser-back equivalent).
+                        // InvestmentsLanding's mount effect calls ResetCardSelector
+                        // for legacy readers — no local dispatch needed here.
                         setStocksTab(0);
                         setMfNpsTab(0);
+                        navigate("/investments");
                     }
                 }}
                 className={style.backButton}

@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import {useNavigate} from "react-router-dom";
 import BasicCard from "../BasicCard";
 import FileUploadDialog from "../FileUploadComponent/FileUpload";
 import moduleStyle from "./MSNCard.module.scss";
@@ -27,10 +28,11 @@ interface MSNCardProps {
 }
 
 const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2, isLoading}) => {
-    const {state, dispatch, fetchAndSetSummary, AllInfoForEpf, fetchAndSetRealizedPnL, fetchAndSetFOSummary} = useMSNContext();
+    const {state, fetchAndSetSummary, AllInfoForEpf, fetchAndSetRealizedPnL, fetchAndSetFOSummary} = useMSNContext();
     const [summary, setSummary] = useState<MSNSummaryResponse>();
     const {setPayload} = useMessage();
     const {setCommand} = useAgentChatBridge();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (cardType) {
@@ -109,22 +111,13 @@ const MSNCard: React.FC<MSNCardProps> = ({title, cardType, className, cardType2,
     }, [state, cardType]);
 
     const handleCardClick = () => {
-        dispatch({
-            type: "CardSelector",
-            payload: {
-                mf: cardType === "mf",
-                stocks: cardType === "stocks",
-                nps: cardType === "nps",
-                ppf: cardType2 === "ppf",
-                epf: cardType2 === "epf",
-                gold: cardType2 === "gold",
-            },
-        });
-        window.scrollTo({
-            top: 500,
-            behavior: 'smooth', // For smooth scrolling
-        });
-
+        // Drill into the asset via sub-route. URL is the source of truth;
+        // InvestmentDetail syncs it to `state.selectedCard` for legacy readers.
+        // Browser back returns to /investments landing.
+        const assetSlug = cardType ?? cardType2;
+        if (assetSlug) {
+            navigate(`/investments/${assetSlug}`);
+        }
     };
     const handleFileUpload = async (selectedFile: File, serviceType: string) => {
         return uploadFile(selectedFile, {serviceType});

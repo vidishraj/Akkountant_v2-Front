@@ -1,18 +1,28 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect} from "react";
+import {Outlet} from "react-router-dom";
 import style from "../Investments/Investments.module.scss";
-import MSNCard from "../../components/MSNCardComponent/MSNCard.tsx";
-import BasicCard from "../../components/BasicCard.tsx";
-import MSNHome from "../../components/MSNHome/MSNHome.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
-import EPGHome from "../../components/EPGHomeComponent/EPGHome.tsx";
-import GlobalSummary from "../../components/GlobalSummary.tsx";
-import GlobalInvestmentsCharts from "../../components/InvestmentChartsComponent/GlobalInvestmentsCharts.tsx";
-import ExtendablePage from "../../components/ExtendableComponent/ExtendablePageComponent.tsx";
 import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 
+/**
+ * Shell for the /investments route tree (hq-6hos Option B, re-ported onto
+ * Personal — bc52120 was the master-line version).
+ *
+ * Owns three things that must persist across landing ↔ detail navigation:
+ *   1. The initial summary fetches (Stocks/NPS/MF/EPF/Gold/PF/FO/RealizedPnL)
+ *   2. The AgentChat overlay (otherwise drawer state resets on every nav)
+ *   3. The investments-page-level container className (so SCSS scope is stable)
+ *
+ * Renders <Outlet/> for the matched child route:
+ *   index           → InvestmentsLanding (dashboard + asset card grid)
+ *   :asset          → InvestmentDetail   (single-asset drill-in, URL-driven)
+ *
+ * Note: the small-screen scroll-into-view effect from the pre-Option-B
+ * in-place pattern is intentionally dropped — under sub-routing each view is
+ * its own page; the browser handles scroll position natively on navigation.
+ */
 const Investments = () => {
-    const {state, fetchAndSetSummary, AllInfoForEpf, fetchAndSetFOSummary, fetchAndSetRealizedPnL} = useMSNContext();
-    const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth <= 900);
+    const {fetchAndSetSummary, AllInfoForEpf, fetchAndSetFOSummary, fetchAndSetRealizedPnL} = useMSNContext();
 
     useEffect(() => {
         fetchAndSetSummary("Stocks", false);
@@ -23,36 +33,8 @@ const Investments = () => {
         AllInfoForEpf("PF", false);
         fetchAndSetFOSummary(false);
         fetchAndSetRealizedPnL(false);
-
-        // Add a resize event listener to handle screen size changes
-        const handleResize = () => {
-            setIsSmallScreen(window.innerWidth <= 900);
-        };
-
-        window.addEventListener("resize", handleResize);
-
-        // Clean up the event listener
-        return () => {
-            window.removeEventListener("resize", handleResize);
-        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const renderCards = () => (
-        <>
-            <MSNCard isLoading={state.loadingState.stocks.summary} title="Stocks" className={style.stockContainer}
-                     cardType="stocks"/>
-            <MSNCard isLoading={state.loadingState.mf.summary} title="Mutual Funds" className={style.mfContainer}
-                     cardType="mf"/>
-            <MSNCard isLoading={state.loadingState.nps.summary} title="NPS" className={style.npsContainer}
-                     cardType="nps"/>
-            <MSNCard isLoading={state.loadingState.epf.summary} title="EPF" className={style.epfContainer}
-                     cardType2="epf"/>
-            <MSNCard isLoading={state.loadingState.ppf.summary} title="PPF" className={style.epfContainer}
-                     cardType2="ppf"/>
-            <MSNCard isLoading={state.loadingState.gold.summary} title="Gold" className={style.epfContainer}
-                     cardType2="gold"/>
-        </>
-    );
 
     const handleAgentMutation = useCallback(() => {
         fetchAndSetSummary("Stocks", false);
@@ -63,45 +45,10 @@ const Investments = () => {
         AllInfoForEpf("PF", false);
     }, [fetchAndSetSummary, AllInfoForEpf]);
 
-    const homeRef = useRef<any>(null);
-    const dashboard = useRef<any>(null);
-    useEffect(() => {
-        if (isSmallScreen) {
-            const oneSelected = (state.selectedCard.stocks || state.selectedCard.mf || state.selectedCard.nps ||
-                state.selectedCard.epf || state.selectedCard.gold || state.selectedCard.ppf)
-            if (homeRef.current && oneSelected) {
-                homeRef.current?.scrollIntoView({behavior: 'smooth'});
-            } else if (!oneSelected) {
-                dashboard.current?.scrollIntoView({behavior: 'smooth'});
-            }
-        }
-    }, [state]);
     return (
-        <div className={style.investmentsParentContainer} ref={dashboard}>
-            <BasicCard className={style.dashboard}>
-                {isSmallScreen ? (
-                    <ExtendablePage>
-                        <GlobalSummary/>
-                        <GlobalInvestmentsCharts/>
-                    </ExtendablePage>
-                ) : (
-                    <>
-                        <GlobalSummary/>
-                        <GlobalInvestmentsCharts/>
-                    </>
-                )}
-            </BasicCard>
-
-            <div className={style.cardContainer} ref={homeRef}>
-                {state.selectedCard.stocks || state.selectedCard.mf || state.selectedCard.nps ? (
-                    <MSNHome/>
-                ) : state.selectedCard.gold || state.selectedCard.epf || state.selectedCard.ppf ? (
-                    <EPGHome/>
-                ) : (
-                    renderCards()
-                )}
-            </div>
-            <AgentChat agentType="investment" onMutation={handleAgentMutation} />
+        <div className={style.investmentsParentContainer}>
+            <Outlet/>
+            <AgentChat agentType="investment" onMutation={handleAgentMutation}/>
         </div>
     );
 };

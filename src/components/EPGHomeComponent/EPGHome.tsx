@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {useNavigate} from "react-router-dom";
 import {
     Box,
     Button,
@@ -37,7 +38,8 @@ const formatINR = (val: number | string) =>
     Number(val).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
 const EPGHome = () => {
-    const {state, dispatch, fetchAndSetUserSecurities, deleteComplete} = useMSNContext();
+    const {state, fetchAndSetUserSecurities, deleteComplete} = useMSNContext();
+    const navigate = useNavigate();
     const [summaryState, setSummaryState] = useState<EPGResponse>();
     const [listState, setListState] = useState<EPGlist[]>([]);
     const [deleteConfirmation, setDeleteConfirmation] = useState(false);
@@ -84,7 +86,9 @@ const EPGHome = () => {
         deleteComplete();
     };
 
-    const handleResetCardSelector = () => dispatch({type: "ResetCardSelector"});
+    // Back navigates to the asset card grid via URL (browser-back equivalent).
+    // InvestmentsLanding's mount effect runs ResetCardSelector for legacy readers.
+    const handleResetCardSelector = () => navigate("/investments");
 
     const isPPF = state.selectedCard.ppf;
     const isEPF = state.selectedCard.epf;
