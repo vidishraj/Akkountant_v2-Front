@@ -128,6 +128,7 @@ export interface MSNRateResponse {
     sixMonthsAgo?: string;
     schemeType?: string;
     name?: string;
+    error?: string; // Set by backend (e.g. "API_FAILED") when live price fetch failed; lastPrice is unreliable.
 
     [key: string]: any;
 }

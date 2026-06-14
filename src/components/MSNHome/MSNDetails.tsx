@@ -3,6 +3,7 @@ import {
     Box,
     Tab,
     Tabs,
+    Tooltip,
     Typography,
     Grid,
     TableCell,
@@ -13,11 +14,14 @@ import {
     TableRow,
     Paper,
 } from "@mui/material";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import style from "./MSNDetails.module.scss";
 import {MSNListResponse} from "../../utils/interfaces.ts";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import withLoader from "../LoaderHOC.tsx";
 import {formatDateString} from "../../utils/util.tsx";
+
+const PRICE_UNAVAILABLE_TOOLTIP = "Live price could not be fetched from the data provider for this security.";
 
 interface MSNDetailsProps {
     details: MSNListResponse;
@@ -37,6 +41,9 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
     const {state, fetchTransactions, getServiceType, getContextKey} = useMSNContext();
     const isMfOrNps = state.selectedCard.mf || state.selectedCard.nps;
     const [activeTab, setActiveTab] = useState<number>(0);
+    // Backend sets `info.error` when live price feed errored; lastPrice is unreliable in that case.
+    // Only applies to stocks/MF hero (NPS uses nav and is untouched).
+    const priceUnavailable = Boolean(details?.info && details.info.error);
 
     const [stockOverview, setStockOverview] = useState<Record<string, string | number | undefined>>({});
     const [financialData, setFinancialData] = useState<Transaction[]>([]);
@@ -119,12 +126,25 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                     </Typography>
                                 </Box>
                                 <Box sx={{ textAlign: 'right' }}>
-                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#FAFAFA' }}>
-                                        &#8377;{Number(details.info.lastPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: Number(details.info.pChange) >= 0 ? '#4caf50' : '#f44336' }}>
-                                        {Number(details.info.change) >= 0 ? '+' : ''}{Number(details.info.change).toFixed(2)} ({Number(details.info.pChange).toFixed(2)}%)
-                                    </Typography>
+                                    {priceUnavailable ? (
+                                        <Tooltip title={PRICE_UNAVAILABLE_TOOLTIP} arrow>
+                                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                                <ErrorOutlineIcon sx={{ fontSize: 18, color: '#ffb74d' }}/>
+                                                <Typography variant="body2" sx={{ color: '#ffb74d', fontStyle: 'italic' }}>
+                                                    Price unavailable
+                                                </Typography>
+                                            </Box>
+                                        </Tooltip>
+                                    ) : (
+                                        <>
+                                            <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#FAFAFA' }}>
+                                                &#8377;{Number(details.info.lastPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: Number(details.info.pChange) >= 0 ? '#4caf50' : '#f44336' }}>
+                                                {Number(details.info.change) >= 0 ? '+' : ''}{Number(details.info.change).toFixed(2)} ({Number(details.info.pChange).toFixed(2)}%)
+                                            </Typography>
+                                        </>
+                                    )}
                                 </Box>
                             </Box>
                             <Box className={style.investmentRow}>
@@ -136,13 +156,19 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                 </Box>
                                 <Box>
                                     <Typography variant="caption" sx={{ color: '#7a7d85' }}>Current</Typography>
-                                    <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                        &#8377;{(Number(details.info.lastPrice) * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </Typography>
+                                    {priceUnavailable ? (
+                                        <Typography variant="body2" sx={{ color: '#7a7d85', fontWeight: 'bold' }}>—</Typography>
+                                    ) : (
+                                        <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
+                                            &#8377;{(Number(details.info.lastPrice) * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </Typography>
+                                    )}
                                 </Box>
                                 <Box>
                                     <Typography variant="caption" sx={{ color: '#7a7d85' }}>P&L</Typography>
-                                    {(() => {
+                                    {priceUnavailable ? (
+                                        <Typography variant="body2" sx={{ color: '#7a7d85', fontWeight: 'bold' }}>—</Typography>
+                                    ) : (() => {
                                         const pnl = (Number(details.info.lastPrice) - details.buyPrice) * details.buyQuant;
                                         return (
                                             <Typography variant="body2" sx={{ color: pnl >= 0 ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>

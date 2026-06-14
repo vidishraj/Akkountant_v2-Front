@@ -1,11 +1,14 @@
 import React, {useMemo, useState} from "react";
-import {Card, CardContent, Typography, Box, Chip} from "@mui/material";
+import {Card, CardContent, Typography, Box, Chip, Tooltip} from "@mui/material";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import style from "./MSNHome.module.scss";
 import {MSNListResponse} from "../../utils/interfaces.ts";
 import withLoader from "../LoaderHOC.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
+
+const PRICE_UNAVAILABLE_TOOLTIP = "Live price could not be fetched from the data provider for this security.";
 
 interface MSNListProps {
     list: MSNListResponse[];
@@ -24,6 +27,7 @@ interface ComputedStock {
     profit: number;
     profitPercentage: number;
     currentValue: number;
+    priceUnavailable: boolean;
 }
 
 const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
@@ -55,13 +59,18 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                 buyPrice = stock.buyPrice;
                 pChange = Number(((lastPrice - previousClose) / previousClose * 100).toFixed(2));
             }
-            const currentValue = lastPrice * buyQuant;
-            const profit = currentValue - (buyPrice * buyQuant);
-            const profitPercentage = buyPrice * buyQuant !== 0
-                ? (profit / (buyPrice * buyQuant)) * 100
-                : 0;
+            // Backend sets `info.error` (e.g. "API_FAILED") when the live price feed errored.
+            // In that case lastPrice is unreliable (often 0) and any P&L derived from it would be misleading
+            // (e.g. -100% loss against buyValue). Surface this to the renderer instead of computing fake numbers.
+            const priceUnavailable = Boolean(info && info.error);
 
-            return {stock, buyCode, lastPrice, buyQuant, buyPrice, pChange, profit, profitPercentage, currentValue};
+            const currentValue = priceUnavailable ? 0 : lastPrice * buyQuant;
+            const profit = priceUnavailable ? 0 : currentValue - (buyPrice * buyQuant);
+            const profitPercentage = priceUnavailable || buyPrice * buyQuant === 0
+                ? 0
+                : (profit / (buyPrice * buyQuant)) * 100;
+
+            return {stock, buyCode, lastPrice, buyQuant, buyPrice, pChange, profit, profitPercentage, currentValue, priceUnavailable};
         });
     }, [list, state.selectedCard]);
 
@@ -133,7 +142,7 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                 {sortedList.length > 0 ? sortedList.map((item) => {
                     const {
                         stock, buyCode, lastPrice, buyQuant, buyPrice,
-                        pChange, profit, profitPercentage
+                        pChange, profit, profitPercentage, priceUnavailable
                     } = item;
                     const profitString = profit.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
@@ -149,6 +158,10 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                     });
+                    // Neutral border when price feed errored — green/red would be misleading.
+                    const cardBorderColor = priceUnavailable
+                        ? '#7a7d85'
+                        : profit >= 0 ? '#4caf50' : '#f44336';
                     const formattedQty = Number.isInteger(buyQuant) ? buyQuant.toString() : buyQuant.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -162,7 +175,7 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                         <Card
                             key={stock.buyCode + stock.buyID}
                             className={style.stockCard}
-                            style={{ borderLeft: `3px solid ${profit >= 0 ? '#4caf50' : '#f44336'}` }}
+                            style={{ borderLeft: `3px solid ${cardBorderColor}` }}
                             onClick={() => onClick(buyCode)}
                         >
                             <CardContent className={style.cardContent}>
@@ -171,15 +184,28 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                                 </Typography>
 
                                 <Box className={style.currentBox}>
-                                    <Typography variant="body1" className={style.currentValue}>
-                                        &#8377;{formattedLastPrice}
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        className={isPositiveChange ? style.positiveChange : style.negativeChange}
-                                    >
-                                        {isPositiveChange ? `+${pChange}%` : `${pChange}%`}
-                                    </Typography>
+                                    {priceUnavailable ? (
+                                        <Tooltip title={PRICE_UNAVAILABLE_TOOLTIP} arrow>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <ErrorOutlineIcon sx={{ fontSize: 14, color: '#ffb74d' }}/>
+                                                <Typography variant="body2" sx={{ color: '#ffb74d', fontSize: '12px', fontStyle: 'italic' }}>
+                                                    Price unavailable
+                                                </Typography>
+                                            </Box>
+                                        </Tooltip>
+                                    ) : (
+                                        <>
+                                            <Typography variant="body1" className={style.currentValue}>
+                                                &#8377;{formattedLastPrice}
+                                            </Typography>
+                                            <Typography
+                                                variant="body2"
+                                                className={isPositiveChange ? style.positiveChange : style.negativeChange}
+                                            >
+                                                {isPositiveChange ? `+${pChange}%` : `${pChange}%`}
+                                            </Typography>
+                                        </>
+                                    )}
                                 </Box>
 
                                 <Box className={style.previousBox}>
@@ -192,18 +218,31 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                                 </Box>
 
                                 <Box className={style.changeBox}>
-                                    <Typography
-                                        variant="body2"
-                                        className={profit > 0 ? style.positiveChange : style.negativeChange}
-                                    >
-                                        &#8377;{profitString}
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        className={profitPercentage > 0 ? style.positiveChange : style.negativeChange}
-                                    >
-                                        {profitPercentage > 0 ? `+${profitPercentageString}%` : `${profitPercentageString}%`}
-                                    </Typography>
+                                    {priceUnavailable ? (
+                                        <>
+                                            <Typography variant="body2" sx={{ color: '#7a7d85' }}>
+                                                —
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: '#7a7d85' }}>
+                                                —
+                                            </Typography>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Typography
+                                                variant="body2"
+                                                className={profit > 0 ? style.positiveChange : style.negativeChange}
+                                            >
+                                                &#8377;{profitString}
+                                            </Typography>
+                                            <Typography
+                                                variant="body2"
+                                                className={profitPercentage > 0 ? style.positiveChange : style.negativeChange}
+                                            >
+                                                {profitPercentage > 0 ? `+${profitPercentageString}%` : `${profitPercentageString}%`}
+                                            </Typography>
+                                        </>
+                                    )}
                                 </Box>
                             </CardContent>
                         </Card>
