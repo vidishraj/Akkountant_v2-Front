@@ -4,8 +4,14 @@ import remarkGfm from "remark-gfm";
 import {
   streamAgentChat,
   uploadAttachment,
+  listConversations,
+  getConversation,
+  deleteConversation as deleteConversationApi,
   AgentType,
   AgentMessage,
+  Conversation,
+  ServerConversationMessage,
+  ServerAttachmentMeta,
 } from "../../services/agentService";
 import styles from "./AgentChat.module.scss";
 import { useAgentChatBridge } from "../../contexts/AgentChatBridgeContext";
@@ -36,17 +42,26 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 };
 
+// All AgentType values — used to retire the dead localStorage cache once
+// per session (ak-5v9 dropped localStorage as the primary store).
+const ALL_AGENT_TYPES: AgentType[] = ["investment", "transaction", "freelance"];
+const STORAGE_KEY_PREFIX = "agent-chat-history-";
+
 /**
  * Attachment metadata persisted on a sent ChatMessage so its pills can re-render
- * on history reload. The id here is the backend uuid — but it is single-use and
- * already cleaned up server-side by the time we render history, so the pill is
- * purely informational (no re-attach / no preview-fetch).
+ * on history reload. The id here is the backend uuid — single-use and already
+ * cleaned up server-side by the time we render history, so when `expired` is
+ * true the pill is purely informational (no preview-fetch, no re-attach).
  */
 interface AttachmentMeta {
   id: string;
   filename: string;
   size: number;
   contentType: string;
+  // True when the meta was loaded from server history; the /tmp file no longer
+  // exists (single-use per turn + 1h sweeper), so the pill is purely a record
+  // of what was attached — styled to make that obvious.
+  expired?: boolean;
 }
 
 /**
@@ -80,21 +95,11 @@ interface ChatMessage {
   attachments?: AttachmentMeta[];
 }
 
-interface SavedConversation {
-  id: string;
-  title: string;
-  messages: ChatMessage[];
-  timestamp: number;
-}
-
 interface ConfirmState {
   tool: string;
   input: Record<string, unknown>;
   message: string;
 }
-
-const MAX_CONVERSATIONS = 5;
-const STORAGE_KEY_PREFIX = "agent-chat-history-";
 
 const TOOL_LABELS: Record<string, string> = {
   fetch_portfolio_summary: "Fetching portfolio summary",
@@ -141,6 +146,50 @@ const AGENT_TITLES: Record<AgentType, string> = {
   freelance: "Freelance Assistant",
 };
 
+// One-shot per browser session: clear the legacy localStorage cache that
+// ak-5v9 retires. Idempotent thereafter — repeated calls are no-ops once the
+// keys are gone.
+let legacyCacheCleared = false;
+const clearLegacyLocalStorageCache = () => {
+  if (legacyCacheCleared) return;
+  try {
+    for (const agent of ALL_AGENT_TYPES) {
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}${agent}`);
+    }
+  } catch {
+    // Defensive: localStorage can throw in private mode / quota-exhausted.
+    // Ignoring is fine — we'll just retry next mount.
+  }
+  legacyCacheCleared = true;
+};
+
+/**
+ * Transform a server attachments_meta entry into the camelCase shape the UI
+ * components use. Stamped `expired: true` because by the time the FE reloads
+ * conversation history the underlying /tmp upload has been swept and the id
+ * cannot resolve back to a file.
+ */
+const transformServerAttachment = (
+  meta: ServerAttachmentMeta
+): AttachmentMeta => ({
+  id: meta.attachment_id,
+  filename: meta.filename,
+  size: meta.size,
+  contentType: meta.content_type,
+  expired: true,
+});
+
+const transformServerMessages = (
+  serverMessages: ServerConversationMessage[]
+): ChatMessage[] =>
+  serverMessages.map((m) => ({
+    role: m.role,
+    content: m.content,
+    ...(m.attachments_meta && m.attachments_meta.length > 0
+      ? { attachments: m.attachments_meta.map(transformServerAttachment) }
+      : {}),
+  }));
+
 const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -151,14 +200,22 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
   const [confirmedTools, setConfirmedTools] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [conversations, setConversations] = useState<SavedConversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationsError, setConversationsError] = useState<string | null>(null);
   // Store partial assistant content for conversation continuity after confirm
   const partialAssistantRef = useRef<object[] | null>(null);
 
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
-  const { command, clearCommand } = useAgentChatBridge();
+  const {
+    command,
+    clearCommand,
+    conversations,
+    setConversations,
+    upsertConversation,
+    removeConversation,
+  } = useAgentChatBridge();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -172,73 +229,39 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
     (p) => p.status === "ready"
   ).length;
 
-  // Load conversations from localStorage on mount / agentType change
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${agentType}`);
-      if (stored) {
-        setConversations(JSON.parse(stored));
-      } else {
-        setConversations([]);
+  const refreshConversations = useCallback(
+    async (agent: AgentType) => {
+      setConversationsLoading(true);
+      setConversationsError(null);
+      try {
+        const list = await listConversations(agent);
+        setConversations(list, agent);
+        // First successful sync per session retires the legacy cache keys; no
+        // migration of those chats (Overseer-approved drop).
+        clearLegacyLocalStorageCache();
+      } catch (err) {
+        setConversationsError(
+          err instanceof Error ? err.message : "Failed to load conversations"
+        );
+      } finally {
+        setConversationsLoading(false);
       }
-    } catch {
-      setConversations([]);
-    }
+    },
+    [setConversations]
+  );
+
+  // Reset per-conversation state and fetch the server list on mount /
+  // agentType change. The localStorage primary store is retired (ak-5v9) —
+  // GET /agent/conversations is authoritative; we accept the cold-fetch cost
+  // for correctness.
+  useEffect(() => {
     setActiveConversationId(null);
     setMessages([]);
     setConfirmedTools([]);
     partialAssistantRef.current = null;
     setPendingAttachments([]);
-  }, [agentType]);
-
-  // Persist conversations to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem(
-      `${STORAGE_KEY_PREFIX}${agentType}`,
-      JSON.stringify(conversations)
-    );
-  }, [conversations, agentType]);
-
-  const saveCurrentConversation = useCallback(
-    (currentMessages: ChatMessage[]) => {
-      if (currentMessages.length === 0) return;
-
-      setConversations((prev) => {
-        if (activeConversationId) {
-          // Update existing conversation
-          return prev.map((c) =>
-            c.id === activeConversationId
-              ? { ...c, messages: currentMessages, timestamp: Date.now() }
-              : c
-          );
-        } else {
-          // Create new conversation
-          const firstUserMsg = currentMessages.find((m) => m.role === "user");
-          // Fall back to the first attachment's filename when the user sent
-          // attachments-only (no text) — otherwise the history chip is blank.
-          const trimmedText = firstUserMsg?.content.trim();
-          const title = trimmedText
-            ? trimmedText.slice(0, 30)
-            : firstUserMsg?.attachments?.[0]
-              ? firstUserMsg.attachments[0].filename.slice(0, 30)
-              : "New chat";
-          const newConv: SavedConversation = {
-            id: crypto.randomUUID(),
-            title,
-            messages: currentMessages,
-            timestamp: Date.now(),
-          };
-          setActiveConversationId(newConv.id);
-          const updated = [newConv, ...prev];
-          if (updated.length > MAX_CONVERSATIONS) {
-            updated.pop();
-          }
-          return updated;
-        }
-      });
-    },
-    [activeConversationId]
-  );
+    void refreshConversations(agentType);
+  }, [agentType, refreshConversations]);
 
   const startNewChat = useCallback(() => {
     if (isLoading) return;
@@ -250,22 +273,32 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
   }, [isLoading]);
 
   const switchConversation = useCallback(
-    (id: string) => {
+    async (id: number) => {
       if (isLoading || id === activeConversationId) return;
-      const conv = conversations.find((c) => c.id === id);
-      if (!conv) return;
+      // Optimistically set the active id so the active-chip styling responds
+      // before the fetch resolves. If it 404s we drop it back to null.
       setActiveConversationId(id);
-      setMessages(conv.messages);
+      setMessages([]);
       setConfirmedTools([]);
       partialAssistantRef.current = null;
       setPendingAttachments([]);
+      try {
+        const conv = await getConversation(id);
+        setMessages(transformServerMessages(conv.messages));
+      } catch {
+        // 404 (not owner / deleted) → drop selection back, evict from list.
+        setActiveConversationId(null);
+        removeConversation(id);
+      }
     },
-    [isLoading, activeConversationId, conversations]
+    [isLoading, activeConversationId, removeConversation]
   );
 
-  const deleteConversation = useCallback(
-    (id: string) => {
-      setConversations((prev) => prev.filter((c) => c.id !== id));
+  const handleDeleteConversation = useCallback(
+    async (id: number) => {
+      // Optimistic remove — server returns 204 on success; if it errors we
+      // surface it via the error banner and refetch to repair state.
+      removeConversation(id);
       if (activeConversationId === id) {
         setActiveConversationId(null);
         setMessages([]);
@@ -273,8 +306,17 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
         partialAssistantRef.current = null;
         setPendingAttachments([]);
       }
+      try {
+        await deleteConversationApi(id);
+      } catch (err) {
+        setConversationsError(
+          err instanceof Error ? err.message : "Failed to delete conversation"
+        );
+        // Reconcile against the server in case the optimistic remove diverged.
+        void refreshConversations(agentType);
+      }
     },
-    [activeConversationId]
+    [activeConversationId, agentType, refreshConversations, removeConversation]
   );
 
   const scrollToBottom = useCallback(() => {
@@ -454,13 +496,22 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
         content: messageText,
         ...(attachmentMeta.length > 0 ? { attachments: attachmentMeta } : {}),
       };
-      setMessages((prev) => [...prev, userMsg]);
+      // Capture the post-append messages list so optimistic upsert below can
+      // count correctly (state updates are async, can't read `messages` for
+      // the new total).
+      const messagesAfterSend = [...messages, userMsg];
+      setMessages(messagesAfterSend);
       setInputText("");
       setPendingAttachments([]);
       setIsLoading(true);
       setStreamedText("");
       setActiveTool(null);
       setConfirmDialog(null);
+
+      // Capture the conversation id at send-time. If the backend assigns one
+      // via the leading SSE event, this ref holds it for the onDone hook so we
+      // can refetch the list with the right placeholder.
+      let conversationIdForTurn: number | null = activeConversationId;
 
       // Build API messages including the new user message
       const apiMessages: AgentMessage[] = [
@@ -486,6 +537,26 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
           apiMessages,
           confirmedTools,
           {
+          onConversationId: (id) => {
+            // Pin the id for this turn + any follow-ups in this session. If
+            // we already had one (existing convo), the backend should echo it
+            // — overwriting with the same value is harmless.
+            conversationIdForTurn = id;
+            setActiveConversationId(id);
+            // Optimistic placeholder so the chip appears immediately; refetch
+            // after onDone replaces it with the server-derived title/count.
+            const firstUserText = messagesAfterSend.find((m) => m.role === "user")?.content;
+            const placeholderTitle = firstUserText
+              ? firstUserText.slice(0, 60)
+              : attachmentMeta[0]?.filename.slice(0, 60) ?? "New chat";
+            upsertConversation({
+              id,
+              title: placeholderTitle,
+              agent_type: agentType,
+              updated_at: new Date().toISOString(),
+              msg_count: messagesAfterSend.length,
+            });
+          },
           onText: (content) => {
             fullText += content;
             setStreamedText(fullText);
@@ -503,26 +574,19 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
           onDone: (mutations) => {
             setActiveTool(null);
             if (fullText) {
-              setMessages((prev) => {
-                const updated = [
-                  ...prev,
-                  { role: "assistant" as const, content: fullText },
-                ];
-                // Save after state update via setTimeout to let React commit
-                setTimeout(() => saveCurrentConversation(updated), 0);
-                return updated;
-              });
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant" as const, content: fullText },
+              ]);
               setStreamedText("");
-            } else {
-              // No text but we still want to save if messages exist
-              setMessages((prev) => {
-                if (prev.length > 0) {
-                  setTimeout(() => saveCurrentConversation(prev), 0);
-                }
-                return prev;
-              });
             }
             setIsLoading(false);
+            // Refetch the list so title / msg_count / updated_at land from
+            // server truth. Only worth doing once we know the id (otherwise
+            // the list is unchanged from this turn).
+            if (conversationIdForTurn !== null) {
+              void refreshConversations(agentType);
+            }
             if (mutations.length > 0) {
               onMutation(mutations);
             }
@@ -537,7 +601,8 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
             ]);
           },
           },
-          attachmentIds.length > 0 ? attachmentIds : undefined
+          attachmentIds.length > 0 ? attachmentIds : undefined,
+          activeConversationId ?? undefined
         );
       } catch (err) {
         setIsLoading(false);
@@ -557,11 +622,14 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
       hasUploadingAttachment,
       readyAttachmentCount,
       pendingAttachments,
+      messages,
+      activeConversationId,
       agentType,
       confirmedTools,
       buildMessagesForAPI,
       onMutation,
-      saveCurrentConversation,
+      refreshConversations,
+      upsertConversation,
     ]
   );
 
@@ -639,11 +707,23 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
       setIsOpen(true);
       setTimeout(() => sendMessage(command.payload), 50);
     } else if (command.type === "load_conversation") {
-      setIsOpen(true);
-      switchConversation(command.payload);
+      // The header dispatches the numeric id as a string (the command bridge
+      // is a generic string payload). Parse defensively.
+      const id = Number(command.payload);
+      if (Number.isFinite(id)) {
+        setIsOpen(true);
+        void switchConversation(id);
+      }
     }
     clearCommand();
   }, [command, clearCommand, sendMessage, switchConversation]);
+
+  // Only show the agent's own conversations even though the bridge may briefly
+  // hold a prior agent's list during an agentType swap (mount-effect repopulates
+  // shortly after).
+  const visibleConversations = conversations.filter(
+    (c) => c.agent_type === agentType
+  );
 
   return (
     <>
@@ -665,7 +745,7 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
             </button>
           </div>
 
-          {conversations.length > 0 && (
+          {(visibleConversations.length > 0 || conversationsLoading) && (
             <div className={styles.historyBar}>
               <button
                 className={`${styles.newChatBtn} ${
@@ -677,7 +757,7 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
               >
                 +
               </button>
-              {conversations.map((conv) => (
+              {visibleConversations.map((conv) => (
                 <button
                   key={conv.id}
                   className={`${styles.historyChip} ${
@@ -687,20 +767,26 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
                   }`}
                   onClick={() => switchConversation(conv.id)}
                   disabled={isLoading}
-                  title={conv.title}
+                  title={`${conv.title} (${conv.msg_count} msgs)`}
                 >
                   <span className={styles.chipTitle}>{conv.title}</span>
                   <span
                     className={styles.chipDelete}
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteConversation(conv.id);
+                      void handleDeleteConversation(conv.id);
                     }}
                   >
                     x
                   </span>
                 </button>
               ))}
+            </div>
+          )}
+
+          {conversationsError && (
+            <div className={styles.conversationsError} role="alert">
+              {conversationsError}
             </div>
           )}
 
@@ -716,20 +802,33 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
               >
                 {msg.role === "user" && msg.attachments && msg.attachments.length > 0 && (
                   <div className={styles.messageAttachments}>
-                    {msg.attachments.map((att) => (
-                      <span
-                        key={att.id}
-                        className={`${styles.attachmentPill} ${styles.attachmentPillStatic}`}
-                        title={`${att.filename} (${att.contentType})`}
-                      >
-                        <span className={styles.attachmentPillName}>
-                          {att.filename}
+                    {msg.attachments.map((att) => {
+                      const pillClass = att.expired
+                        ? `${styles.attachmentPill} ${styles.attachmentPillStatic} ${styles.attachmentPillExpired}`
+                        : `${styles.attachmentPill} ${styles.attachmentPillStatic}`;
+                      const titleText = att.expired
+                        ? `${att.filename} (${att.contentType}) — expired, no longer fetchable`
+                        : `${att.filename} (${att.contentType})`;
+                      return (
+                        <span
+                          key={`${att.id}-${i}`}
+                          className={pillClass}
+                          title={titleText}
+                        >
+                          <span className={styles.attachmentPillName}>
+                            {att.filename}
+                          </span>
+                          <span className={styles.attachmentPillSize}>
+                            {formatBytes(att.size)}
+                          </span>
+                          {att.expired && (
+                            <span className={styles.attachmentPillExpiredTag}>
+                              expired
+                            </span>
+                          )}
                         </span>
-                        <span className={styles.attachmentPillSize}>
-                          {formatBytes(att.size)}
-                        </span>
-                      </span>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 {msg.role === "assistant" ? (

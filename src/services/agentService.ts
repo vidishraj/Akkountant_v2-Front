@@ -10,12 +10,57 @@ export interface AgentMessage {
 }
 
 export interface SSEEvent {
-  type: "text" | "tool_exec" | "confirm" | "done" | "error" | "partial_assistant";
+  type: "text" | "tool_exec" | "confirm" | "done" | "error" | "partial_assistant" | "conversation_id";
   content?: string;
   tool?: string;
   input?: Record<string, unknown>;
   message?: string;
   mutations?: string[];
+  // Set only on the LEADING "conversation_id" event the backend emits before
+  // any work; FE captures this to pin the id for subsequent turns in the same chat.
+  id?: number;
+}
+
+/**
+ * Conversation row as returned by GET /agent/conversations.
+ * Excludes soft-deleted, ordered updated_at DESC.
+ */
+export interface Conversation {
+  id: number;
+  title: string;
+  agent_type: AgentType;
+  updated_at: string;
+  msg_count: number;
+}
+
+/**
+ * Attachment metadata on a historical user message, as returned by
+ * GET /agent/conversations/<id>. The backend keys are snake_case; we keep them
+ * as-is here and transform at the UI boundary to the camelCase shape the
+ * AgentChat component uses for in-flight + history pills.
+ *
+ * Note: by the time a conversation is replayed, the underlying /tmp file has
+ * been swept (single-use per turn + 1h sweeper), so the attachment_id is no
+ * longer resolvable — we render history pills with an "expired" styling.
+ */
+export interface ServerAttachmentMeta {
+  attachment_id: string;
+  filename: string;
+  content_type: string;
+  size: number;
+}
+
+export interface ServerConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+  attachments_meta?: ServerAttachmentMeta[];
+}
+
+export interface ConversationWithMessages {
+  id: number;
+  title: string;
+  agent_type: AgentType;
+  messages: ServerConversationMessage[];
 }
 
 /**
@@ -68,6 +113,71 @@ interface StreamCallbacks {
   onDone: (mutations: string[]) => void;
   onError: (message: string) => void;
   onPartialAssistant?: (content: object[]) => void;
+  // Fires once per stream, BEFORE any other event, with the conversation id the
+  // backend assigned (auto-create) or echoed (existing convo). FE uses this to
+  // pin the id for subsequent turns + show the conversation in the history list.
+  onConversationId?: (id: number) => void;
+}
+
+// ── Conversation API client ────────────────────────────────────────────────
+
+async function authedFetch(
+  path: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const uid = await getFirebaseUID();
+  const headers = new Headers(init.headers);
+  headers.set("X-Firebase-ID", uid);
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  return fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+}
+
+export async function listConversations(
+  agentType: AgentType
+): Promise<Conversation[]> {
+  const res = await authedFetch(
+    `agent/conversations?agent_type=${encodeURIComponent(agentType)}`
+  );
+  if (!res.ok) {
+    throw new Error(`listConversations failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getConversation(
+  id: number
+): Promise<ConversationWithMessages> {
+  const res = await authedFetch(`agent/conversations/${id}`);
+  if (!res.ok) {
+    throw new Error(`getConversation failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function createConversation(
+  agentType: AgentType,
+  title?: string
+): Promise<Conversation> {
+  const res = await authedFetch("agent/conversations", {
+    method: "POST",
+    body: JSON.stringify({ agent_type: agentType, ...(title ? { title } : {}) }),
+  });
+  if (!res.ok) {
+    throw new Error(`createConversation failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteConversation(id: number): Promise<void> {
+  const res = await authedFetch(`agent/conversations/${id}`, {
+    method: "DELETE",
+  });
+  // 204 No Content on success; 404 if not owner / already deleted.
+  if (!res.ok) {
+    throw new Error(`deleteConversation failed: ${res.status}`);
+  }
 }
 
 async function getFirebaseUID(): Promise<string> {
@@ -91,7 +201,8 @@ export async function streamAgentChat(
   messages: AgentMessage[],
   confirmedTools: string[],
   callbacks: StreamCallbacks,
-  attachments?: string[]
+  attachments?: string[],
+  conversationId?: number
 ): Promise<void> {
   const uid = await getFirebaseUID();
 
@@ -108,6 +219,10 @@ export async function streamAgentChat(
       // Only include attachments when present — keeps the wire format clean and
       // lets older backends ignore the field entirely.
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
+      // conversation_id is omitted on a fresh chat (backend auto-creates and
+      // emits the LEADING "conversation_id" SSE event); set on subsequent turns
+      // to persist into the existing thread.
+      ...(typeof conversationId === "number" ? { conversation_id: conversationId } : {}),
     }),
   });
 
@@ -141,6 +256,13 @@ export async function streamAgentChat(
         const event: SSEEvent = JSON.parse(line.slice(6));
 
         switch (event.type) {
+          case "conversation_id":
+            // Leading event — fires once at the top of the stream, before any
+            // other event. Capture so FE can pin the id for subsequent turns.
+            if (typeof event.id === "number") {
+              callbacks.onConversationId?.(event.id);
+            }
+            break;
           case "text":
             callbacks.onText(event.content || "");
             break;
