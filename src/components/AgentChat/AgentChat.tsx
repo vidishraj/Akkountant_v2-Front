@@ -7,6 +7,7 @@ import {
   listConversations,
   getConversation,
   deleteConversation as deleteConversationApi,
+  AgentApiError,
   AgentType,
   AgentMessage,
   Conversation,
@@ -276,19 +277,30 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
     async (id: number) => {
       if (isLoading || id === activeConversationId) return;
       // Optimistically set the active id so the active-chip styling responds
-      // before the fetch resolves. If it 404s we drop it back to null.
+      // before the fetch resolves. If it 404s we drop it back to null; on
+      // transient 5xx / network we surface the error but keep the row so the
+      // user can retry.
       setActiveConversationId(id);
       setMessages([]);
       setConfirmedTools([]);
       partialAssistantRef.current = null;
       setPendingAttachments([]);
+      setConversationsError(null);
       try {
         const conv = await getConversation(id);
         setMessages(transformServerMessages(conv.messages));
-      } catch {
-        // 404 (not owner / deleted) → drop selection back, evict from list.
+      } catch (err) {
         setActiveConversationId(null);
-        removeConversation(id);
+        if (err instanceof AgentApiError && err.status === 404) {
+          // Confirmed gone (not owner / deleted) — evict from the list.
+          removeConversation(id);
+        } else {
+          // Transient (5xx / network / auth blip) — keep the row so the user
+          // can retry; surface the failure via the error banner.
+          setConversationsError(
+            err instanceof Error ? err.message : "Failed to load conversation"
+          );
+        }
       }
     },
     [isLoading, activeConversationId, removeConversation]
@@ -296,8 +308,9 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
 
   const handleDeleteConversation = useCallback(
     async (id: number) => {
-      // Optimistic remove — server returns 204 on success; if it errors we
-      // surface it via the error banner and refetch to repair state.
+      // Optimistic remove — server returns 200 with a `{message: ...}` body
+      // on success (we don't consume the body); if it errors we surface it
+      // via the error banner and refetch to repair state.
       removeConversation(id);
       if (activeConversationId === id) {
         setActiveConversationId(null);

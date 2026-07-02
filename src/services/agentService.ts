@@ -121,6 +121,18 @@ interface StreamCallbacks {
 
 // ── Conversation API client ────────────────────────────────────────────────
 
+/**
+ * Typed error thrown by every /agent/conversations client fn on non-2xx.
+ * Callers can `instanceof` + inspect `.status` to distinguish 404 (evict the
+ * row) from transient 5xx / network failures (keep the row, show a banner).
+ */
+export class AgentApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = "AgentApiError";
+  }
+}
+
 async function authedFetch(
   path: string,
   init: RequestInit = {}
@@ -134,6 +146,15 @@ async function authedFetch(
   return fetch(`${API_BASE_URL}${path}`, { ...init, headers });
 }
 
+/**
+ * Response envelope for the list endpoint. BE returns `{conversations: [...]}`
+ * even though the individual-conversation endpoints return bare objects — the
+ * unwrap happens here so callers see a plain array.
+ */
+interface ConversationsListResponse {
+  conversations: Conversation[];
+}
+
 export async function listConversations(
   agentType: AgentType
 ): Promise<Conversation[]> {
@@ -141,9 +162,10 @@ export async function listConversations(
     `agent/conversations?agent_type=${encodeURIComponent(agentType)}`
   );
   if (!res.ok) {
-    throw new Error(`listConversations failed: ${res.status}`);
+    throw new AgentApiError(res.status, `listConversations failed: ${res.status}`);
   }
-  return res.json();
+  const data = (await res.json()) as ConversationsListResponse;
+  return data.conversations;
 }
 
 export async function getConversation(
@@ -151,7 +173,7 @@ export async function getConversation(
 ): Promise<ConversationWithMessages> {
   const res = await authedFetch(`agent/conversations/${id}`);
   if (!res.ok) {
-    throw new Error(`getConversation failed: ${res.status}`);
+    throw new AgentApiError(res.status, `getConversation failed: ${res.status}`);
   }
   return res.json();
 }
@@ -165,7 +187,7 @@ export async function createConversation(
     body: JSON.stringify({ agent_type: agentType, ...(title ? { title } : {}) }),
   });
   if (!res.ok) {
-    throw new Error(`createConversation failed: ${res.status}`);
+    throw new AgentApiError(res.status, `createConversation failed: ${res.status}`);
   }
   return res.json();
 }
@@ -174,9 +196,11 @@ export async function deleteConversation(id: number): Promise<void> {
   const res = await authedFetch(`agent/conversations/${id}`, {
     method: "DELETE",
   });
-  // 204 No Content on success; 404 if not owner / already deleted.
+  // BE returns 200 with `{"message": "..."}` body on success (not 204 as the
+  // spec sketch suggested); 404 if not owner / already deleted. Either way we
+  // only care about the ok-ness — we do not consume the body.
   if (!res.ok) {
-    throw new Error(`deleteConversation failed: ${res.status}`);
+    throw new AgentApiError(res.status, `deleteConversation failed: ${res.status}`);
   }
 }
 
