@@ -10,7 +10,6 @@ import {
   AgentApiError,
   AgentType,
   AgentMessage,
-  Conversation,
   ServerConversationMessage,
   ServerAttachmentMeta,
 } from "../../services/agentService";
