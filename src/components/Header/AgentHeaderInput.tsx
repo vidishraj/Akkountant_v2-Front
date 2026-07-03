@@ -1,15 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AgentType } from "../../services/agentService";
 import { useAgentChatBridge } from "../../contexts/AgentChatBridgeContext";
 import styles from "./Header.module.scss";
-
-interface SavedConversation {
-  id: string;
-  title: string;
-  timestamp: number;
-}
-
-const STORAGE_KEY_PREFIX = "agent-chat-history-";
 
 const PLACEHOLDER: Record<AgentType, string> = {
   transaction: "Ask about transactions...",
@@ -24,30 +16,16 @@ interface AgentHeaderInputProps {
 const AgentHeaderInput = ({ agentType }: AgentHeaderInputProps) => {
   const [text, setText] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [conversations, setConversations] = useState<SavedConversation[]>([]);
-  const { setCommand } = useAgentChatBridge();
+  const { setCommand, conversations, conversationsAgentType } =
+    useAgentChatBridge();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const loadConversations = useCallback(() => {
-    try {
-      const stored = localStorage.getItem(
-        `${STORAGE_KEY_PREFIX}${agentType}`
-      );
-      if (stored) {
-        const parsed = JSON.parse(stored) as SavedConversation[];
-        setConversations(parsed);
-      } else {
-        setConversations([]);
-      }
-    } catch {
-      setConversations([]);
-    }
-  }, [agentType]);
-
-  // Reload conversations when agentType changes
-  useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+  // Show only conversations for the agent currently mounted in the page.
+  // The bridge can briefly hold a prior agent's list during an agentType swap
+  // — gating on conversationsAgentType keeps the dropdown from showing stale
+  // entries from the previous tab.
+  const visibleConversations =
+    conversationsAgentType === agentType ? conversations : [];
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -64,8 +42,7 @@ const AgentHeaderInput = ({ agentType }: AgentHeaderInputProps) => {
   }, []);
 
   const handleFocus = () => {
-    loadConversations();
-    if (conversations.length > 0) {
+    if (visibleConversations.length > 0) {
       setShowDropdown(true);
     }
   };
@@ -83,10 +60,12 @@ const AgentHeaderInput = ({ agentType }: AgentHeaderInputProps) => {
     }
   };
 
-  const handleConversationClick = (id: string) => {
+  const handleConversationClick = (id: number) => {
     setCommand({
       type: "load_conversation",
-      payload: id,
+      // The command bridge carries a string payload — stringify the numeric
+      // server id; the drawer parses it back with Number().
+      payload: String(id),
       timestamp: Date.now(),
     });
     setShowDropdown(false);
@@ -103,9 +82,9 @@ const AgentHeaderInput = ({ agentType }: AgentHeaderInputProps) => {
         onKeyDown={handleKeyDown}
         placeholder={PLACEHOLDER[agentType]}
       />
-      {showDropdown && conversations.length > 0 && (
+      {showDropdown && visibleConversations.length > 0 && (
         <div className={styles.dropdown}>
-          {conversations.map((conv) => (
+          {visibleConversations.map((conv) => (
             <div
               key={conv.id}
               className={styles.dropdownItem}
