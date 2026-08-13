@@ -445,13 +445,28 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
             });
     };
 
-    const calculateSummary = (summary: GlobalSummaryInterface, read: SecuritiesRead) => {
-        const updatedSummary = {...summary};
-        const updatedRead = {...read};
+    const calculateSummary = (_summary: GlobalSummaryInterface, _read: SecuritiesRead) => {
+        // Recompute totals from scratch each call so that a refresh (which
+        // replaces state.summaries[key] with fresh data) actually re-lands in
+        // the displayed totals. The previous implementation seeded from the
+        // caller's `summary` and gated accumulation on `!read[key]`, which
+        // meant the second-and-later calls skipped every already-seen key —
+        // the refresh button dispatched fresh data but the sums never
+        // re-added it, so displayed values never changed. (ak-kpd)
+        const updatedSummary: GlobalSummaryInterface = {
+            totalInvestment: 0,
+            currentValue: 0,
+            profit: 0,
+            profitPercentage: 0,
+        };
+        const updatedRead: SecuritiesRead = {
+            ppf: false, epf: false, nps: false,
+            stocks: false, gold: false, mf: false, fo: false,
+        };
         const processContext = (keys: string[], isEPG: boolean) => {
             keys.forEach((key) => {
                 const data = state.summaries[key];
-                if (!read[key] && (isEPG ? data.net !== 0 : data.totalValue !== 0)) {
+                if (isEPG ? data.net !== 0 : data.totalValue !== 0) {
                     updatedRead[key] = true;
 
                     if (isEPG) {
