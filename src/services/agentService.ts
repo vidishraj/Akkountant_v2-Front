@@ -1,5 +1,6 @@
 import { auth } from "../components/FirebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { API_BASE_URL } from "./AxiosConfig.tsx";
 
 export type AgentType = "investment" | "transaction" | "freelance";
@@ -220,6 +221,29 @@ async function getFirebaseUID(): Promise<string> {
   });
 }
 
+/**
+ * Marker used by onopen to short-circuit onmessage / retry on a non-2xx.
+ * We already reported the error via callbacks.onError; the top-level catch
+ * checks for this to avoid double-reporting.
+ */
+class ServerResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ServerResponseError";
+  }
+}
+
+/**
+ * POSTs a chat turn to /agent/chat and streams the SSE response through the
+ * provided callbacks. Uses `@microsoft/fetch-event-source` rather than the
+ * raw fetch() + response.body.getReader() pattern because iOS Safari / WebKit
+ * has a known bug that aborts fetch-streamed POST responses after the first
+ * flush if there's a silent gap before the second frame — which is exactly
+ * what happens on the attachment path (backend spends N seconds vision-
+ * processing images between the leading conversation_id event and the first
+ * text token). The polyfill's WebKit fallback path bypasses the fetch-stream
+ * layer entirely, so the connection stays open. (ak-7gs)
+ */
 export async function streamAgentChat(
   agentType: AgentType,
   messages: AgentMessage[],
@@ -230,54 +254,53 @@ export async function streamAgentChat(
 ): Promise<void> {
   const uid = await getFirebaseUID();
 
-  const response = await fetch(`${API_BASE_URL}agent/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Firebase-ID": uid,
-    },
-    body: JSON.stringify({
-      agent_type: agentType,
-      messages,
-      confirmed_tools: confirmedTools,
-      // Only include attachments when present — keeps the wire format clean and
-      // lets older backends ignore the field entirely.
-      ...(attachments && attachments.length > 0 ? { attachments } : {}),
-      // conversation_id is omitted on a fresh chat (backend auto-creates and
-      // emits the LEADING "conversation_id" SSE event); set on subsequent turns
-      // to persist into the existing thread.
-      ...(typeof conversationId === "number" ? { conversation_id: conversationId } : {}),
-    }),
-  });
+  try {
+    await fetchEventSource(`${API_BASE_URL}agent/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Firebase-ID": uid,
+      },
+      body: JSON.stringify({
+        agent_type: agentType,
+        messages,
+        confirmed_tools: confirmedTools,
+        // Only include attachments when present — keeps the wire format clean and
+        // lets older backends ignore the field entirely.
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
+        // conversation_id is omitted on a fresh chat (backend auto-creates and
+        // emits the LEADING "conversation_id" SSE event); set on subsequent turns
+        // to persist into the existing thread.
+        ...(typeof conversationId === "number" ? { conversation_id: conversationId } : {}),
+      }),
+      // Default behaviour pauses the stream when the tab is backgrounded; the
+      // chat turn is short-lived and pausing would look like a hang, so keep
+      // the connection alive regardless of visibility.
+      openWhenHidden: true,
+      onopen: async (response) => {
+        // Match the pre-polyfill response.ok check. Draining response.text()
+        // lets the connection close cleanly instead of dangling.
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          callbacks.onError(`Server error: ${response.status} - ${errorText}`);
+          // Throwing here aborts the polyfill (no retry, no onmessage calls).
+          throw new ServerResponseError(`HTTP ${response.status}`);
+        }
+      },
+      onmessage: (ev) => {
+        // The polyfill parses SSE framing itself and hands us the payload as
+        // `ev.data` — the string that used to sit after "data: ", minus the
+        // trailing "\n\n". Empty data lines (SSE keepalive `:` comments) come
+        // through with ev.data === "".
+        if (!ev.data) return;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    callbacks.onError(`Server error: ${response.status} - ${errorText}`);
-    return;
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    callbacks.onError("No response stream available");
-    return;
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-
-      try {
-        const event: SSEEvent = JSON.parse(line.slice(6));
+        let event: SSEEvent;
+        try {
+          event = JSON.parse(ev.data);
+        } catch {
+          // Ignore malformed SSE lines (matches pre-polyfill behaviour).
+          return;
+        }
 
         switch (event.type) {
           case "conversation_id":
@@ -312,9 +335,22 @@ export async function streamAgentChat(
             callbacks.onError(event.message || "Unknown error");
             break;
         }
-      } catch {
-        // Ignore malformed SSE lines
-      }
-    }
+      },
+      onerror: (err) => {
+        // The polyfill's default is to retry with exponential backoff on any
+        // error. The caller controls retries at a higher level, so throw here
+        // to abort the polyfill's retry loop.
+        if (err instanceof ServerResponseError) {
+          // Already surfaced via onopen; just rethrow to abort.
+          throw err;
+        }
+        callbacks.onError(err instanceof Error ? err.message : String(err));
+        throw err;
+      },
+    });
+  } catch {
+    // Every failure path already reported via callbacks.onError. Swallow so
+    // the caller's try/catch doesn't stack a second "Connection error: ..."
+    // message on top of the one we already surfaced.
   }
 }

@@ -12,6 +12,7 @@
   "dependencies": {
     "@mui/icons-material": "^6.1.7",
     "@mui/lab": "^6.0.0-beta.15",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@mui/x-charts": "^7.23.2",
     "@mui/x-date-pickers": "^7.22.2",
     "@testing-library/jest-dom": "^6.6.3",
