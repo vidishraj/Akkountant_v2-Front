@@ -12,6 +12,7 @@ import Header from "./components/Header/Header.tsx";
 import {MSNProvider} from "./contexts/MSNContext.tsx";
 import {MessageProvider} from "./contexts/MessageContext.tsx";
 import {AgentChatBridgeProvider} from "./contexts/AgentChatBridgeContext.tsx";
+import {WealthDigestProvider} from "./contexts/WealthDigestContext.tsx";
 import {KiteProvider} from "./contexts/KiteContext.tsx";
 import NotificationMessage from "./components/NotificationBanner/NotificationBanner.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
@@ -27,6 +28,7 @@ createRoot(document.getElementById("root")!).render(
                             <FileFilterProvider>
                                 <MSNProvider>
                                     <KiteProvider>
+                                        <WealthDigestProvider>
                                         <NotificationMessage>
                                         <div className="layout">
                                             <div className="header"><Header/></div>
@@ -38,6 +40,7 @@ createRoot(document.getElementById("root")!).render(
                                             <div className="footer">© 2025 Akkountant</div>
                                         </div>
                                     </NotificationMessage>
+                                    </WealthDigestProvider>
                                     </KiteProvider>
                                 </MSNProvider>
                             </FileFilterProvider>

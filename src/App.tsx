@@ -10,6 +10,7 @@ import InvestmentsLanding from './pages/Investments/InvestmentsLanding.tsx';
 import InvestmentDetail from './pages/Investments/InvestmentDetail.tsx';
 import Freelance from './pages/Freelance/Freelance.tsx';
 import Files from './pages/Files/Files.tsx';
+import WealthDigest from './pages/WealthDigest/WealthDigest.tsx';
 
 import {useLoading} from "./contexts/LoadingContext.tsx";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
@@ -107,6 +108,7 @@ function App() {
                     </Route>
                     <Route path="/freelance" element={<PrivateRoute><Freelance/></PrivateRoute>}/>
                     <Route path="/files" element={<PrivateRoute><Files/></PrivateRoute>}/>
+                    <Route path="/wealth-digest" element={<PrivateRoute><WealthDigest/></PrivateRoute>}/>
                 </>
             }
         </Routes>

@@ -6,16 +6,20 @@ import PaidIcon from '@mui/icons-material/Paid';
 import LogoutIcon from '@mui/icons-material/Logout';
 import WorkIcon from '@mui/icons-material/Work';
 import PublicIcon from '@mui/icons-material/Public';
+import InsightsIcon from '@mui/icons-material/Insights';
+import Badge from '@mui/material/Badge';
 import {getAuth, signOut} from 'firebase/auth';
 import HomeIcon from '@mui/icons-material/Home';
 import JobsDialog from './JobsDialogComponent/JobsDialogComponent.tsx';
 import PortfolioVisitorsModal from './PortfolioVisitorsModal/PortfolioVisitorsModal.tsx';
+import {useWealthDigest} from '../contexts/WealthDigestContext.tsx';
 
 const SideBar = () => {
     const [collapsed, setCollapsed] = useState(true);
     const [jobsDialogOpen, setJobsDialogOpen] = useState(false);
     const [visitorsModalOpen, setVisitorsModalOpen] = useState(false);
     const navigate = useNavigate()
+    const {hasUnread: hasUnreadDigest} = useWealthDigest();
 
     async function logOut() {
         const auth = getAuth();
@@ -51,6 +55,21 @@ const SideBar = () => {
                     </MenuItem>
                     <MenuItem icon={<PaidIcon/>} component={<Link to="/investments"/>}>
                         Investments
+                    </MenuItem>
+                    <MenuItem
+                        icon={
+                            <Badge
+                                color="error"
+                                variant="dot"
+                                invisible={!hasUnreadDigest}
+                                overlap="circular"
+                            >
+                                <InsightsIcon/>
+                            </Badge>
+                        }
+                        component={<Link to="/wealth-digest"/>}
+                    >
+                        Wealth Digest
                     </MenuItem>
                     <MenuItem icon={<WorkIcon/>} onClick={() => setJobsDialogOpen(true)}>
                         Jobs

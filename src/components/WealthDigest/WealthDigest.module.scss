@@ -1,0 +1,574 @@
+// Shared color roles for the WealthDigest surface. Declared once at the top so
+// swapping the app-wide dark theme later means editing one block. Every value
+// here already lives elsewhere in the app palette — we're just giving them
+// component-scoped role names so the CSS below reads intent, not hex.
+//
+// Palette lineage:
+// - `--wd-surface`      = existing card surface (#1a2530)
+// - `--wd-surface-hover`= same surface, one step lighter
+// - `--wd-border`       = existing divider color (#29384D)
+// - `--wd-text-primary` = existing near-white body text (#FAFAFA)
+// - `--wd-text-secondary`= existing muted label token (#7a7d85)
+// - `--wd-accent`       = existing brand blue used for CTAs (#4A90E2)
+// - `--wd-positive`     = existing green used for gain deltas (#4caf50)
+// - `--wd-negative`     = existing red used for loss deltas (#f44336)
+// - `--wd-page-bg`      = existing page background (#121C24)
+//
+// The `text wears text tokens, never data color` rule from the dataviz skill
+// is honored: only tileDelta_{polarity} classes color text, and only because
+// the delta text is carrying a semantic up/down signal — one of the two
+// explicit exceptions in the tile-contract spec.
+
+.wealthDigestRoot {
+  --wd-surface: #1a2530;
+  --wd-surface-hover: #223143;
+  --wd-border: #29384D;
+  --wd-text-primary: #FAFAFA;
+  --wd-text-secondary: #7a7d85;
+  --wd-text-muted: #5a5f68;
+  --wd-accent: #4A90E2;
+  --wd-accent-hover: #357ABD;
+  --wd-positive: #4caf50;
+  --wd-negative: #f44336;
+  --wd-page-bg: #121C24;
+
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  color: var(--wd-text-primary);
+
+  @media (max-width: 900px) {
+    padding: 16px;
+  }
+}
+
+// ── Header row ──────────────────────────────────────────────────────────────
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.headerTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--wd-text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.headerDate {
+  font-size: 16px;
+  color: var(--wd-text-secondary);
+  font-weight: 400;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.historyBtn {
+  color: var(--wd-text-secondary);
+  text-transform: none;
+  font-size: 13px;
+  &:hover {
+    color: var(--wd-text-primary);
+    background: var(--wd-surface-hover);
+  }
+}
+
+.backToTodayBtn {
+  color: var(--wd-accent);
+  text-transform: none;
+  font-size: 13px;
+}
+
+.disclosureChip {
+  background: transparent;
+  color: var(--wd-text-secondary);
+  border: 1px solid var(--wd-border);
+  font-size: 11px;
+  height: 22px;
+  letter-spacing: 0.3px;
+}
+
+// ── Tile row (responsive grid) ──────────────────────────────────────────────
+
+.tileRow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+
+  // Overseer-locked Q3: 5-across desktop (>=900px), 2-col tablet (600-899px)
+  // with Total-hero spanning both, 1-col phone (<600px). The prior <=1200px
+  // trigger regressed the 900-1200px laptop range into tablet layout.
+  @media (max-width: 899px) {
+    grid-template-columns: repeat(2, 1fr);
+    & > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 599px) {
+    grid-template-columns: 1fr;
+    & > :first-child {
+      grid-column: auto;
+    }
+  }
+}
+
+// ── Single tile ─────────────────────────────────────────────────────────────
+
+.tile {
+  background: var(--wd-surface) !important;
+  border: 1px solid var(--wd-border);
+  border-radius: 8px !important;
+  overflow: hidden;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.tileClickable {
+  cursor: pointer;
+  &:hover {
+    background: var(--wd-surface-hover) !important;
+    border-color: var(--wd-accent);
+  }
+  &:focus-within {
+    outline: 2px solid var(--wd-accent);
+    outline-offset: 2px;
+  }
+}
+
+.tileHero {
+  // Hero variant — no extra styling beyond the value size; the tile itself
+  // stays visually calm so the number is what draws the eye.
+}
+
+.tileInner {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 96px;
+  &:focus {
+    outline: none;
+  }
+}
+
+.tileLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--wd-text-secondary);
+  margin-bottom: 2px;
+}
+
+.tileValue {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--wd-text-primary);
+  line-height: 1.2;
+  // Proportional figures — per dataviz skill, hero/tile values should NOT use
+  // tabular-nums (that's for aligned columns of numbers, not standalone).
+  font-variant-numeric: proportional-nums;
+}
+
+.tileValueHero {
+  @extend .tileValue;
+  font-size: 32px;
+  font-weight: 700;
+
+  @media (max-width: 600px) {
+    font-size: 28px;
+  }
+}
+
+.tileSubtitle {
+  font-size: 12px;
+  color: var(--wd-text-secondary);
+  margin-top: 2px;
+}
+
+.tileDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+  font-variant-numeric: proportional-nums;
+}
+
+// Only the delta text carries color — semantic direction signal, not identity.
+.tileDelta_positive {
+  color: var(--wd-positive);
+}
+.tileDelta_negative {
+  color: var(--wd-negative);
+}
+.tileDelta_neutral {
+  color: var(--wd-text-secondary);
+}
+
+// ── Body band ───────────────────────────────────────────────────────────────
+
+.bodyBand {
+  background: var(--wd-surface);
+  border: 1px solid var(--wd-border);
+  border-radius: 8px;
+  padding: 24px 20px;
+  margin-bottom: 20px;
+}
+
+.bodyInner {
+  max-width: 700px;
+  margin: 0 auto;
+  color: var(--wd-text-primary);
+  font-size: 15px;
+  line-height: 1.7;
+
+  h1, h2, h3, h4 {
+    color: var(--wd-text-primary);
+    margin-top: 20px;
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+  h1 { font-size: 20px; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 16px; }
+  h4 { font-size: 15px; }
+
+  p {
+    margin: 0 0 12px 0;
+  }
+
+  ul, ol {
+    padding-left: 22px;
+    margin: 0 0 12px 0;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+
+  a {
+    color: var(--wd-accent);
+    text-decoration: underline;
+    &:hover {
+      color: var(--wd-accent-hover);
+    }
+  }
+
+  code {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  pre {
+    background: rgba(0, 0, 0, 0.25);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    code {
+      background: transparent;
+      padding: 0;
+    }
+  }
+
+  blockquote {
+    border-left: 3px solid var(--wd-accent);
+    margin: 12px 0;
+    padding: 4px 12px;
+    color: var(--wd-text-secondary);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--wd-border);
+    padding: 6px 10px;
+    text-align: left;
+  }
+  th {
+    background: rgba(255, 255, 255, 0.03);
+    font-weight: 600;
+  }
+}
+
+// ── Actions row ─────────────────────────────────────────────────────────────
+
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.primaryActionBtn {
+  background: var(--wd-accent) !important;
+  color: var(--wd-text-primary) !important;
+  text-transform: none !important;
+  font-weight: 500 !important;
+  &:hover {
+    background: var(--wd-accent-hover) !important;
+  }
+  &:disabled {
+    background: var(--wd-text-muted) !important;
+    color: var(--wd-text-secondary) !important;
+  }
+}
+
+.secondaryActionBtn {
+  color: var(--wd-text-primary) !important;
+  border-color: var(--wd-border) !important;
+  text-transform: none !important;
+  font-weight: 500 !important;
+  &:hover {
+    border-color: var(--wd-accent) !important;
+    background: var(--wd-surface-hover) !important;
+  }
+}
+
+.readIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--wd-positive);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border: 1px solid var(--wd-border);
+  border-radius: 4px;
+  background: rgba(76, 175, 80, 0.08);
+}
+
+.kebabBtn {
+  color: var(--wd-text-secondary) !important;
+  &:hover {
+    color: var(--wd-text-primary) !important;
+    background: var(--wd-surface-hover) !important;
+  }
+}
+
+// ── State banners ───────────────────────────────────────────────────────────
+
+.stateBanner {
+  margin-bottom: 16px;
+  border-radius: 6px !important;
+}
+
+.errorDetail {
+  color: var(--wd-text-secondary);
+  font-size: 12px;
+}
+
+.retryLink {
+  color: var(--wd-text-primary) !important;
+  text-decoration: underline !important;
+  cursor: pointer;
+  background: transparent !important;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+// ── Not-configured full-page state ──────────────────────────────────────────
+
+.notConfiguredRoot {
+  max-width: 640px;
+  margin: 60px auto;
+  padding: 32px;
+  background: var(--wd-surface);
+  border: 1px solid var(--wd-border);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.notConfiguredTitle {
+  color: var(--wd-text-primary);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.notConfiguredBody {
+  color: var(--wd-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  code {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--wd-text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+}
+
+.notConfiguredLink {
+  color: var(--wd-accent) !important;
+  font-weight: 600;
+  &:hover {
+    color: var(--wd-accent-hover) !important;
+  }
+}
+
+// ── Skeleton ────────────────────────────────────────────────────────────────
+
+.skeletonRoot {
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  @media (max-width: 900px) {
+    padding: 16px;
+  }
+}
+
+.skeletonHeader {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 24px;
+}
+
+.skeletonTileRow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+  // Match .tileRow breakpoints exactly so the transition to loaded state
+  // doesn't shift the layout.
+  @media (max-width: 899px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 599px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skeletonTile {
+  height: 96px;
+  border-radius: 8px !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.skeletonBody {
+  background: var(--wd-surface);
+  border: 1px solid var(--wd-border);
+  border-radius: 8px;
+  padding: 24px 20px;
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+// ── Archive modal ───────────────────────────────────────────────────────────
+
+.archiveDialog {
+  // Dialog root — Paper handles most styling
+}
+
+.archiveDialogPaper {
+  background: var(--wd-page-bg) !important;
+  color: var(--wd-text-primary) !important;
+  border: 1px solid var(--wd-border);
+}
+
+.archiveDialogTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px !important;
+  color: var(--wd-text-primary);
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
+
+.archiveCloseBtn {
+  color: var(--wd-text-secondary) !important;
+}
+
+.archiveDialogContent {
+  padding: 8px 20px 16px !important;
+}
+
+.archiveHint {
+  color: var(--wd-text-secondary);
+  font-size: 13px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.archiveDateInput {
+  margin-bottom: 12px !important;
+  .MuiOutlinedInput-root {
+    color: var(--wd-text-primary);
+    background: var(--wd-surface);
+    fieldset {
+      border-color: var(--wd-border);
+    }
+  }
+  .MuiInputLabel-root {
+    color: var(--wd-text-secondary);
+  }
+}
+
+.archiveList {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--wd-border);
+  border-radius: 4px;
+  background: var(--wd-surface);
+  .MuiListItemButton-root {
+    color: var(--wd-text-primary);
+    &:hover {
+      background: var(--wd-surface-hover);
+    }
+    &.Mui-selected {
+      background: var(--wd-accent);
+    }
+  }
+}
+
+.archiveNotice {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--wd-text-secondary);
+  font-size: 13px;
+}
+
+.archiveNoticeError {
+  color: var(--wd-negative);
+  background: rgba(244, 67, 54, 0.08);
+}
+
+.archiveCancelBtn {
+  color: var(--wd-text-secondary) !important;
+  text-transform: none !important;
+}

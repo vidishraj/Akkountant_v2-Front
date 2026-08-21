@@ -712,7 +712,9 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
     window.SpeechRecognition || window.webkitSpeechRecognition
   );
 
-  // Listen for commands from header input
+  // Listen for commands from header input (and from other pages via the
+  // bridge, e.g. WealthDigest's "Ask follow-up" button which dispatches
+  // open_drawer just before/after navigating here).
   useEffect(() => {
     if (!command) return;
     if (command.type === "send_message") {
@@ -726,6 +728,10 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
         setIsOpen(true);
         void switchConversation(id);
       }
+    } else if (command.type === "open_drawer") {
+      // Payload is ignored — just open the drawer. Used when the caller
+      // wants the drawer visible without sending or switching.
+      setIsOpen(true);
     }
     clearCommand();
   }, [command, clearCommand, sendMessage, switchConversation]);

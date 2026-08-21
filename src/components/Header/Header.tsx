@@ -35,6 +35,9 @@ import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
 import { getFileTimeStamps } from "../../services/investmentService.ts";
 import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
 import PortfolioVisitorsModal from "../PortfolioVisitorsModal/PortfolioVisitorsModal.tsx";
+import InsightsIcon from "@mui/icons-material/Insights";
+import Badge from "@mui/material/Badge";
+import { useWealthDigest } from "../../contexts/WealthDigestContext.tsx";
 
 const Header = () => {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -60,6 +63,7 @@ const Header = () => {
   const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
   const [jobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
   const [visitorsModalOpen, setVisitorsModalOpen] = useState<boolean>(false);
+  const { hasUnread: hasUnreadDigest } = useWealthDigest();
   useEffect(() => {
     if (currentUser) {
       getFileTimeStamps()
@@ -133,6 +137,26 @@ const Header = () => {
                   <Link style={{ color: "#FAFAFA" }} to={"/files"}>
                     Files
                   </Link>
+                </Button>
+                <Button
+                  sx={{ mx: 1 }}
+                  onClick={() => {
+                    navigate("/wealth-digest");
+                  }}
+                  className={styles.links}
+                >
+                  <Badge
+                    color="error"
+                    variant="dot"
+                    invisible={!hasUnreadDigest}
+                    overlap="rectangular"
+                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                    sx={{ "& .MuiBadge-dot": { transform: "translate(6px, -4px)" } }}
+                  >
+                    <Link style={{ color: "#FAFAFA" }} to={"/wealth-digest"}>
+                      Wealth Digest
+                    </Link>
+                  </Badge>
                 </Button>
               </>
             )}
@@ -273,6 +297,23 @@ const Header = () => {
               sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
             >
               <ListItemText primary="Files" sx={{ color: "white" }} />
+            </ListItem>
+            <ListItem
+              onClick={() => {
+                navigate("/wealth-digest");
+                setMobileMenuOpen(false);
+              }}
+              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
+            >
+              <Badge
+                color="error"
+                variant="dot"
+                invisible={!hasUnreadDigest}
+                sx={{ "& .MuiBadge-dot": { transform: "translate(4px, 4px)" } }}
+              >
+                <InsightsIcon fontSize="small" sx={{ mr: 1, color: "white" }} />
+              </Badge>
+              <ListItemText primary="Wealth Digest" sx={{ color: "white" }} />
             </ListItem>
           </List>
           {activeAgentType && (

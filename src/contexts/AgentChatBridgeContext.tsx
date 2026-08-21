@@ -8,9 +8,20 @@ import React, {
 import { AgentType, Conversation } from "../services/agentService";
 
 interface AgentChatCommand {
-  // load_conversation now carries a numeric conversation id (server-issued).
-  // send_message still carries a free-text payload as a string.
-  type: "send_message" | "load_conversation";
+  // - send_message: free-text payload; AgentChat opens the drawer + fires the
+  //   payload as a user message.
+  // - load_conversation: numeric conversation id as a string; AgentChat opens
+  //   the drawer + switches to that thread.
+  // - open_drawer: opens the drawer without sending or switching. Payload is
+  //   ignored. Used by pages that want to trigger the drawer without a
+  //   specific message — e.g. the WealthDigest "Ask follow-up" button, which
+  //   navigates to a chat-hosting route and asks the drawer to open on
+  //   arrival. Prevents the stale-command landmine: without this type, an
+  //   Ask-follow-up click on a page that DOESN'T host AgentChat would leave
+  //   a send_message command dangling in the bridge until the user's next
+  //   navigation to Investments/Transactions/Freelance, at which point the
+  //   drawer would spring open unexpectedly.
+  type: "send_message" | "load_conversation" | "open_drawer";
   payload: string;
   timestamp: number;
 }
