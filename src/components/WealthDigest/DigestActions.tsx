@@ -3,6 +3,7 @@ import { Box, Button, IconButton, Menu, MenuItem, Tooltip } from "@mui/material"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import SnoozeIcon from "@mui/icons-material/Snooze";
 import style from "./WealthDigest.module.scss";
@@ -27,6 +28,14 @@ interface DigestActionsProps {
    * is in-flight so the user can't fire duplicate mark-read/etc requests.
    */
   disabled?: boolean;
+  /**
+   * When true, the row applies sticky positioning at the top of its container
+   * so Ask follow-up + Mark read stay visible on scroll. Wave 3 Lane 4 spec:
+   * we picked sticky-to-container-top rather than fixed-to-viewport-bottom
+   * because it stays scoped to the digest area (no full-page overlay to
+   * dismiss) and matches the header pattern on the same page.
+   */
+  sticky?: boolean;
 }
 
 /**
@@ -48,13 +57,16 @@ const DigestActions: React.FC<DigestActionsProps> = ({
   onCopy,
   onSnooze,
   disabled = false,
+  sticky = false,
 }) => {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   const closeMenu = () => setMenuAnchor(null);
 
   return (
-    <Box className={style.actionsRow}>
+    <Box
+      className={`${style.actionsRow} ${sticky ? style.actionsRowSticky : ""}`}
+    >
       <Button
         className={style.primaryActionBtn}
         onClick={onAskFollowUp}
@@ -68,8 +80,8 @@ const DigestActions: React.FC<DigestActionsProps> = ({
       {alreadyRead ? (
         <Tooltip title="Digest already marked read" arrow>
           <span className={style.readIndicator} aria-label="Digest already read">
-            <MarkEmailReadIcon fontSize="small" />
-            Read
+            <CheckCircleIcon fontSize="small" />
+            Marked read
           </span>
         </Tooltip>
       ) : (

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useMSNContext } from "../../contexts/MSNContext.tsx";
 import { useWealthDigest } from "../../contexts/WealthDigestContext.tsx";
@@ -12,7 +12,11 @@ import { MSNListResponse } from "../../utils/interfaces.ts";
 import StatTileRow from "../../components/WealthDigest/StatTileRow.tsx";
 import StatTile from "../../components/WealthDigest/StatTile.tsx";
 import DigestHeader from "../../components/WealthDigest/DigestHeader.tsx";
-import DigestBody from "../../components/WealthDigest/DigestBody.tsx";
+import NarrativeSection from "../../components/WealthDigest/NarrativeSection.tsx";
+import ActionCard from "../../components/WealthDigest/ActionCard.tsx";
+import WatchItemCard from "../../components/WealthDigest/WatchItemCard.tsx";
+import NewsCard from "../../components/WealthDigest/NewsCard.tsx";
+import InsightsColumn from "../../components/WealthDigest/InsightsColumn.tsx";
 import DigestActions from "../../components/WealthDigest/DigestActions.tsx";
 import DigestArchiveModal from "../../components/WealthDigest/DigestArchiveModal.tsx";
 import DigestSkeleton from "../../components/WealthDigest/DigestSkeleton.tsx";
@@ -21,21 +25,68 @@ import {
   DigestErrorBanner,
   DigestNotConfigured,
   DigestTransientErrorBanner,
+  DigestZeroEmpty,
 } from "../../components/WealthDigest/DigestStateBanners.tsx";
-import { formatCompact, formatCurrency } from "../../components/WealthDigest/formatters.ts";
+import {
+  formatCompact,
+  formatCurrency,
+} from "../../components/WealthDigest/formatters.ts";
 import wdStyle from "../../components/WealthDigest/WealthDigest.module.scss";
 
 const SNOOZE_LOCAL_KEY = "wealthDigestSnoozedUntil";
+const ACTION_DONE_LOCAL_KEY_PREFIX = "wealthDigestActionsDone:";
+const ACTION_DONE_TTL_DAYS = 30;
 const MSN_KEYS = ["stocks", "mf", "nps"] as const;
 const EPG_KEYS = ["ppf", "epf", "gold"] as const;
 
 /**
- * Derives the current portfolio total from MSNContext.summaries — matches the
- * accumulation logic in GlobalSummary's calculateSummary (ak-kpd made that
- * idempotent). We inline the sum here rather than call calculateSummary
- * because the signature there takes callback-owned `summary`/`read` that we
- * don't have on the WealthDigest page.
+ * Sweeps `wealthDigestActionsDone:YYYY-MM-DD` localStorage keys whose date
+ * suffix is older than the archive window. Runs once on page mount to keep
+ * the key namespace bounded — otherwise every day's checkbox state persists
+ * forever, silently growing the origin's localStorage quota. Idempotent and
+ * best-effort: parse failures / non-standard keys are skipped rather than
+ * throwing.
  */
+function sweepStaleActionDoneKeys(cutoffIso: string): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(ACTION_DONE_LOCAL_KEY_PREFIX)) continue;
+      const dateSuffix = key.slice(ACTION_DONE_LOCAL_KEY_PREFIX.length);
+      // Only sweep well-formed date-suffixed keys; leave anything else alone.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateSuffix)) continue;
+      if (dateSuffix < cutoffIso) keysToRemove.push(key);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // localStorage unavailable / quota-limited — sweep is optimistic; no-op.
+  }
+}
+
+const ALLOCATION_LABELS: Record<string, string> = {
+  stocks: "Stocks",
+  mf: "Mutual funds",
+  nps: "NPS",
+  epf: "EPF",
+  ppf: "PPF",
+  gold: "Gold",
+};
+
+/**
+ * IST-anchored `YYYY-MM-DD` for today. Uses en-CA locale to guarantee the
+ * ISO-shaped output rather than a human "8/21/2026" string. Overseer's
+ * Lane 1b fix: previously `new Date().toISOString().slice(0,10)` used UTC,
+ * which during the 00:00–05:30 IST early-morning window would resolve to
+ * the previous day and false-alarm the "stale digest" banner even while
+ * the current day's digest was rendering below.
+ */
+function todayInIST(): string {
+  return new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
+}
+
 function derivePortfolioTotal(summaries: Record<string, any>): {
   totalInvestment: number;
   currentValue: number;
@@ -80,15 +131,18 @@ function derivePortfolioTotal(summaries: Record<string, any>): {
 }
 
 /**
- * Walks all MSN lists to find the top and worst per-asset movers for today.
- * Per-asset day-change = (info.change * buyQuant); we compare in absolute-
- * value terms so a large ₹ movement wins over a large % movement on a tiny
- * position. Ties break by first-seen order (Object.entries iteration).
- *
- * We track the asset's category (stocks / mf / nps) alongside its name so
- * the tile can drill down to `/investments/{category}` — matching the
- * :asset route param, which is category-scoped not per-security.
+ * Rough "is MSNContext populated?" check. Every category starts with a zero-
+ * initialized summary object, so a genuinely empty state has every currentValue
+ * and net at zero. Returns true if we should trigger a bootstrap fetch.
  */
+function msnLooksEmpty(summaries: Record<string, any>): boolean {
+  const msnZero = MSN_KEYS.every(
+    (k) => Number(summaries[k]?.currentValue) === 0
+  );
+  const epgZero = EPG_KEYS.every((k) => Number(summaries[k]?.net) === 0);
+  return msnZero && epgZero;
+}
+
 type Mover = {
   name: string;
   category: (typeof MSN_KEYS)[number];
@@ -137,85 +191,171 @@ function deriveMovers(lists: Record<string, MSNListResponse[]>): {
 }
 
 /**
- * WealthDigest page shell — the top-level route at /wealth-digest.
+ * Computes the allocation slices (per-category current value + percentage).
+ * Matches GlobalSummary's derivation exactly — we duplicate rather than
+ * refactor to avoid coupling to that file's in-flight polish (ak-xob).
+ */
+function deriveAllocation(
+  summaries: Record<string, any>,
+  totalCurrentValue: number
+): { key: string; label: string; value: number; pct: number }[] {
+  const out: { key: string; label: string; value: number; pct: number }[] = [];
+  MSN_KEYS.forEach((k) => {
+    const cv = Number(summaries[k]?.currentValue) || 0;
+    if (cv > 0) {
+      out.push({
+        key: k,
+        label: ALLOCATION_LABELS[k] ?? k,
+        value: cv,
+        pct: 0,
+      });
+    }
+  });
+  EPG_KEYS.forEach((k) => {
+    const s = summaries[k];
+    if (!s) return;
+    const cv =
+      k === "ppf"
+        ? Number(s.net) + Number(s.unAccountedProfit || 0)
+        : Number(s.net) || 0;
+    if (cv > 0) {
+      out.push({
+        key: k,
+        label: ALLOCATION_LABELS[k] ?? k,
+        value: cv,
+        pct: 0,
+      });
+    }
+  });
+  out.forEach((slice) => {
+    slice.pct =
+      totalCurrentValue > 0 ? (slice.value / totalCurrentValue) * 100 : 0;
+  });
+  return out;
+}
+
+/**
+ * WealthDigest page shell — Wave 3 dashboard-of-insights rebuild.
  *
- * Composition:
- * - Header (title, date, disclosure chip, history dropdown)
- * - Tile row (5 tiles derived from MSNContext live portfolio state)
- * - Digest body (markdown from BE, wrapped in a readable band)
- * - Action row (Ask follow-up, Mark read, kebab)
- * - Archive modal (opens from header, mounts lazily)
+ * Composition (desktop, 2-col grid):
  *
- * State variants:
- * - MSNContext still loading + no digest yet → DigestSkeleton
- * - not_configured code from BE → DigestNotConfigured (full-page empty)
- * - transient fetch error → DigestTransientErrorBanner with retry
- * - digest.last_error present → DigestErrorBanner + fallback content below
- * - digest date older than today → DigestEmptyBanner + last-successful content
- * - normal → tiles + body + actions
+ * ┌────────────────────────────┬────────────────┐
+ * │ Header + tiles (full-width)                 │
+ * ├────────────────────────────┼────────────────┤
+ * │ Digest column              │ Insights col.  │
+ * │ - Actions row (sticky)     │ - Trend chart  │
+ * │ - Action cards             │ - Alloc donut  │
+ * │ - Watch items                               │
+ * │ - News (hidden if empty)                    │
+ * │ - Narrative section                         │
+ * └────────────────────────────┴────────────────┘
+ *
+ * Tablet/phone: single column, insights column stacks below narrative.
+ *
+ * State variants (Wave 3):
+ * - not_configured → DigestNotConfigured (full-page empty)
+ * - not_generated → DigestZeroEmpty (never had a digest)
+ * - transient with no digest → banner
+ * - loading + no digest → skeleton
+ * - normal → full 2-col layout with structured components
  */
 const WealthDigest = () => {
   const navigate = useNavigate();
-  const { state } = useMSNContext();
+  const { state, globalInvestmentRefresh } = useMSNContext();
   const { digest: latestDigest, loading, error, refresh, markReadLocal } =
     useWealthDigest();
   const { setCommand } = useAgentChatBridge();
 
-  // When the user selects an older digest from the archive, we display it here
-  // and flip the header to viewing-past mode. `null` means we're on the latest.
   const [pastDigest, setPastDigest] = useState<WealthDigestPayload | null>(
     null
   );
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [markReadInFlight, setMarkReadInFlight] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [actionsDone, setActionsDone] = useState<Record<string, boolean>>({});
 
-  // The digest we actually display — past-if-picked, otherwise latest.
   const displayed = pastDigest ?? latestDigest;
 
-  // Derived KPI values (from MSNContext live state — NOT from the digest text)
   const totals = useMemo(
     () => derivePortfolioTotal(state.summaries),
     [state.summaries]
   );
   const movers = useMemo(() => deriveMovers(state.lists), [state.lists]);
+  const allocationSlices = useMemo(
+    () => deriveAllocation(state.summaries, totals.currentValue),
+    [state.summaries, totals.currentValue]
+  );
 
-  // Detect "digest text is stale relative to today" for the empty banner.
-  const todayIso = new Date().toISOString().slice(0, 10);
+  // IST-aware today check (Lane 1b fix)
+  const todayIso = todayInIST();
   const isStaleForToday =
     !!latestDigest && !pastDigest && latestDigest.date !== todayIso;
 
-  // Auto-clear the nav badge when the user lands on the page and the current
-  // digest is unread. The optimistic FE-only mark-read fires; the durable
-  // server POST fires alongside so cross-device state stays in sync.
+  // ── Lane 1a fix: MSNContext bootstrap ─────────────────────────────────────
+  // If the user hits /wealth-digest as their first authenticated page (nav
+  // badge draws them straight here) then MSNContext has never fetched, all
+  // tiles read as zero, and the whole KPI row is misleading. Trigger the
+  // same refresh the /investments page uses. globalInvestmentRefresh fires
+  // 8 parallel category fetches — worth doing once on mount, not on every
+  // rerender.
+  //
+  // Also sweep stale action-done localStorage keys older than the archive
+  // window — bounded namespace + free housekeeping on the one guaranteed
+  // mount surface for this feature.
+  useEffect(() => {
+    if (msnLooksEmpty(state.summaries)) {
+      globalInvestmentRefresh();
+    }
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - ACTION_DONE_TTL_DAYS);
+    sweepStaleActionDoneKeys(cutoff.toISOString().slice(0, 10));
+    // Intentionally not depending on state.summaries — we only want the
+    // bootstrap-on-mount fire, not a re-fire after the fetches populate it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Auto mark-read on visit (unchanged from Wave 2) ───────────────────────
   useEffect(() => {
     if (!latestDigest) return;
     if (latestDigest.read_at) return;
-    // Mark locally right away so the badge disappears immediately.
     markReadLocal();
-    // Fire and forget — visit-clears is a soft affordance; if this errors we
-    // don't want to surface it (the user's IN the page, they see it, that's
-    // the strongest possible "read" signal).
     void markDigestRead(latestDigest.date).catch(() => {
       /* swallow */
     });
-    // Only run once per (latest) digest change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestDigest?.date]);
 
+  // ── Action-done persistence (per-digest-date, localStorage) ───────────────
+  // We namespace by digest date so switching between "today" and an archive
+  // digest doesn't leak checkbox state across days. Reads on mount + on
+  // displayed-date change.
+  useEffect(() => {
+    if (!displayed) return;
+    const key = ACTION_DONE_LOCAL_KEY_PREFIX + displayed.date;
+    try {
+      const raw = localStorage.getItem(key);
+      setActionsDone(raw ? JSON.parse(raw) : {});
+    } catch {
+      setActionsDone({});
+    }
+  }, [displayed?.date]);
+
+  const handleToggleActionDone = (id: string, done: boolean) => {
+    if (!displayed) return;
+    const next = { ...actionsDone, [id]: done };
+    setActionsDone(next);
+    try {
+      localStorage.setItem(
+        ACTION_DONE_LOCAL_KEY_PREFIX + displayed.date,
+        JSON.stringify(next)
+      );
+    } catch {
+      // localStorage full / disabled — the UI update still happens; only
+      // persistence is lost. Not worth surfacing a snackbar for.
+    }
+  };
+
   const handleAskFollowUp = () => {
-    // AgentChat is only mounted on Investments / Transactions / Freelance —
-    // NOT here on /wealth-digest — so we route the user to /investments (the
-    // investment agent's natural home) and dispatch the open_drawer bridge
-    // command. When Investments' AgentChat mounts on arrival, it consumes
-    // the command and springs the drawer open.
-    //
-    // Hidden-context digest seeding — the ORIGINAL Q1 intent — is deferred
-    // to a P3 follow-up bead. The investment agent already has portfolio
-    // tools and can answer any follow-up on today's narrative without the
-    // digest text preloaded; the follow-up bead should extend the bridge
-    // with a proper seed_context command type + AgentChat surgery to
-    // prepend the digest as a hidden first turn on the user's next send.
     setCommand({
       type: "open_drawer",
       payload: "",
@@ -260,17 +400,11 @@ const WealthDigest = () => {
     }
   };
 
-  const handleSelectPastDigest = (d: WealthDigestPayload) => {
-    setPastDigest(d);
-  };
-
-  const handleBackToToday = () => {
-    setPastDigest(null);
-  };
+  const handleSelectPastDigest = (d: WealthDigestPayload) => setPastDigest(d);
+  const handleBackToToday = () => setPastDigest(null);
 
   // ── Rendering branches ────────────────────────────────────────────────────
 
-  // Not-configured is a full-page state — no tiles, no header.
   if (error?.code === "not_configured") {
     return (
       <Box className={wdStyle.wealthDigestRoot}>
@@ -279,12 +413,18 @@ const WealthDigest = () => {
     );
   }
 
-  // Skeleton while both the digest fetch AND MSN context are loading.
+  if (error?.code === "not_generated") {
+    return (
+      <Box className={wdStyle.wealthDigestRoot}>
+        <DigestZeroEmpty />
+      </Box>
+    );
+  }
+
   if (loading && !latestDigest) {
     return <DigestSkeleton />;
   }
 
-  // Transient error with no digest at all — render banner + skeleton beneath.
   if (error && !latestDigest) {
     return (
       <Box className={wdStyle.wealthDigestRoot}>
@@ -302,22 +442,25 @@ const WealthDigest = () => {
 
   const alreadyRead =
     !!displayed &&
-    (!!displayed.read_at || (displayed === latestDigest && !latestDigest?.read_at));
-  // Note: after the visit-auto-mark-read effect runs, latestDigest.read_at is
-  // still null in FE state until refresh() lands. The `(displayed ===
-  // latestDigest && !latestDigest?.read_at)` clause treats a visited-latest as
-  // "read" for button purposes — matches the badge behavior.
+    (!!displayed.read_at ||
+      (displayed === latestDigest && !latestDigest?.read_at));
+
+  const hasActions = (displayed?.actions?.length ?? 0) > 0;
+  const hasWatchItems = (displayed?.watch_items?.length ?? 0) > 0;
+  const hasNews = (displayed?.news?.length ?? 0) > 0;
+  const hasNarrative = !!displayed?.text;
 
   return (
     <Box className={wdStyle.wealthDigestRoot}>
       <DigestHeader
         date={displayed?.date ?? null}
+        generatedAt={displayed?.generated_at ?? null}
         onOpenHistory={() => setArchiveOpen(true)}
         viewingPast={!!pastDigest}
         onBackToToday={pastDigest ? handleBackToToday : undefined}
       />
 
-      {/* State banners — order: latest-stale (empty), then last_error, then transient */}
+      {/* State banners */}
       {!pastDigest && isStaleForToday && (
         <DigestEmptyBanner latestDate={displayed?.date ?? null} />
       )}
@@ -334,9 +477,7 @@ const WealthDigest = () => {
         />
       )}
 
-      {/* Tile row — always driven by live portfolio state, regardless of which
-          digest (today / past) is being viewed in the body. Overseer's Q2
-          intent: tiles are the "true now"; body is the narrative. */}
+      {/* Tile row — full-width above the 2-col split */}
       <StatTileRow>
         <StatTile
           label="Total"
@@ -452,31 +593,83 @@ const WealthDigest = () => {
         />
       </StatTileRow>
 
-      {/* Body */}
-      {displayed?.text && <DigestBody text={displayed.text} />}
+      {/* 2-col main body */}
+      <Box className={wdStyle.mainGrid}>
+        <Box className={wdStyle.digestColumn}>
+          {displayed && (
+            <DigestActions
+              alreadyRead={alreadyRead || markReadInFlight}
+              onAskFollowUp={handleAskFollowUp}
+              onMarkRead={handleMarkRead}
+              onCopy={handleCopy}
+              onSnooze={handleSnooze}
+              disabled={markReadInFlight}
+              sticky
+            />
+          )}
 
-      {/* Actions */}
-      {displayed && (
-        <DigestActions
-          alreadyRead={alreadyRead || markReadInFlight}
-          onAskFollowUp={handleAskFollowUp}
-          onMarkRead={handleMarkRead}
-          onCopy={handleCopy}
-          onSnooze={handleSnooze}
-          disabled={markReadInFlight}
-        />
-      )}
+          {hasActions && (
+            <Box className={wdStyle.section}>
+              <Typography className={wdStyle.sectionHeading} component="h2">
+                Actions
+              </Typography>
+              <Box className={wdStyle.cardStack}>
+                {displayed!.actions.map((a) => (
+                  <ActionCard
+                    key={a.id}
+                    action={a}
+                    done={!!actionsDone[a.id]}
+                    onToggleDone={handleToggleActionDone}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
 
-      {/* Archive modal (lazy) */}
+          {hasWatchItems && (
+            <Box className={wdStyle.section}>
+              <Typography className={wdStyle.sectionHeading} component="h2">
+                Keep an eye on
+              </Typography>
+              <Box className={wdStyle.cardStack}>
+                {displayed!.watch_items.map((w) => (
+                  <WatchItemCard key={w.id} item={w} />
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {hasNews && (
+            <Box className={wdStyle.section}>
+              <Typography className={wdStyle.sectionHeading} component="h2">
+                Market context
+              </Typography>
+              <Box className={wdStyle.cardStack}>
+                {displayed!.news.map((n) => (
+                  <NewsCard key={n.id} item={n} />
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {hasNarrative && <NarrativeSection text={displayed!.text} />}
+        </Box>
+
+        <Box className={wdStyle.insightsColumnSlot}>
+          <InsightsColumn
+            allocationSlices={allocationSlices}
+            totalCurrentValue={totals.currentValue}
+          />
+        </Box>
+      </Box>
+
+      {/* Archive modal */}
       <DigestArchiveModal
         open={archiveOpen}
         onClose={() => setArchiveOpen(false)}
         onSelectDigest={handleSelectPastDigest}
       />
 
-      {/* Snackbar for action feedback (kept inline instead of via a MUI
-          Snackbar to avoid another portal). It's a passive line at the bottom;
-          clears on next action. */}
       {snackbarMessage && (
         <Box
           role="status"

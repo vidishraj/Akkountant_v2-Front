@@ -6,6 +6,12 @@ import style from "./WealthDigest.module.scss";
 interface DigestHeaderProps {
   /** The digest's calendar date, ISO YYYY-MM-DD (IST). Rendered as "Wed, Aug 21". */
   date: string | null;
+  /**
+   * Digest generation timestamp (ISO 8601 UTC). Rendered as a small
+   * "Snapshot as of…" subtitle so the user knows how fresh the narrative
+   * is. Wave 3 lifted this out of a bottom-of-scroll location per Lane 4.
+   */
+  generatedAt?: string | null;
   /** Callback for the "History ▾" button — opens DigestArchiveModal. */
   onOpenHistory: () => void;
   /**
@@ -46,12 +52,32 @@ function formatDateLabel(iso: string): string {
  * band. It's the least-clutter position that still meets the code-enforced
  * disclosure requirement — reader sees it without it dominating the layout.
  */
+/**
+ * Humanizes ISO timestamp for the "Snapshot as of…" subtitle. Local tz on
+ * purpose — the reader wants to know when THEY are looking at it, not what
+ * the server thought UTC-wise.
+ */
+function formatSnapshotLabel(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
 const DigestHeader: React.FC<DigestHeaderProps> = ({
   date,
+  generatedAt,
   onOpenHistory,
   viewingPast = false,
   onBackToToday,
 }) => {
+  const snapshotLabel = generatedAt ? formatSnapshotLabel(generatedAt) : "";
   return (
     <Box className={style.headerRow}>
       <Box className={style.headerLeft}>
@@ -61,6 +87,11 @@ const DigestHeader: React.FC<DigestHeaderProps> = ({
         {date && (
           <Typography className={style.headerDate} component="div">
             · {formatDateLabel(date)}
+          </Typography>
+        )}
+        {snapshotLabel && (
+          <Typography className={style.headerSnapshot} component="div">
+            · Snapshot as of {snapshotLabel}
           </Typography>
         )}
         {viewingPast && onBackToToday && (

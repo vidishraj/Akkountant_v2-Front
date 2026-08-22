@@ -3,6 +3,27 @@ import { Alert, Box, Link, Typography } from "@mui/material";
 import style from "./WealthDigest.module.scss";
 
 /**
+ * Humanizes an ISO 8601 timestamp for display. Falls back to the raw string
+ * if the input isn't parseable so we never render "Invalid Date" — better
+ * to show the raw ISO string in that pathological case than a broken banner.
+ */
+function humanizeTimestamp(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/**
  * Banner shown when today's digest hasn't landed yet — page tiles still render
  * (live portfolio state), and this banner sits above the empty digest slot.
  * We show the last-successful digest's date so the user knows how stale the
@@ -33,12 +54,37 @@ export const DigestErrorBanner: React.FC<{
   errorMessage: string;
 }> = ({ errorAt, errorMessage }) => (
   <Alert severity="error" className={style.stateBanner}>
-    Latest digest task failed at <strong>{errorAt}</strong>. Showing the most
-    recent successful digest below.
+    Latest digest task failed at <strong>{humanizeTimestamp(errorAt)}</strong>.
+    Showing the most recent successful digest below.
     <Box component="span" className={style.errorDetail}>
       &nbsp;· {errorMessage}
     </Box>
   </Alert>
+);
+
+/**
+ * Empty state for the "user is configured but no digest has ever been
+ * generated" case (fetchLatestDigest → 404 → not_generated code). Distinct
+ * from DigestNotConfigured (env var missing) because the remediation is
+ * different — this one just waits for the scheduled task to run for the
+ * first time.
+ */
+export const DigestZeroEmpty: React.FC = () => (
+  <Box className={style.notConfiguredRoot}>
+    <Typography variant="h5" className={style.notConfiguredTitle}>
+      You don't have a wealth digest yet
+    </Typography>
+    <Typography className={style.notConfiguredBody}>
+      Wealth Digest is set up for your account, but the daily task hasn't
+      generated a digest yet. It usually runs in the early morning
+      (around 6&nbsp;a.m. IST). Once it produces the first summary, this
+      page will populate automatically.
+    </Typography>
+    <Typography className={style.notConfiguredBody}>
+      If it's been more than a day, check that the WealthDigestTask
+      scheduler is running server-side.
+    </Typography>
+  </Box>
 );
 
 /**
