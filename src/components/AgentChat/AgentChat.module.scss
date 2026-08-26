@@ -755,3 +755,99 @@
     font-style: italic;
   }
 }
+
+// ── Agent-produced file attachment card (ak-cyo) ───────────────────────────
+//
+// Inline card rendered where a `file_attachment` block appears in an
+// assistant message's content stream. Click the body → auth-fetched download;
+// "Open ↗" for previewable mimes → auth-fetched preview in a new tab.
+// Card flips to a muted "no longer available" state on 404.
+
+.fileAttachmentCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  max-width: 100%;
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #29384D;
+  border-radius: 6px;
+  color: #FAFAFA;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #4A90E2;
+  }
+  &:focus {
+    outline: 2px solid #4A90E2;
+    outline-offset: 2px;
+  }
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+.fileAttachmentIcon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.fileAttachmentBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.fileAttachmentName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #FAFAFA;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileAttachmentMeta {
+  font-size: 11px;
+  color: #7a7d85;
+}
+
+.fileAttachmentPreviewBtn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid #29384D;
+  border-radius: 4px;
+  color: #FAFAFA;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  &:hover {
+    background: rgba(74, 144, 226, 0.15);
+    border-color: #4A90E2;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.fileAttachmentCardGone {
+  cursor: default;
+  opacity: 0.6;
+  background: rgba(244, 67, 54, 0.06);
+  border-color: rgba(244, 67, 54, 0.3);
+  &:hover {
+    background: rgba(244, 67, 54, 0.06);
+    border-color: rgba(244, 67, 54, 0.3);
+  }
+}

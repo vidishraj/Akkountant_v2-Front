@@ -11,7 +11,15 @@ export interface AgentMessage {
 }
 
 export interface SSEEvent {
-  type: "text" | "tool_exec" | "confirm" | "done" | "error" | "partial_assistant" | "conversation_id";
+  type:
+    | "text"
+    | "tool_exec"
+    | "confirm"
+    | "done"
+    | "error"
+    | "partial_assistant"
+    | "conversation_id"
+    | "file_attachment";
   content?: string;
   tool?: string;
   input?: Record<string, unknown>;
@@ -20,6 +28,16 @@ export interface SSEEvent {
   // Set only on the LEADING "conversation_id" event the backend emits before
   // any work; FE captures this to pin the id for subsequent turns in the same chat.
   id?: number;
+  // File-attachment payload (ak-cyo). Present only on `file_attachment` events.
+  // Backend emits these when a tool call produces a downloadable artifact
+  // (Freelance Assistant CSVs, etc). The FE splits the assistant message's
+  // in-flight text at the point the event arrives so the card renders
+  // inline where the file was produced in the narrative.
+  url?: string;
+  name?: string;
+  size_bytes?: number;
+  mime_type?: string;
+  uuid?: string;
 }
 
 /**
@@ -55,6 +73,18 @@ export interface ServerConversationMessage {
   role: "user" | "assistant";
   content: string;
   attachments_meta?: ServerAttachmentMeta[];
+  // Agent-produced files that were emitted during THIS message's stream
+  // (ak-cyo). Rendered as FileAttachmentCards below the message text on
+  // history load. Present only on assistant messages that produced files;
+  // absent on user messages and on legacy assistant messages that predate
+  // the file_attachment feature.
+  agent_attachments?: {
+    url: string;
+    name: string;
+    size_bytes: number;
+    mime_type: string;
+    uuid: string;
+  }[];
 }
 
 export interface ConversationWithMessages {
@@ -107,6 +137,21 @@ export async function uploadAttachment(file: File): Promise<Attachment> {
   };
 }
 
+/**
+ * Payload for an agent-produced file attachment SSE event. Matches the MCP
+ * `file_attachment` content-block shape one-for-one (ak-cyo backend
+ * contract). The FE renders each of these as an inline FileAttachmentCard
+ * in the assistant message, at the position in the narrative where the
+ * event arrived during streaming.
+ */
+export interface StreamedFileAttachment {
+  url: string;
+  name: string;
+  size_bytes: number;
+  mime_type: string;
+  uuid: string;
+}
+
 interface StreamCallbacks {
   onText: (content: string) => void;
   onToolExec: (tool: string, input: Record<string, unknown>) => void;
@@ -118,6 +163,10 @@ interface StreamCallbacks {
   // backend assigned (auto-create) or echoed (existing convo). FE uses this to
   // pin the id for subsequent turns + show the conversation in the history list.
   onConversationId?: (id: number) => void;
+  // Fires whenever the backend emits a file_attachment MCP block during the
+  // stream. FE splits the in-flight text at this event's arrival so the card
+  // renders inline where the file was produced in the narrative (ak-cyo).
+  onFileAttachment?: (attachment: StreamedFileAttachment) => void;
 }
 
 // ── Conversation API client ────────────────────────────────────────────────
@@ -333,6 +382,27 @@ export async function streamAgentChat(
             break;
           case "error":
             callbacks.onError(event.message || "Unknown error");
+            break;
+          case "file_attachment":
+            // Agent produced a downloadable artifact mid-stream. Requires
+            // all five fields to be present; a partial payload gets ignored
+            // (defensive — matches the malformed-JSON silent-skip pattern
+            // elsewhere in this loop).
+            if (
+              typeof event.url === "string" &&
+              typeof event.name === "string" &&
+              typeof event.size_bytes === "number" &&
+              typeof event.mime_type === "string" &&
+              typeof event.uuid === "string"
+            ) {
+              callbacks.onFileAttachment?.({
+                url: event.url,
+                name: event.name,
+                size_bytes: event.size_bytes,
+                mime_type: event.mime_type,
+                uuid: event.uuid,
+              });
+            }
             break;
         }
       },

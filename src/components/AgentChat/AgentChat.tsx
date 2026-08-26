@@ -15,6 +15,7 @@ import {
 } from "../../services/agentService";
 import styles from "./AgentChat.module.scss";
 import { useAgentChatBridge } from "../../contexts/AgentChatBridgeContext";
+import FileAttachmentCard from "./FileAttachmentCard";
 
 // ── Attachment policy ───────────────────────────────────────────────────────
 // Must match the backend's allowed_types / max_size / per-message-cap exactly,
@@ -86,9 +87,25 @@ interface AgentChatProps {
   onMutation: (mutations: string[]) => void;
 }
 
+/**
+ * A single block inside a message body — either a chunk of text (rendered
+ * through markdown) or an agent-produced file attachment (rendered as a
+ * FileAttachmentCard). Assistant messages that produced attachments during
+ * streaming carry the interleaved blocks so the card lands at the position
+ * in the narrative where the file was produced, not tacked at the end.
+ */
+export type MessageBlock =
+  | { type: "text"; text: string }
+  | ({ type: "file_attachment" } & import("./FileAttachmentCard").AgentFileAttachment);
+
 interface ChatMessage {
   role: "user" | "assistant";
-  content: string;
+  // A plain string is the legacy shape — pure-text assistant/user messages
+  // stay strings for backwards compatibility with existing renders. When an
+  // assistant message picked up one or more file attachments during
+  // streaming (or from a loaded history that carries them), content is an
+  // interleaved block array instead.
+  content: string | MessageBlock[];
   // Only set on user messages that were sent with one or more attachments.
   // Rendered as pills above the bubble content; not echoed to the API
   // (the API receives the ids out-of-band via streamAgentChat's attachments param).
@@ -182,13 +199,40 @@ const transformServerAttachment = (
 const transformServerMessages = (
   serverMessages: ServerConversationMessage[]
 ): ChatMessage[] =>
-  serverMessages.map((m) => ({
-    role: m.role,
-    content: m.content,
-    ...(m.attachments_meta && m.attachments_meta.length > 0
-      ? { attachments: m.attachments_meta.map(transformServerAttachment) }
-      : {}),
-  }));
+  serverMessages.map((m) => {
+    // Agent-produced attachments on a past assistant message → build a
+    // block-array content so the FileAttachmentCards render alongside the
+    // text on history load. History doesn't carry positional info (BE
+    // stores the flat list separately from the text), so cards render
+    // AFTER the text in a single group — same as any legacy assistant
+    // message but with an extra file section beneath.
+    const hasAgentAttachments =
+      m.role === "assistant" &&
+      Array.isArray(m.agent_attachments) &&
+      m.agent_attachments.length > 0;
+
+    const content: ChatMessage["content"] = hasAgentAttachments
+      ? [
+          ...(m.content ? [{ type: "text" as const, text: m.content }] : []),
+          ...(m.agent_attachments ?? []).map((a) => ({
+            type: "file_attachment" as const,
+            url: a.url,
+            name: a.name,
+            size_bytes: a.size_bytes,
+            mime_type: a.mime_type,
+            uuid: a.uuid,
+          })),
+        ]
+      : m.content;
+
+    return {
+      role: m.role,
+      content,
+      ...(m.attachments_meta && m.attachments_meta.length > 0
+        ? { attachments: m.attachments_meta.map(transformServerAttachment) }
+        : {}),
+    };
+  });
 
 const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -473,9 +517,24 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
     const apiMessages: AgentMessage[] = [];
 
     for (const msg of messages) {
+      // Assistant messages that carry file_attachment blocks: send back only
+      // the text portion, joined in narrative order. The backend already
+      // recorded the attachment metadata against the message when it emitted
+      // the file_attachment event; echoing the blocks back here would be
+      // both redundant and outside the schema the /agent/chat endpoint
+      // expects for its `messages` input (strings + user attach ids only).
+      const content =
+        typeof msg.content === "string"
+          ? msg.content
+          : msg.content
+              .filter((b): b is Extract<MessageBlock, { type: "text" }> =>
+                b.type === "text"
+              )
+              .map((b) => b.text)
+              .join("");
       apiMessages.push({
         role: msg.role,
-        content: msg.content,
+        content,
       });
     }
 
@@ -542,6 +601,23 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
       }
 
       let fullText = "";
+      // Per-turn accumulator that captures the interleaved order of text
+      // and file_attachment blocks as SSE events arrive. Stays empty on
+      // pure-text turns (onDone falls back to `fullText` as a string) —
+      // only materializes when the agent produced at least one file, at
+      // which point onDone commits the interleaved array as the final
+      // assistant message's content.
+      const turnBlocks: MessageBlock[] = [];
+      // Text currently being accumulated into the "next" text block. When a
+      // file_attachment event arrives, we flush this into a new text block
+      // in turnBlocks and reset.
+      let pendingText = "";
+      const flushPendingText = () => {
+        if (pendingText) {
+          turnBlocks.push({ type: "text", text: pendingText });
+          pendingText = "";
+        }
+      };
 
       try {
         await streamAgentChat(
@@ -557,7 +633,15 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
             setActiveConversationId(id);
             // Optimistic placeholder so the chip appears immediately; refetch
             // after onDone replaces it with the server-derived title/count.
-            const firstUserText = messagesAfterSend.find((m) => m.role === "user")?.content;
+            // Narrow to string — user messages always carry string content in
+            // the current design, but ChatMessage.content is now string |
+            // MessageBlock[] (ak-cyo widened it for assistant-side files).
+            // The typeof guard keeps the compiler honest without asserting.
+            const firstUserContent = messagesAfterSend.find(
+              (m) => m.role === "user"
+            )?.content;
+            const firstUserText =
+              typeof firstUserContent === "string" ? firstUserContent : undefined;
             const placeholderTitle = firstUserText
               ? firstUserText.slice(0, 60)
               : attachmentMeta[0]?.filename.slice(0, 60) ?? "New chat";
@@ -571,6 +655,7 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
           },
           onText: (content) => {
             fullText += content;
+            pendingText += content;
             setStreamedText(fullText);
           },
           onToolExec: (tool) => {
@@ -585,7 +670,22 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
           },
           onDone: (mutations) => {
             setActiveTool(null);
-            if (fullText) {
+            // Close any trailing text block so the final message content
+            // includes text-after-last-file too.
+            flushPendingText();
+            // If the agent produced any file attachments this turn, commit
+            // the interleaved block array; otherwise fall back to the plain
+            // string content path so pure-text turns stay legacy-shape.
+            const producedFiles = turnBlocks.some(
+              (b) => b.type === "file_attachment"
+            );
+            if (producedFiles) {
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant" as const, content: turnBlocks },
+              ]);
+              setStreamedText("");
+            } else if (fullText) {
               setMessages((prev) => [
                 ...prev,
                 { role: "assistant" as const, content: fullText },
@@ -611,6 +711,16 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
               ...prev,
               { role: "assistant", content: `Error: ${message}` },
             ]);
+          },
+          onFileAttachment: (attachment) => {
+            // Flush any text that streamed before this event into its own
+            // block, then append the file block. The next onText call starts
+            // a fresh text block via the pendingText reset in flush.
+            flushPendingText();
+            turnBlocks.push({
+              type: "file_attachment",
+              ...attachment,
+            });
           },
           },
           attachmentIds.length > 0 ? attachmentIds : undefined,
@@ -849,12 +959,31 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
                     })}
                   </div>
                 )}
-                {msg.role === "assistant" ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {msg.content}
-                  </ReactMarkdown>
+                {typeof msg.content === "string" ? (
+                  msg.role === "assistant" ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.content
+                  )
                 ) : (
-                  msg.content
+                  // Block-array content — walk the interleaved text +
+                  // file_attachment blocks so cards render at the position
+                  // in the narrative where the agent produced them.
+                  msg.content.map((block, bi) =>
+                    block.type === "text" ? (
+                      msg.role === "assistant" ? (
+                        <ReactMarkdown key={bi} remarkPlugins={[remarkGfm]}>
+                          {block.text}
+                        </ReactMarkdown>
+                      ) : (
+                        <span key={bi}>{block.text}</span>
+                      )
+                    ) : (
+                      <FileAttachmentCard key={bi} attachment={block} />
+                    )
+                  )
                 )}
               </div>
             ))}
