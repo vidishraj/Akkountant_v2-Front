@@ -152,9 +152,9 @@ export interface MSNListResponse {
     // non-Kite securities (MF / NPS / manually added stocks). Read them through
     // `utils/holdings.ts` rather than inline so the contract stays in one place.
     //
-    // CONTRACT (mirrors Kite `holdings()` semantics): `buyQuant` is the settled
-    // quantity ONLY; `t1_quantity` is bought-but-unsettled and is NOT included in
-    // `buyQuant`. Total committed position = buyQuant + t1_quantity.
+    // CONTRACT (mirrors Kite `holdings()` semantics, confirmed by backend on ak-w4p):
+    // `buyQuant` is the settled quantity ONLY; `t1_quantity` is bought-but-unsettled and
+    // is NOT included in `buyQuant`. Total committed position = buyQuant + t1_quantity.
     t1_quantity?: number;            // bought, pending demat settlement (T+1 window)
     realised_quantity?: number;      // broker realised quantity
     collateral_quantity?: number;    // quantity pledged as collateral
@@ -165,6 +165,15 @@ export interface MSNListResponse {
     // Broker-computed cost basis. CROSS-CHECK SURFACE ONLY — our statement-derived
     // `buyPrice` remains the source of truth for all P&L math.
     average_price?: number;
+    // Broker's own price. DO NOT RENDER — the live NSE feed (`info.lastPrice`) remains
+    // the pricing source; this exists purely for backend-side comparison until the
+    // pricing-source swap is decided on its own bead.
+    last_price?: number;
+    // Backend-computed t1_quantity * broker last_price. Deliberately NOT used for
+    // display: we value pending shares with the same NSE price we render everywhere
+    // else, so the pending figure stays consistent with the row it sits next to.
+    // Excluded from P&L on both sides of the wire.
+    pending_t1_value?: number;
 }
 
 
