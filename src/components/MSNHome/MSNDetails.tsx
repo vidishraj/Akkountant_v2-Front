@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {
     Box,
+    Chip,
     Tab,
     Tabs,
     Tooltip,
@@ -20,6 +21,7 @@ import {MSNListResponse} from "../../utils/interfaces.ts";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import withLoader from "../LoaderHOC.tsx";
 import {formatDateString} from "../../utils/util.tsx";
+import {buildT1Tooltip, formatQuantity, getT1Quantity} from "../../utils/holdings.ts";
 
 const PRICE_UNAVAILABLE_TOOLTIP = "Live price could not be fetched from the data provider for this security.";
 
@@ -178,6 +180,30 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                     })()}
                                 </Box>
                             </Box>
+                            {/* Pending-settlement disclosure — keeps this view consistent with the
+                                list row, which shows the committed (settled + T+1) quantity.
+                                Invested / Current / P&L above stay on settled shares only. */}
+                            {getT1Quantity(details) > 0 && (
+                                <Box sx={{display: 'flex', alignItems: 'center', gap: '8px', px: '4px'}}>
+                                    <Tooltip arrow title={buildT1Tooltip(details, Number(details.info.lastPrice))}>
+                                        <Chip
+                                            size="small"
+                                            label={`T+1 ${formatQuantity(getT1Quantity(details))}`}
+                                            sx={{
+                                                height: 18,
+                                                fontSize: '10px',
+                                                fontWeight: 600,
+                                                color: '#7fb5ff',
+                                                backgroundColor: 'rgba(41, 121, 255, 0.12)',
+                                                border: '1px solid rgba(127, 181, 255, 0.35)',
+                                            }}
+                                        />
+                                    </Tooltip>
+                                    <Typography variant="caption" sx={{color: '#7a7d85'}}>
+                                        {formatQuantity(details.buyQuant)} settled · pending demat settlement not in the figures above
+                                    </Typography>
+                                </Box>
+                            )}
                         </>
                     )}
 

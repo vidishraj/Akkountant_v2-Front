@@ -136,8 +136,8 @@ export interface MSNRateResponse {
 export interface MSNListResponse {
     buyID: number | string; // The ID of the buy transaction, inferred as number or string
     buyCode: string; // Security code of the transaction
-    buyPrice: number; // Quantity of securities purchased
-    buyQuant: number; // Quantity of securities purchased
+    buyPrice: number; // Our statement-derived average cost basis — never overwrite with broker data
+    buyQuant: number; // Settled/demat quantity we hold (broker `quantity`, EXCLUDING T+1)
     schemeCode: string; // Code representing the security type or scheme
     serviceType: string; // Type of service (investment type)
     date: string; // Date in "YYYY-MM-DD" format
@@ -146,6 +146,25 @@ export interface MSNListResponse {
     name?: string;
     schemeName?: string;
     id?: string
+
+    // --- Broker (Kite) holdings passthrough — ak-9we / backend ak-w4p ---
+    // All optional: absent until the backend row-9 change lands, and absent for
+    // non-Kite securities (MF / NPS / manually added stocks). Read them through
+    // `utils/holdings.ts` rather than inline so the contract stays in one place.
+    //
+    // CONTRACT (mirrors Kite `holdings()` semantics): `buyQuant` is the settled
+    // quantity ONLY; `t1_quantity` is bought-but-unsettled and is NOT included in
+    // `buyQuant`. Total committed position = buyQuant + t1_quantity.
+    t1_quantity?: number;            // bought, pending demat settlement (T+1 window)
+    realised_quantity?: number;      // broker realised quantity
+    collateral_quantity?: number;    // quantity pledged as collateral
+    authorised_quantity?: number;    // quantity authorised for sale
+    day_change?: number;             // absolute per-share day change (₹), broker-computed
+    day_change_percentage?: number;  // day change (%), broker-computed
+    close_price?: number;            // previous close, broker-provided
+    // Broker-computed cost basis. CROSS-CHECK SURFACE ONLY — our statement-derived
+    // `buyPrice` remains the source of truth for all P&L math.
+    average_price?: number;
 }
 
 

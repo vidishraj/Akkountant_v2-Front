@@ -3,10 +3,25 @@ import {Card, CardContent, Typography, Box, Chip, Tooltip} from "@mui/material";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import style from "./MSNHome.module.scss";
 import {MSNListResponse} from "../../utils/interfaces.ts";
 import withLoader from "../LoaderHOC.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import {
+    buildT1Tooltip,
+    formatCurrency,
+    formatQuantity,
+    getCostBasisDivergence,
+    getDayChange,
+    getPendingValue,
+    getPledgeInfo,
+    getT1Quantity,
+    getTotalQuantity,
+    type CostBasisDivergence,
+    type DayChange,
+    type PledgeInfo,
+} from "../../utils/holdings.ts";
 
 const PRICE_UNAVAILABLE_TOOLTIP = "Live price could not be fetched from the data provider for this security.";
 
@@ -28,6 +43,15 @@ interface ComputedStock {
     profitPercentage: number;
     currentValue: number;
     priceUnavailable: boolean;
+    /** Bought but not yet settled (T+1). 0 unless the broker reported it. */
+    pendingQuant: number;
+    /** Market value of the pending shares — shown separately, never folded into P&L. */
+    pendingValue: number;
+    /** Settled + pending, i.e. the committed position we display as the quantity. */
+    totalQuant: number;
+    dayChange: DayChange | null;
+    pledge: PledgeInfo | null;
+    costBasisDivergence: CostBasisDivergence | null;
 }
 
 const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
@@ -64,13 +88,29 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
             // (e.g. -100% loss against buyValue). Surface this to the renderer instead of computing fake numbers.
             const priceUnavailable = Boolean(info && info.error);
 
+            // Value and P&L stay on the SETTLED quantity: `buyPrice` is our statement-derived
+            // basis and covers exactly those shares. Pending (T+1) shares are valued
+            // separately below — folding them in here would book their market value as profit.
             const currentValue = priceUnavailable ? 0 : lastPrice * buyQuant;
             const profit = priceUnavailable ? 0 : currentValue - (buyPrice * buyQuant);
             const profitPercentage = priceUnavailable || buyPrice * buyQuant === 0
                 ? 0
                 : (profit / (buyPrice * buyQuant)) * 100;
 
-            return {stock, buyCode, lastPrice, buyQuant, buyPrice, pChange, profit, profitPercentage, currentValue, priceUnavailable};
+            // Broker-sourced settlement fields (stocks only; absent for MF/NPS and for
+            // securities we never saw from Kite).
+            const pendingQuant = getT1Quantity(stock);
+            const pendingValue = getPendingValue(stock, lastPrice);
+            const totalQuant = getTotalQuantity(stock);
+            const dayChange = getDayChange(stock, pChange);
+            const pledge = getPledgeInfo(stock);
+            const costBasisDivergence = getCostBasisDivergence(stock);
+
+            return {
+                stock, buyCode, lastPrice, buyQuant, buyPrice, pChange, profit, profitPercentage,
+                currentValue, priceUnavailable, pendingQuant, pendingValue, totalQuant,
+                dayChange, pledge, costBasisDivergence,
+            };
         });
     }, [list, state.selectedCard]);
 
@@ -89,10 +129,11 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     cmp = a.profitPercentage - b.profitPercentage;
                     break;
                 case "value":
-                    cmp = a.currentValue - b.currentValue;
+                    // Sort on the full committed position (settled + pending at market).
+                    cmp = (a.currentValue + a.pendingValue) - (b.currentValue + b.pendingValue);
                     break;
                 case "dayChange":
-                    cmp = a.pChange - b.pChange;
+                    cmp = (a.dayChange?.changePercent ?? a.pChange) - (b.dayChange?.changePercent ?? b.pChange);
                     break;
             }
             return sortAsc ? cmp : -cmp;
@@ -142,7 +183,8 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                 {sortedList.length > 0 ? sortedList.map((item) => {
                     const {
                         stock, buyCode, lastPrice, buyQuant, buyPrice,
-                        pChange, profit, profitPercentage, priceUnavailable
+                        pChange, profit, profitPercentage, priceUnavailable,
+                        pendingQuant, totalQuant, dayChange, pledge, costBasisDivergence
                     } = item;
                     const profitString = profit.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
@@ -152,7 +194,8 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                     });
-                    const isPositiveChange = pChange >= 0;
+                    const displayPercent = dayChange ? dayChange.changePercent : pChange;
+                    const isPositiveChange = displayPercent >= 0;
 
                     const formattedLastPrice = lastPrice.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
@@ -162,14 +205,21 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     const cardBorderColor = priceUnavailable
                         ? '#7a7d85'
                         : profit >= 0 ? '#4caf50' : '#f44336';
-                    const formattedQty = Number.isInteger(buyQuant) ? buyQuant.toString() : buyQuant.toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                    });
+                    // Quantity shown is the committed position (settled + pending); the T+1
+                    // badge next to it discloses the split.
+                    const formattedQty = formatQuantity(pendingQuant > 0 ? totalQuant : buyQuant);
                     const formattedBuyPrice = buyPrice.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                     });
+                    const percentLabel = dayChange
+                        ? `${dayChange.changePercent >= 0 ? '+' : ''}${dayChange.changePercent.toFixed(2)}%`
+                        : `${isPositiveChange ? '+' : ''}${pChange}%`;
+                    // Absolute ₹ change only when the source actually provides one
+                    // (MF / NPS feeds give a percentage only).
+                    const dayChangeLabel = dayChange && dayChange.change !== null
+                        ? `${dayChange.change >= 0 ? '+' : '-'}₹${formatCurrency(Math.abs(dayChange.change))} (${percentLabel})`
+                        : percentLabel;
 
                     return (
                         <Card
@@ -198,23 +248,62 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                                             <Typography variant="body1" className={style.currentValue}>
                                                 &#8377;{formattedLastPrice}
                                             </Typography>
+                                            {/* Day change: broker-provided ₹ + % when available, live-feed % otherwise. */}
                                             <Typography
                                                 variant="body2"
-                                                className={isPositiveChange ? style.positiveChange : style.negativeChange}
+                                                className={
+                                                    displayPercent === 0
+                                                        ? style.previousValue
+                                                        : isPositiveChange ? style.positiveChange : style.negativeChange
+                                                }
+                                                sx={dayChange?.source === 'broker' ? { fontSize: '12px' } : undefined}
                                             >
-                                                {isPositiveChange ? `+${pChange}%` : `${pChange}%`}
+                                                {dayChangeLabel}
                                             </Typography>
                                         </>
                                     )}
                                 </Box>
 
                                 <Box className={style.previousBox}>
-                                    <Typography variant="body2" className={style.previousValue}>
-                                        Avg: &#8377;{formattedBuyPrice}
-                                    </Typography>
-                                    <Typography variant="body2" className={style.previousValue}>
-                                        Qty: {formattedQty}
-                                    </Typography>
+                                    <Box className={style.avgLine}>
+                                        <Typography variant="body2" className={style.previousValue}>
+                                            Avg: &#8377;{formattedBuyPrice}
+                                        </Typography>
+                                        {costBasisDivergence && (
+                                            <Tooltip
+                                                arrow
+                                                title={
+                                                    `Broker average is ₹${formatCurrency(costBasisDivergence.broker)} ` +
+                                                    `(${costBasisDivergence.percent >= 0 ? '+' : ''}${costBasisDivergence.percent.toFixed(2)}% ` +
+                                                    `vs our ₹${formatCurrency(costBasisDivergence.ours)} statement-derived basis). ` +
+                                                    `Informational cross-check only — our basis is used for all P&L.`
+                                                }
+                                            >
+                                                <InfoOutlinedIcon className={style.costBasisHint}/>
+                                            </Tooltip>
+                                        )}
+                                    </Box>
+                                    <Box className={style.qtyLine}>
+                                        <Typography variant="body2" className={style.previousValue}>
+                                            Qty: {formattedQty}
+                                        </Typography>
+                                        {pendingQuant > 0 && (
+                                            <Tooltip arrow title={buildT1Tooltip(stock, lastPrice)}>
+                                                <Chip
+                                                    size="small"
+                                                    label={`T+1 ${formatQuantity(pendingQuant)}`}
+                                                    className={style.t1Chip}
+                                                />
+                                            </Tooltip>
+                                        )}
+                                    </Box>
+                                    {pledge && (
+                                        <Typography variant="body2" className={style.pledgeLine}>
+                                            {pledge.pledged > 0 && `${formatQuantity(pledge.pledged)} pledged`}
+                                            {pledge.pledged > 0 && pledge.authorised > 0 && ' · '}
+                                            {pledge.authorised > 0 && `${formatQuantity(pledge.authorised)} authorised`}
+                                        </Typography>
+                                    )}
                                 </Box>
 
                                 <Box className={style.changeBox}>

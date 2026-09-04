@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Card, Typography, CardContent, Divider, Button, useMediaQuery} from "@mui/material";
+import {Card, Typography, CardContent, Divider, Button, Tooltip, useMediaQuery} from "@mui/material";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import style from "./MSNHome.module.scss";
 import withLoader from "../LoaderHOC.tsx";
@@ -9,6 +9,7 @@ import DepositModal from "../DepositsComponent.tsx";
 import {fetchRates} from "../../services/investmentService.ts";
 import RatesModal from "../RatesModal.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
+import {formatQuantity, getTotalPendingQuantity, getTotalPendingValue} from "../../utils/holdings.ts";
 
 const MSNSummary = () => {
     const [summary, setSummary] = useState<any | undefined>(undefined);
@@ -123,14 +124,24 @@ const MSNSummary = () => {
     const isMSN = state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks;
     const isEPG = state.selectedCard.ppf || state.selectedCard.epf || state.selectedCard.gold;
 
-    const renderStatItem = (label: string, value: string, color?: string) => (
-        <div className={style.summaryStatItem}>
-            <Typography className={style.label}>{label}</Typography>
-            <Typography className={style.dValue} style={color ? {color} : undefined}>
-                {value}
-            </Typography>
-        </div>
-    );
+    const renderStatItem = (label: string, value: string, color?: string, tooltip?: string) => {
+        const item = (
+            <div className={style.summaryStatItem}>
+                <Typography className={style.label}>{label}</Typography>
+                <Typography className={style.dValue} style={color ? {color} : undefined}>
+                    {value}
+                </Typography>
+            </div>
+        );
+        return tooltip ? <Tooltip arrow title={tooltip}>{item}</Tooltip> : item;
+    };
+
+    // Pending-settlement (T+1) exposure, surfaced as its OWN stat rather than merged into
+    // "Total Asset Value"/"Invested": those come from the backend and are computed on
+    // settled quantities against our statement-derived cost basis. Adding pending shares
+    // to the value without their cost in the basis would inflate the reported change.
+    const pendingQuantity = state.selectedCard.stocks ? getTotalPendingQuantity(state.lists?.stocks) : 0;
+    const pendingValue = state.selectedCard.stocks ? getTotalPendingValue(state.lists?.stocks) : 0;
 
     if (!summary) return null;
 
@@ -182,6 +193,18 @@ const MSNSummary = () => {
                                 "Realized P&L",
                                 `${state.realizedPnl.netRealizedPnL >= 0 ? "+" : ""}\u20B9${formatINR(state.realizedPnl.netRealizedPnL)}`,
                                 state.realizedPnl.netRealizedPnL >= 0 ? "#4caf50" : "#f44336"
+                            )
+                        }
+                        {pendingQuantity > 0 &&
+                            renderStatItem(
+                                "Pending (T+1)",
+                                pendingValue > 0
+                                    ? `₹${formatINR(pendingValue)}`
+                                    : `${formatQuantity(pendingQuantity)} sh`,
+                                "#7fb5ff",
+                                `${formatQuantity(pendingQuantity)} share(s) bought and awaiting demat settlement (T+1)` +
+                                `${pendingValue > 0 ? `, worth about ₹${formatINR(pendingValue)} at market` : ""}. ` +
+                                `Not included in Total Asset Value / Invested above, which cover settled holdings only.`
                             )
                         }
                         {state.selectedCard.stocks && state.foSummary && state.foSummary.tradeCount > 0 &&
