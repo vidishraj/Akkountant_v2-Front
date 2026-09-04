@@ -100,10 +100,17 @@ check(
     getDayChange(row({day_change: -10.3, day_change_percentage: -0.42}), 0.33),
     {change: -10.3, changePercent: -0.42, source: "broker"},
 );
+// The backend sends 0 for fields Kite omitted, so all-zero broker values must not
+// win over a market feed that shows real movement.
 check(
-    "flat broker day is still broker-sourced",
+    "all-zero broker values fall back to the market feed",
     getDayChange(row({day_change: 0, day_change_percentage: 0}), 0.33),
-    {change: 0, changePercent: 0, source: "broker"},
+    {change: 8.1, changePercent: 0.33, source: "market"},
+);
+check(
+    "broker percent alone is enough to win",
+    getDayChange(row({day_change: 0, day_change_percentage: 0.42}), 0.33),
+    {change: 0, changePercent: 0.42, source: "broker"},
 );
 check("falls back to the market feed", getDayChange(row(), 0.33), {
     change: 8.1,

@@ -174,6 +174,12 @@ export interface MSNListResponse {
     // else, so the pending figure stays consistent with the row it sits next to.
     // Excluded from P&L on both sides of the wire.
     pending_t1_value?: number;
+    // On the wire but not rendered. MTF is margin-funded quantity; we have no
+    // confirmation the Overseer uses it, so showing it would add row weight for a
+    // figure that is always zero. Wire them up only once that is confirmed.
+    collateral_type?: string;
+    mtf_quantity?: number;
+    mtf_average_price?: number;
 }
 
 

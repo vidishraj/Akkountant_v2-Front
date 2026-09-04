@@ -82,8 +82,15 @@ export const getDayChange = (row: MSNListResponse, fallbackPercent?: number): Da
     const hasBrokerChange = row?.day_change !== undefined && Number.isFinite(Number(row.day_change));
     const hasBrokerPercent =
         row?.day_change_percentage !== undefined && Number.isFinite(Number(row.day_change_percentage));
+    // The backend coerces values Kite omits to 0 (`holding.get(...) or 0`), so an
+    // all-zero pair is indistinguishable from "not reported". Preferring it would
+    // render a flat day next to a price the market feed shows as having moved, so
+    // fall through to that feed instead — a genuinely flat day reads the same either way.
+    const brokerReportedMovement =
+        (hasBrokerChange && toFiniteNumber(row.day_change) !== 0) ||
+        (hasBrokerPercent && toFiniteNumber(row.day_change_percentage) !== 0);
 
-    if (hasBrokerChange || hasBrokerPercent) {
+    if (brokerReportedMovement) {
         const change = toFiniteNumber(row.day_change);
         const closePrice = toFiniteNumber(row.close_price);
         // Derive whichever half the broker omitted; a 0 close price means we cannot.
