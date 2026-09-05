@@ -545,13 +545,19 @@ const InvoiceManager = ({
                                             fx fields aren't present (legacy payments before Arc A). */}
                                         {(invoice.status === "paid" || invoice.status === "partially_paid") && invoice.payment && (
                                             <div style={{fontSize: "0.8rem", color: "#4ADE80", fontWeight: "normal", marginTop: "2px"}}>
-                                                {invoice.payment.originalAmount !== undefined && invoice.payment.originalCurrency ? (
+                                                {/* Every `!= null` guard below catches BOTH JSON null (SQL
+                                                    NULL from the backfill's half-populated legacy rows —
+                                                    original_currency filled, fx audit fields still NULL)
+                                                    AND absent (undefined for pre-Arc-A payments). Previous
+                                                    `!== undefined` guards let `null.toFixed()` crash the
+                                                    freelance dashboard for Overseer post-backfill. */}
+                                                {typeof invoice.payment.originalAmount === "number" && invoice.payment.originalCurrency ? (
                                                     <>
                                                         Paid: {getCurrencySymbol(invoice.payment.originalCurrency)}{invoice.payment.originalAmount.toFixed(2)}
-                                                        {invoice.payment.originalCurrency !== "INR" && invoice.payment.inrAmount !== undefined && (
+                                                        {invoice.payment.originalCurrency !== "INR" && typeof invoice.payment.inrAmount === "number" && (
                                                             <div style={{fontSize: "0.7rem", color: "#B0B0B0", fontWeight: "normal"}}>
                                                                 = {getCurrencySymbol("INR")}{invoice.payment.inrAmount.toFixed(2)}
-                                                                {invoice.payment.fxRate !== undefined && (
+                                                                {typeof invoice.payment.fxRate === "number" && (
                                                                     <> @ {invoice.payment.fxRate.toFixed(4)}</>
                                                                 )}
                                                                 {invoice.payment.fxRateSource && (
@@ -568,8 +574,9 @@ const InvoiceManager = ({
                                             </div>
                                         )}
                                         {/* balance_due surfaces only when the server explicitly reports
-                                            a non-zero remainder (partially_paid state). */}
-                                        {invoice.status === "partially_paid" && invoice.balanceDueINR !== undefined && invoice.balanceDueINR > 0 && (
+                                            a non-zero remainder (partially_paid state). Guard uses
+                                            typeof-number so a JSON null from BE doesn't render as "0.00". */}
+                                        {invoice.status === "partially_paid" && typeof invoice.balanceDueINR === "number" && invoice.balanceDueINR > 0 && (
                                             <div style={{fontSize: "0.75rem", color: "#F59E0B", fontWeight: "normal", marginTop: "2px"}}>
                                                 Balance: {getCurrencySymbol("INR")}{invoice.balanceDueINR.toFixed(2)}
                                             </div>
