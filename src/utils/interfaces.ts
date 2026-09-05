@@ -276,6 +276,16 @@ export interface PaymentInfo {
     breakdown: PaymentBreakdown;
     paymentDate?: string;
     notes?: string;
+    // ── Arc A (ak-lvu) server-authoritative FX fields ─────────────────────
+    // Populated by BE on POST/PUT — never client-supplied. FE reads these
+    // for audit display (list row + detail) and to render the currency-
+    // aware "Paid" summary. Absent on legacy payments (before Arc A).
+    originalAmount?: number;      // Amount in the invoice's own currency
+    originalCurrency?: string;    // e.g. "USD"
+    inrAmount?: number;           // Stored INR value after FX conversion
+    fxRate?: number;              // 1 originalCurrency → fxRate INR
+    fxRateSource?: string;        // e.g. "openexchangerates"
+    convertedAt?: string;         // ISO 8601 UTC — when the rate was captured
 }
 
 export interface CustomField {
@@ -306,6 +316,11 @@ export interface InvoiceData {
     customFields?: CustomField[];
     hiddenCoreFields?: { [key: string]: boolean }; // For hiding core fields like emails/phones
     items: InvoiceItem[];
+    // subtotal / tax.amount / total are SERVER-AUTHORITATIVE (Arc A / ak-lvu):
+    // FE computes them during typing for immediate preview only; on save, the
+    // freelanceService layer strips them from the payload and the backend
+    // returns the recomputed 2dp values. Rendering must read these fields
+    // as they came back from the server, never from a fresh client compute.
     subtotal: number;
     tax?: {
         rate: number;
@@ -314,8 +329,16 @@ export interface InvoiceData {
     total: number;
     notes?: string;
     terms?: string;
-    status?: 'draft' | 'sent' | 'paid' | 'overdue';
+    // Wave-added `partially_paid` status alongside the existing set. BE sets
+    // this when totalPaidINR > 0 but < total_in_inr.
+    status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'partially_paid';
     payment?: PaymentInfo;
+    // ── Arc A settlement summary (server-computed) ────────────────────────
+    // totalPaidINR = Σ payments in INR. balanceDueINR = total_in_inr - that.
+    // Both are absent on legacy invoices; when present they carry the
+    // authoritative view and the FE renders them verbatim.
+    totalPaidINR?: number;
+    balanceDueINR?: number;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -399,6 +422,10 @@ export interface CreateInvoiceRequest {
 export interface CreateInvoiceResponse {
     invoiceId: string;
     message: string;
+    // Arc A: server returns the persisted invoice with authoritative
+    // subtotal/tax/total/payment.fx fields. Callers should replace their
+    // local copy with this rather than trust their pre-send state.
+    invoice?: InvoiceData;
 }
 
 export interface UpdateInvoiceRequest {
@@ -407,6 +434,7 @@ export interface UpdateInvoiceRequest {
 
 export interface UpdateInvoiceResponse {
     message: string;
+    invoice?: InvoiceData;   // Arc A — same rationale as CreateInvoiceResponse
 }
 
 export interface DeleteInvoiceResponse {

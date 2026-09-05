@@ -110,6 +110,18 @@ const InvoiceFormTab = ({
         }
     };
 
+    /**
+     * DISPLAY-ONLY money math (Arc A / ak-lvu FE-1). Runs on every field
+     * change so the user sees an immediate preview of subtotal, tax, and
+     * total while typing. The values it produces are NOT trusted for
+     * persistence — `freelanceService.createInvoice/updateInvoice` strip
+     * them before send and the server returns authoritative 2dp
+     * recomputes that overwrite these preview values.
+     *
+     * IEEE-754 float artefacts (3 × 10.10 → 30.299999999999997) are
+     * acceptable here because they never persist; the backend uses
+     * Decimal arithmetic for the source-of-truth values.
+     */
     const recalculate = useCallback((data: InvoiceData): InvoiceData => {
         let subtotal = 0;
         const items = data.items.map(item => {
@@ -375,9 +387,29 @@ const InvoiceFormTab = ({
 
         try {
             setLoading(true);
+            // Arc A / FE-3 — strip payment, status, and dueDate before
+            // persisting the template. A template is the reusable skeleton;
+            // payment history, status, and the invoice-specific dueDate
+            // belong to the individual invoice that used the template, not
+            // the template itself. Without this strip, a template saved
+            // from a paid invoice would seed every new draft with phantom
+            // payment metadata + a stale "paid" status.
+            const {
+                payment: _p,
+                status: _st,
+                dueDate: _dd,
+                ...templateBody
+            } = formData;
+            void _p; void _st; void _dd;
+            const templateData: InvoiceData = {
+                ...templateBody,
+                // dueDate is required by the InvoiceData type; leave it
+                // empty so the caller supplies a fresh one on next draft.
+                dueDate: "",
+            };
             const result = await saveInvoiceTemplate(
                 templateName,
-                formData,
+                templateData,
                 (isCustomerTemplate || saveAsDefault) ? selectedCustomerForTemplate : undefined,
                 saveAsDefault
             );

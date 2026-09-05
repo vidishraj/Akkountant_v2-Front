@@ -139,14 +139,17 @@ const InvoiceManager = ({
     const handleStatusChange = async (invoice: InvoiceData, newStatus: string) => {
         if (newStatus === "paid") {
             if (!invoice.payment || !invoice.payment.paymentMethod || invoice.payment.amountReceived <= 0) {
-                // Open quick payment dialog instead of blocking
+                // Open quick payment dialog instead of blocking. Pre-fill
+                // the amount in the invoice's own currency — the label on
+                // the input matches (FE-2), and BE handles FX conversion
+                // to INR + populates the audit fields on the returned row.
                 setPaymentDialog({invoice});
                 setQuickPayment({method: 'bank_transfer', amount: invoice.total || 0, date: new Date().toISOString().split('T')[0]});
                 return;
             }
         }
         try {
-            const updatedInvoice = {...invoice, status: newStatus as "draft" | "sent" | "paid" | "overdue"};
+            const updatedInvoice = {...invoice, status: newStatus as InvoiceData["status"]};
             await updateInvoice(invoice.invoiceNumber, updatedInvoice);
             setPayload({type: "success", message: `Invoice ${invoice.invoiceNumber} status updated to ${newStatus}`});
             await loadInvoices();
@@ -335,6 +338,11 @@ const InvoiceManager = ({
     const getStatusColor = (status: string) => {
         switch (status) {
             case "paid": return "#4ADE80";
+            // Arc A / FE-4 — distinct color for the new partially_paid state:
+            // teal-ish so it reads as "some but not all", between paid (green)
+            // and sent (amber). Backend sets this when totalPaidINR > 0 and
+            // < total_in_inr.
+            case "partially_paid": return "#22C6AC";
             case "sent": return "#F59E0B";
             case "overdue": return "#EF4444";
             default: return "#94A3B8";
@@ -386,6 +394,7 @@ const InvoiceManager = ({
                         <option value="all">All</option>
                         <option value="draft">Draft</option>
                         <option value="sent">Sent</option>
+                        <option value="partially_paid">Partially paid</option>
                         <option value="paid">Paid</option>
                         <option value="overdue">Overdue</option>
                     </select>
@@ -528,9 +537,41 @@ const InvoiceManager = ({
                                     </td>
                                     <td style={{color: "#FAFAFA", padding: "12px", textAlign: "right", fontWeight: "bold"}}>
                                         <div>{getCurrencySymbol(invoice.currency || "USD")}{invoice.total.toFixed(2)}</div>
-                                        {invoice.status === "paid" && invoice.payment?.amountReceived && (
+                                        {/* Arc A / FE-2 + FE-5 — paid + partially_paid summary using
+                                            BE-authoritative fields. For non-INR invoices we show the
+                                            original-currency amount alongside its INR equivalent + the
+                                            capture rate; for INR invoices we just show the ₹ figure.
+                                            Falls back to the legacy amountReceived label when the new
+                                            fx fields aren't present (legacy payments before Arc A). */}
+                                        {(invoice.status === "paid" || invoice.status === "partially_paid") && invoice.payment && (
                                             <div style={{fontSize: "0.8rem", color: "#4ADE80", fontWeight: "normal", marginTop: "2px"}}>
-                                                Paid: {getCurrencySymbol("INR")}{invoice.payment.amountReceived.toFixed(2)}
+                                                {invoice.payment.originalAmount !== undefined && invoice.payment.originalCurrency ? (
+                                                    <>
+                                                        Paid: {getCurrencySymbol(invoice.payment.originalCurrency)}{invoice.payment.originalAmount.toFixed(2)}
+                                                        {invoice.payment.originalCurrency !== "INR" && invoice.payment.inrAmount !== undefined && (
+                                                            <div style={{fontSize: "0.7rem", color: "#B0B0B0", fontWeight: "normal"}}>
+                                                                = {getCurrencySymbol("INR")}{invoice.payment.inrAmount.toFixed(2)}
+                                                                {invoice.payment.fxRate !== undefined && (
+                                                                    <> @ {invoice.payment.fxRate.toFixed(4)}</>
+                                                                )}
+                                                                {invoice.payment.fxRateSource && (
+                                                                    <> ({invoice.payment.fxRateSource})</>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : invoice.payment.amountReceived ? (
+                                                    // Legacy pre-Arc-A path — original currency and FX
+                                                    // fields absent; render what the old data has.
+                                                    <>Paid: {getCurrencySymbol("INR")}{invoice.payment.amountReceived.toFixed(2)}</>
+                                                ) : null}
+                                            </div>
+                                        )}
+                                        {/* balance_due surfaces only when the server explicitly reports
+                                            a non-zero remainder (partially_paid state). */}
+                                        {invoice.status === "partially_paid" && invoice.balanceDueINR !== undefined && invoice.balanceDueINR > 0 && (
+                                            <div style={{fontSize: "0.75rem", color: "#F59E0B", fontWeight: "normal", marginTop: "2px"}}>
+                                                Balance: {getCurrencySymbol("INR")}{invoice.balanceDueINR.toFixed(2)}
                                             </div>
                                         )}
                                     </td>
@@ -545,6 +586,13 @@ const InvoiceManager = ({
                                                 }} disabled={loading}>
                                             <option value="draft" style={{color: "#000"}}>DRAFT</option>
                                             <option value="sent" style={{color: "#000"}}>SENT</option>
+                                            {/* Read-only state — BE sets it based on the paid-to-total
+                                                ratio, not the user picking it. Kept in the option list
+                                                so the current status renders correctly when the invoice
+                                                is already partially_paid. */}
+                                            {invoice.status === "partially_paid" && (
+                                                <option value="partially_paid" style={{color: "#000"}}>PARTIAL</option>
+                                            )}
                                             <option value="paid" style={{color: "#000"}}>PAID</option>
                                             <option value="overdue" style={{color: "#000"}}>OVERDUE</option>
                                         </select>
@@ -616,10 +664,23 @@ const InvoiceManager = ({
                                 </select>
                             </div>
                             <div>
-                                <label style={{color: '#aaa', fontSize: '0.8rem', display: 'block', marginBottom: '4px'}}>Amount Received (INR) *</label>
+                                {/* Arc A / FE-2 — label matches the semantic of what the user
+                                    is typing (invoice currency), not INR. The backend converts
+                                    to INR at record time using the current FX rate and stores
+                                    both the original amount and the conversion in the payment
+                                    row. Prior "Amount Received (INR)" label invited users to
+                                    manually pre-convert, which then double-converted server-side. */}
+                                <label style={{color: '#aaa', fontSize: '0.8rem', display: 'block', marginBottom: '4px'}}>
+                                    Amount Received ({paymentDialog.invoice.currency || "USD"}) *
+                                </label>
                                 <input type="number" className={styles.formInput} value={quickPayment.amount}
                                        onChange={(e) => setQuickPayment(p => ({...p, amount: parseFloat(e.target.value) || 0}))}
                                        min={0} step="0.01" />
+                                {paymentDialog.invoice.currency && paymentDialog.invoice.currency !== "INR" && (
+                                    <div style={{color: "#94A3B8", fontSize: "0.7rem", marginTop: "4px"}}>
+                                        Will be converted to INR at the current FX rate and recorded on the payment.
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label style={{color: '#aaa', fontSize: '0.8rem', display: 'block', marginBottom: '4px'}}>Payment Date</label>

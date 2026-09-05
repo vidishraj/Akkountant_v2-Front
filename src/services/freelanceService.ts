@@ -81,16 +81,69 @@ export async function fetchEarningsByDateRange(
 /**
  * Create a new invoice.
  */
+/**
+ * Strips client-side money math + server-computed settlement/FX fields from
+ * an invoice payload before sending it to the backend (ak-lvu Arc A). FE
+ * computed `subtotal`, `tax.amount`, `total`, `totalPaidINR`, `balanceDueINR`
+ * for preview only; the backend is the source of truth for those values and
+ * recomputes them at 2-decimal precision. Similarly, `payment.inrAmount`,
+ * `payment.fxRate`, `payment.fxRateSource`, `payment.convertedAt` are
+ * server-authored — the FE never sends them back.
+ *
+ * Kept as a local helper here rather than in the interfaces module because
+ * it's a wire-layer concern, not a type concern.
+ */
+function stripClientComputedFields(invoiceData: InvoiceData): InvoiceData {
+    const {
+        // Money fields the server will recompute:
+        subtotal: _s,
+        total: _t,
+        totalPaidINR: _tp,
+        balanceDueINR: _bd,
+        // Keep tax.rate; drop the client-computed tax.amount so the server
+        // recomputes off the rate + line items:
+        tax,
+        // Server-owned FX audit fields on payment (if present):
+        payment,
+        ...rest
+    } = invoiceData;
+    void _s; void _t; void _tp; void _bd;
+    return {
+        ...rest,
+        ...(tax ? { tax: { rate: tax.rate, amount: 0 } } : {}),
+        ...(payment
+            ? {
+                  payment: (() => {
+                      const {
+                          originalAmount: _oa,
+                          originalCurrency: _oc,
+                          inrAmount: _in,
+                          fxRate: _fr,
+                          fxRateSource: _fs,
+                          convertedAt: _ca,
+                          ...paymentRest
+                      } = payment;
+                      void _oa; void _oc; void _in; void _fr; void _fs; void _ca;
+                      return paymentRest;
+                  })(),
+              }
+            : {}),
+    } as InvoiceData;
+}
+
 export async function createInvoice(invoiceData: InvoiceData): Promise<CreateInvoiceResponse> {
     const options = withRequestId('api/freelance/invoices/create', withCacheCleared());
     const response = await queueRequest(() =>
-        axios.post('freelance/invoices', invoiceData, options)
+        axios.post('freelance/invoices', stripClientComputedFields(invoiceData), options)
     );
     return response.data;
 }
 
 /**
- * Update an existing invoice.
+ * Update an existing invoice. Client-computed money fields are stripped
+ * before send; the server response carries the authoritative recomputed
+ * values in `response.invoice` (Arc A / ak-lvu) — callers should update
+ * their local state from that rather than trust their pre-send data.
  */
 export async function updateInvoice(
     invoiceId: string,
@@ -98,7 +151,7 @@ export async function updateInvoice(
 ): Promise<UpdateInvoiceResponse> {
     const options = withRequestId(`api/freelance/invoices/${invoiceId}`, withCacheCleared());
     const response = await queueRequest(() =>
-        axios.put(`freelance/invoices/${invoiceId}`, invoiceData, options)
+        axios.put(`freelance/invoices/${invoiceId}`, stripClientComputedFields(invoiceData), options)
     );
     return response.data;
 }
