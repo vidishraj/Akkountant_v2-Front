@@ -22,6 +22,7 @@ import {useMessage} from "../../contexts/MessageContext";
 import {Dialog, DialogTitle, DialogContent, IconButton, CircularProgress} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import InvoicePDFPreview from "../InvoiceCreator/InvoicePDFPreview";
+import ErrorBoundary from "../ErrorBoundary";
 import {currencyService} from "../../services/currencyService";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 import ownStyles from "./FreelanceDashboard.module.scss";
@@ -394,6 +395,13 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
             )}
 
             {/* 3. Charts Grid - Area + Pie */}
+            {/* ErrorBoundary wrap (ak-awp hotfix follow-up): if any chart in
+                this section throws — e.g. a BE aggregation edge case landing
+                null on an array field like earningsByClient — the boundary
+                catches it locally so the Recent Invoices table + secondary
+                metrics below still render. Prior behavior was whole-page
+                teardown from the Status Distribution header down. */}
+            <ErrorBoundary>
             <div className={ownStyles.chartGrid}>
                 <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
                     <h3 className={styles.sectionTitle}>Monthly Paid Earnings (INR)</h3>
@@ -426,7 +434,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                     <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                             <Pie
-                                data={dashboardData.earningsByClient.filter(item => item.earnings > 0)}
+                                data={(dashboardData.earningsByClient ?? []).filter(item => item.earnings > 0)}
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
@@ -436,7 +444,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                                 fill="#8884d8"
                                 dataKey="earnings"
                             >
-                                {dashboardData.earningsByClient.filter(item => item.earnings > 0).map((_, index) => (
+                                {(dashboardData.earningsByClient ?? []).filter(item => item.earnings > 0).map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
@@ -475,7 +483,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                     <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
                         <h3 className={styles.sectionTitle}>Unpaid by Currency</h3>
                         <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={dashboardData.unpaidByCurrency.map(item => ({
+                            <BarChart data={(dashboardData.unpaidByCurrency ?? []).map(item => ({
                                 ...item,
                                 inrAmount: getINRConversion(item.amount, item.currency)
                             }))}>
@@ -492,6 +500,7 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                     </div>
                 )}
             </div>
+            </ErrorBoundary>
 
             {/* 6. Secondary Metrics Row */}
             <div className={ownStyles.dashboardGrid}>
