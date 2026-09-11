@@ -100,6 +100,38 @@
   gap: 8px;
 }
 
+// Mobile-viewport rescue for N-column rows (ak-owrh). On ~375dp iPhone
+// widths, a 4-item Row 2 (Count / Realized P&L / Pending (T+1) / F&O P&L)
+// collapses each flex item to ~85dp, which is narrower than the labels or
+// the formatted-INR values. With `min-width: 0` on the item, the overflow
+// draws over the neighbor rather than truncating — Overseer's screenshot
+// showed "Realized P&Rending (T+1)F&O P&L" glued together.
+//
+// Grid switch at <=480dp:
+// - 4 items → clean 2×2 (Row 2 with all four present)
+// - 3 items → 2+1 (Row 1, or Row 2 with one optional absent)
+// - 2 items → 1×2 (Row 2 with two optionals absent)
+//
+// Applied at the shared `.summaryStatsRow` level so Row 1 (Invested /
+// Change / % Change) is also protected against any future N-column growth
+// on the same class. Both rows use the same primitive; both get the fix.
+@media (max-width: 480px) {
+  .summaryStatsRow {
+    display: grid;
+    // auto-fit rather than a hard 1fr 1fr because .summaryStatsRow is also
+    // used for the EPG action row (1-2 buttons) — hardcoding two columns
+    // would leave a single-button EPG case left-aligned in the first
+    // column. auto-fit collapses empty tracks so a single child expands
+    // to full width; 2 items → 1×2; 3 items → 2+1; 4 items → 2×2 (the
+    // Overseer's failing Row 2 state); 5+ items → 2+2+…+1 gracefully.
+    // 140px minimum comfortably fits labels like "Realized P&L" and
+    // "Pending (T+1)" alongside their formatted-INR values at ≤480dp.
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px 8px;
+    justify-content: initial;
+  }
+}
+
 .summaryStatItem {
   display: flex;
   flex-direction: column;
