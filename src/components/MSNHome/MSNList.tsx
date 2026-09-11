@@ -16,6 +16,9 @@ import {
     getDayChange,
     getPendingValue,
     getPledgeInfo,
+    getRowCurrentValue,
+    getRowInvested,
+    getRowUnrealizedPnL,
     getT1Quantity,
     getTotalQuantity,
     type CostBasisDivergence,
@@ -88,14 +91,20 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
             // (e.g. -100% loss against buyValue). Surface this to the renderer instead of computing fake numbers.
             const priceUnavailable = Boolean(info && info.error);
 
-            // Value and P&L stay on the SETTLED quantity: `buyPrice` is our statement-derived
-            // basis and covers exactly those shares. Pending (T+1) shares are valued
-            // separately below — folding them in here would book their market value as profit.
-            const currentValue = priceUnavailable ? 0 : lastPrice * buyQuant;
-            const profit = priceUnavailable ? 0 : currentValue - (buyPrice * buyQuant);
-            const profitPercentage = priceUnavailable || buyPrice * buyQuant === 0
+            // Value + P&L: CONSUME the BE-emitted fold-in fields for Kite-enriched
+            // stock rows (blended, includes T+1 valued at Kite's last_price); fall
+            // back to statement compute (lastPrice × buyQuant vs buyPrice × buyQuant)
+            // for MF/NPS/manually-added rows via the helpers' automatic dispatch.
+            // Re-implementing `average_price × total_qty` locally would break
+            // Overseer's reconcile invariant (top-line Change == Σ per-row
+            // unrealized_pnl only holds when both sides read the same BE source).
+            // See `utils/holdings.ts` rule #2 for the full policy chain.
+            const currentValue = priceUnavailable ? 0 : getRowCurrentValue(stock, lastPrice);
+            const invested = getRowInvested(stock);
+            const profit = priceUnavailable ? 0 : getRowUnrealizedPnL(stock, lastPrice);
+            const profitPercentage = priceUnavailable || invested === 0
                 ? 0
-                : (profit / (buyPrice * buyQuant)) * 100;
+                : (profit / invested) * 100;
 
             // Broker-sourced settlement fields (stocks only; absent for MF/NPS and for
             // securities we never saw from Kite).

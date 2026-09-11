@@ -12,20 +12,30 @@
 //     truth for the blended position on Kite-enriched rows — helpers prefer
 //     it over recomputing settled + t1.
 //
-//  2. P&L on the Kite-view screen FOLDS T+1 shares into the totals via
-//     BE-computed row-level `invested` / `unrealized_pnl` / `current_value` /
-//     `day_change_amount`. This SUPERSEDED the earlier "settled-only P&L"
-//     rule on 2026-09-11 (ak-yz9c fold-in, per 2026-09-04 flatten-on-sync
-//     policy). See `MSNListResponse.buyPrice` comment in `interfaces.ts` for
-//     the full three-anchor policy chain (pre-2026-09-04 / 2026-09-04 /
-//     2026-09-11).
+//  2. P&L for KITE-ENRICHED (STOCK) ROWS folds T+1 shares into the totals
+//     via BE-computed row-level `invested` / `unrealized_pnl` /
+//     `current_value` / `day_change_amount`. **Renderers must CONSUME these
+//     BE fields (via `getRowInvested` / `getRowCurrentValue` / etc.), never
+//     recompute them locally** — recomputing re-introduces the divergent-
+//     derivation class Path A was designed to kill, and breaks Overseer's
+//     reconcile-test invariant (top-line Change == Σ per-row unrealized_pnl,
+//     which only holds when both sides read the same BE source). MF / NPS /
+//     manually-added rows (no BE fold fields) keep statement compute via
+//     the helpers' fallback path — automatic scoping. This rule SUPERSEDED
+//     the earlier "settled-only P&L" invariant on 2026-09-11 (ak-yz9c fold-
+//     in, per 2026-09-04 flatten-on-sync policy). See
+//     `MSNListResponse.buyPrice` comment in `interfaces.ts` for the full
+//     three-anchor policy chain (pre-2026-09-04 / 2026-09-04 / 2026-09-11).
 //
-//  3. Broker's `average_price` is now AUTHORITATIVE for the Kite-view cost
-//     basis (post-2026-09-11 ak-yz9c). `buyPrice` remains DB-authoritative
-//     for the statement pipeline but is display-advisory on the Kite view.
-//     `getCostBasisDivergence` still surfaces the delta as a cross-check
-//     hint on rows where broker and statement diverge — informational, does
-//     not feed any math.
+//  3. Broker's `average_price` is now AUTHORITATIVE for KITE-ENRICHED stock
+//     cost basis (post-2026-09-11 ak-yz9c). `buyPrice` remains DB-
+//     authoritative for the statement pipeline but is display-advisory on
+//     the Kite view. `getCostBasisDivergence` still surfaces the delta as a
+//     cross-check hint on rows where broker and statement diverge —
+//     informational, does not feed any math. BE-side verification of Kite's
+//     blended-avg semantic (Kite docs + T+2 empirical) recorded in
+//     `Akkountant-v2/tests/test_kite_holdings_fields.py` module docstring;
+//     see there for the authority citation.
 import {MSNListResponse} from "./interfaces.ts";
 
 /** Broker average-price divergence (fraction) at/above which we surface a cross-check hint. */
@@ -78,6 +88,78 @@ export const getPendingValue = (row: MSNListResponse, lastPrice: number): number
 // folds into portfolio totals via row-level `invested`/`current_value`, so a
 // summary-column-level aggregate is no longer meaningful). Per-row `getPendingValue`
 // stays for tooltip / detail contexts that still surface the pending sub-line.
+
+// ─── Row-level P&L helpers (ak-yz9c fold-in) ─────────────────────────────────
+//
+// These helpers embody the CONSUME-NOT-RECOMPUTE principle for row-level P&L
+// under Path A: when the BE-emitted folded field is present (Kite-enriched
+// stock rows), read it verbatim; when absent (MF / NPS / manually-added
+// rows), fall back to statement compute. Renderers call the helpers and
+// never branch on Kite-vs-not themselves — the helpers' present/absent
+// dispatch is the scoping mechanism.
+//
+// Why consume, not re-derive: Path A puts BE as the source of truth for
+// money math. Re-computing `average_price × total_qty` on the client re-
+// introduces the divergent-derivation class Path A was designed to kill,
+// and breaks Overseer's reconcile invariant (top-line Change == Σ per-row
+// unrealized_pnl only holds when both sides read the SAME BE source).
+// Rounding drift matters too: BE Decimal vs FE toLocaleString diverges by
+// paise on unfriendly numbers, which fails the reconcile by construction.
+//
+// Same shape as `getTotalQuantity`'s prefer-BE-`total_qty`-else-compute
+// pattern from Commit 1 — proven pattern, replicated across the P&L axis.
+
+/**
+ * Row-level invested — BE-emitted `invested` for Kite-enriched stock rows;
+ * statement compute (`buyPrice × settled_qty`) for MF/NPS/legacy rows.
+ */
+export const getRowInvested = (row: MSNListResponse): number => {
+    if (typeof row?.invested === "number" && Number.isFinite(row.invested)) {
+        return row.invested;
+    }
+    return toFiniteNumber(row?.buyPrice) * getSettledQuantity(row);
+};
+
+/**
+ * Row-level current market value — BE-emitted `current_value` (folded,
+ * `last_price × total_qty` including T+1) for Kite-enriched stock rows;
+ * live-feed compute (`lastPrice × settled_qty`) for MF/NPS/legacy rows.
+ * Returns 0 when a fallback row's price is unusable (0 / errored feed).
+ */
+export const getRowCurrentValue = (row: MSNListResponse, lastPrice: number): number => {
+    if (typeof row?.current_value === "number" && Number.isFinite(row.current_value)) {
+        return row.current_value;
+    }
+    const price = toFiniteNumber(lastPrice);
+    if (price <= 0) return 0;
+    return price * getSettledQuantity(row);
+};
+
+/**
+ * Row-level unrealized P&L — BE-emitted `unrealized_pnl` (folded) for
+ * Kite-enriched stock rows; `(lastPrice − buyPrice) × settled_qty` for
+ * MF/NPS/legacy rows (computed via getRowCurrentValue - getRowInvested,
+ * which itself respects the same BE/fallback dispatch).
+ */
+export const getRowUnrealizedPnL = (row: MSNListResponse, lastPrice: number): number => {
+    if (typeof row?.unrealized_pnl === "number" && Number.isFinite(row.unrealized_pnl)) {
+        return row.unrealized_pnl;
+    }
+    return getRowCurrentValue(row, lastPrice) - getRowInvested(row);
+};
+
+/**
+ * Row-level absolute day P&L — BE-emitted `day_change_amount` (folded,
+ * `total_qty × (last_price − close_price)`) for Kite-enriched stock rows;
+ * null for rows without the field (MF/NPS render day change as a
+ * percentage-only via `getDayChange` — no absolute number to fall back to).
+ */
+export const getRowDayChangeAmount = (row: MSNListResponse): number | null => {
+    if (typeof row?.day_change_amount === "number" && Number.isFinite(row.day_change_amount)) {
+        return row.day_change_amount;
+    }
+    return null;
+};
 
 export interface DayChange {
     /**
@@ -196,7 +278,7 @@ export const buildT1Tooltip = (row: MSNListResponse, lastPrice: number): string 
     const valueSuffix = pendingValue > 0 ? ` (≈ ₹${formatCurrency(pendingValue)} at market)` : "";
     return (
         `${formatQuantity(pending)} share(s) purchased, pending demat settlement (T+1)${valueSuffix}. ` +
-        `${formatQuantity(settled)} settled. P&L below is computed on settled shares only, ` +
-        `since the pending purchase is not in the cost basis yet.`
+        `${formatQuantity(settled)} settled. Invested / P&L include these T+1 shares — ` +
+        `Kite's broker-blended cost basis covers the full position (ak-yz9c fold-in).`
     );
 };

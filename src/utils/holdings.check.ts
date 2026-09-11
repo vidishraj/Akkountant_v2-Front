@@ -10,6 +10,10 @@ import {
     getDayChange,
     getPendingValue,
     getPledgeInfo,
+    getRowCurrentValue,
+    getRowDayChangeAmount,
+    getRowInvested,
+    getRowUnrealizedPnL,
     getSettledQuantity,
     getT1Quantity,
     getTotalQuantity,
@@ -101,6 +105,63 @@ check("ak-yz9c fixture: getTotalQuantity (uses total_qty)", getTotalQuantity(fol
 // total_qty, the below would return 250 not 451 — mutation-test-style probe.
 check("ak-yz9c discriminator: total_qty=settled would fail blended check",
     getTotalQuantity({...foldFixture, total_qty: 250}) !== 451, true);
+
+// --- ak-yz9c P&L PATH (Commit 3 — closes the tautology-canary gap) ------------
+// Commit 1 verified the QUANTITY path end-to-end (wire → helper → assertion).
+// It said nothing about the P&L path — because Commit 1 left the per-row
+// renderers on the retired settled-only compute (buyPrice × buyQuant), no
+// helper was reading `invested` / `unrealized_pnl` / `current_value` /
+// `day_change_amount`, and any assertion on those would be measuring an
+// un-wired field. Reviewer + Fable independently caught this class as
+// "tautology-canary: test passes without exercising the property".
+//
+// Commit 3 wires the P&L path: renderers call `getRowInvested` /
+// `getRowCurrentValue` / `getRowUnrealizedPnL` — which prefer BE-emitted
+// folded values on Kite-enriched rows and fall back to statement compute
+// on MF/NPS/legacy rows. The assertions below verify BOTH branches of
+// that dispatch on the shared BE fixture.
+
+// Path A branch: BE-emitted folded fields present → helpers CONSUME them.
+check("ak-yz9c fixture: getRowInvested consumes BE invested", getRowInvested(foldFixture), 676500);
+check("ak-yz9c fixture: getRowCurrentValue consumes BE current_value",
+    getRowCurrentValue(foldFixture, 1600), 721600);
+check("ak-yz9c fixture: getRowUnrealizedPnL consumes BE unrealized_pnl",
+    getRowUnrealizedPnL(foldFixture, 1600), 45100);
+check("ak-yz9c fixture: getRowDayChangeAmount consumes BE day_change_amount",
+    getRowDayChangeAmount(foldFixture), 9020);
+
+// Mutation-test discriminators: swap the BE field, assert the helper's
+// output changes accordingly. This proves the helper actually READS the BE
+// field rather than computing locally from qty × price. If Commit 3 had
+// left the renderer computing locally, mutating `unrealized_pnl` here
+// would produce the same statement-compute answer (45100 by coincidence
+// on this fixture only), so we mutate to a value that DIFFERS from any
+// plausible statement compute to force discrimination.
+check("ak-yz9c discriminator: mutated BE invested surfaces (proves helper reads it)",
+    getRowInvested({...foldFixture, invested: 999999}), 999999);
+check("ak-yz9c discriminator: mutated BE unrealized_pnl surfaces",
+    getRowUnrealizedPnL({...foldFixture, unrealized_pnl: 12345}, 1600), 12345);
+check("ak-yz9c discriminator: mutated BE current_value surfaces",
+    getRowCurrentValue({...foldFixture, current_value: 500000}, 1600), 500000);
+
+// Fallback branch: statement-only row (no BE fold fields) → helpers compute
+// from buyPrice × buyQuant. Exercises the MF/NPS/legacy dispatch so the
+// stocks-only migration doesn't silently break the fallback path.
+const statementOnlyRow = row({
+    buyPrice: 1500, buyQuant: 100,
+    // no invested / current_value / unrealized_pnl / day_change_amount on wire
+});
+check("statement fallback: getRowInvested = buyPrice × settled",
+    getRowInvested(statementOnlyRow), 150000);
+check("statement fallback: getRowCurrentValue = lastPrice × settled",
+    getRowCurrentValue(statementOnlyRow, 1600), 160000);
+check("statement fallback: getRowUnrealizedPnL = current − invested",
+    getRowUnrealizedPnL(statementOnlyRow, 1600), 10000);
+check("statement fallback: getRowDayChangeAmount = null (no absolute source)",
+    getRowDayChangeAmount(statementOnlyRow), null);
+// Fallback price-unavailable safety
+check("statement fallback: zero price yields zero current value",
+    getRowCurrentValue(statementOnlyRow, 0), 0);
 
 // --- day change ---------------------------------------------------------------
 check(

@@ -21,7 +21,14 @@ import {MSNListResponse} from "../../utils/interfaces.ts";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import withLoader from "../LoaderHOC.tsx";
 import {formatDateString} from "../../utils/util.tsx";
-import {buildT1Tooltip, formatQuantity, getT1Quantity} from "../../utils/holdings.ts";
+import {
+    buildT1Tooltip,
+    formatQuantity,
+    getRowCurrentValue,
+    getRowInvested,
+    getRowUnrealizedPnL,
+    getT1Quantity,
+} from "../../utils/holdings.ts";
 
 const PRICE_UNAVAILABLE_TOOLTIP = "Live price could not be fetched from the data provider for this security.";
 
@@ -153,7 +160,7 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                 <Box>
                                     <Typography variant="caption" sx={{ color: '#7a7d85' }}>Invested</Typography>
                                     <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                        &#8377;{(details.buyPrice * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        &#8377;{getRowInvested(details).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Typography>
                                 </Box>
                                 <Box>
@@ -162,7 +169,7 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                         <Typography variant="body2" sx={{ color: '#7a7d85', fontWeight: 'bold' }}>—</Typography>
                                     ) : (
                                         <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                            &#8377;{(Number(details.info.lastPrice) * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            &#8377;{getRowCurrentValue(details, Number(details.info.lastPrice)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Typography>
                                     )}
                                 </Box>
@@ -171,7 +178,12 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                     {priceUnavailable ? (
                                         <Typography variant="body2" sx={{ color: '#7a7d85', fontWeight: 'bold' }}>—</Typography>
                                     ) : (() => {
-                                        const pnl = (Number(details.info.lastPrice) - details.buyPrice) * details.buyQuant;
+                                        // CONSUME BE-emitted `unrealized_pnl` for Kite-enriched stock
+                                        // rows (folded, includes T+1); fallback to statement compute
+                                        // for MF/NPS/legacy via the helper's dispatch. Never
+                                        // re-derive from average_price × total_qty locally — that
+                                        // breaks Overseer's reconcile invariant.
+                                        const pnl = getRowUnrealizedPnL(details, Number(details.info.lastPrice));
                                         return (
                                             <Typography variant="body2" sx={{ color: pnl >= 0 ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
                                                 {pnl >= 0 ? '+' : ''}&#8377;{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -180,9 +192,11 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                     })()}
                                 </Box>
                             </Box>
-                            {/* Pending-settlement disclosure — keeps this view consistent with the
-                                list row, which shows the committed (settled + T+1) quantity.
-                                Invested / Current / P&L above stay on settled shares only. */}
+                            {/* T+1 pending-settlement chip — visual indicator only. Post-ak-yz9c
+                                fold-in the T+1 shares are already included in the Invested /
+                                Current / P&L figures above (Kite-blended avg × total_qty via BE
+                                fold), so the chip surfaces the settled/pending split for
+                                transparency without asserting any exclusion. */}
                             {getT1Quantity(details) > 0 && (
                                 <Box sx={{display: 'flex', alignItems: 'center', gap: '8px', px: '4px'}}>
                                     <Tooltip arrow title={buildT1Tooltip(details, Number(details.info.lastPrice))}>
@@ -200,7 +214,7 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                         />
                                     </Tooltip>
                                     <Typography variant="caption" sx={{color: '#7a7d85'}}>
-                                        {formatQuantity(details.buyQuant)} settled · pending demat settlement not in the figures above
+                                        {formatQuantity(details.buyQuant)} settled · included in the figures above
                                     </Typography>
                                 </Box>
                             )}
@@ -240,19 +254,24 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                 <Box>
                                     <Typography variant="caption" sx={{ color: '#7a7d85' }}>Invested</Typography>
                                     <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                        &#8377;{(details.buyPrice * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        &#8377;{getRowInvested(details).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Typography>
                                 </Box>
                                 <Box>
                                     <Typography variant="caption" sx={{ color: '#7a7d85' }}>Current</Typography>
                                     <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                        &#8377;{(Number(details.info.nav) * details.buyQuant).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        &#8377;{getRowCurrentValue(details, Number(details.info.nav)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Typography>
                                 </Box>
                                 <Box>
                                     <Typography variant="caption" sx={{ color: '#7a7d85' }}>P&L</Typography>
                                     {(() => {
-                                        const pnl = (Number(details.info.nav) - details.buyPrice) * details.buyQuant;
+                                        // NPS has no BE fold fields → helper's fallback path
+                                        // computes (nav − buyPrice) × buyQuant, same as prior
+                                        // inline math. Consistent code shape across all
+                                        // asset types; if NPS ever gets BE-fold in a future
+                                        // arc, it inherits automatically.
+                                        const pnl = getRowUnrealizedPnL(details, Number(details.info.nav));
                                         return (
                                             <Typography variant="body2" sx={{ color: pnl >= 0 ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
                                                 {pnl >= 0 ? '+' : ''}&#8377;{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
