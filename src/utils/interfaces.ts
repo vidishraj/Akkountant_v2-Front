@@ -147,15 +147,30 @@ export interface MSNListResponse {
     schemeName?: string;
     id?: string
 
-    // --- Broker (Kite) holdings passthrough — ak-9we / backend ak-w4p ---
-    // All optional: absent until the backend row-9 change lands, and absent for
-    // non-Kite securities (MF / NPS / manually added stocks). Read them through
-    // `utils/holdings.ts` rather than inline so the contract stays in one place.
+    // --- Broker (Kite) holdings passthrough — ak-9we / backend ak-w4p / ak-yz9c ---
+    // All optional: absent for non-Kite securities (MF / NPS / manually added stocks)
+    // and absent on pre-Kite-sync rows. Read them through `utils/holdings.ts` rather
+    // than inline so the contract stays in one place.
     //
-    // CONTRACT (mirrors Kite `holdings()` semantics, confirmed by backend on ak-w4p):
-    // `buyQuant` is the settled quantity ONLY; `t1_quantity` is bought-but-unsettled and
-    // is NOT included in `buyQuant`. Total committed position = buyQuant + t1_quantity.
-    t1_quantity?: number;            // bought, pending demat settlement (T+1 window)
+    // FIELD SEMANTIC (ak-yz9c fold-in):
+    // - `buyQuant` remains DB/statement-truthed settled qty (unchanged).
+    // - `settled_qty` is the Kite-view settled qty on Kite-enriched rows — typically
+    //   equals `buyQuant` on the happy path, but sourced from Kite for broker-view
+    //   consumers.
+    // - `t1_qty` is bought-but-unsettled (T+1 window). Renamed from the earlier
+    //   `t1_quantity` for symmetry with `settled_qty`.
+    // - `total_qty` = `settled_qty + t1_qty` (blended). BE-emitted single source of
+    //   truth for the blended position; readers should prefer it over recomputing.
+    // - `invested`, `current_value`, `unrealized_pnl`, `day_change_amount` are the
+    //   server-computed fold-in money-math values. See BE ak-yz9c for the exact
+    //   computation semantics (Kite-canonical avg on Path A).
+    settled_qty?: number;            // Kite settled qty view
+    t1_qty?: number;                 // bought, pending demat settlement (T+1 window)
+    total_qty?: number;              // blended (settled + T+1)
+    invested?: number;               // server-computed: avg × total_qty
+    current_value?: number;          // server-computed: last_price × total_qty
+    unrealized_pnl?: number;         // server-computed: current_value − invested
+    day_change_amount?: number;      // server-computed: total_qty × (last_price − close_price)
     realised_quantity?: number;      // broker realised quantity
     collateral_quantity?: number;    // quantity pledged as collateral
     authorised_quantity?: number;    // quantity authorised for sale
@@ -169,11 +184,6 @@ export interface MSNListResponse {
     // the pricing source; this exists purely for backend-side comparison until the
     // pricing-source swap is decided on its own bead.
     last_price?: number;
-    // Backend-computed t1_quantity * broker last_price. Deliberately NOT used for
-    // display: we value pending shares with the same NSE price we render everywhere
-    // else, so the pending figure stays consistent with the row it sits next to.
-    // Excluded from P&L on both sides of the wire.
-    pending_t1_value?: number;
     // On the wire but not rendered. MTF is margin-funded quantity; we have no
     // confirmation the Overseer uses it, so showing it would add row weight for a
     // figure that is always zero. Wire them up only once that is confirmed.

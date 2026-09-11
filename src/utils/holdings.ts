@@ -28,11 +28,23 @@ export const getSettledQuantity = (row: MSNListResponse): number => toFiniteNumb
 
 /** Bought but not yet settled (T+1 window). 0 when the broker did not report it. */
 export const getT1Quantity = (row: MSNListResponse): number =>
-    Math.max(0, toFiniteNumber(row?.t1_quantity));
+    Math.max(0, toFiniteNumber(row?.t1_qty));
 
-/** Total committed position: settled + pending settlement. */
-export const getTotalQuantity = (row: MSNListResponse): number =>
-    getSettledQuantity(row) + getT1Quantity(row);
+/**
+ * Total committed position: settled + pending settlement.
+ *
+ * Prefers the BE-emitted `total_qty` (ak-yz9c fold-in, single source of truth
+ * for blended qty when the row was Kite-enriched). Falls back to computing
+ * from settled + T+1 for rows without `total_qty` (non-Kite MF/NPS, or
+ * pre-fold-ship legacy rows).
+ */
+export const getTotalQuantity = (row: MSNListResponse): number => {
+    const total = row?.total_qty;
+    if (typeof total === "number" && Number.isFinite(total)) {
+        return Math.max(0, total);
+    }
+    return getSettledQuantity(row) + getT1Quantity(row);
+};
 
 export const hasPendingSettlement = (row: MSNListResponse): boolean => getT1Quantity(row) > 0;
 
@@ -48,17 +60,11 @@ export const getPendingValue = (row: MSNListResponse, lastPrice: number): number
     return price * getT1Quantity(row);
 };
 
-/** Sum of pending (T+1) market value across a list; rows without a usable price contribute 0. */
-export const getTotalPendingValue = (rows: MSNListResponse[] | undefined): number => {
-    if (!Array.isArray(rows)) return 0;
-    return rows.reduce((total, row) => total + getPendingValue(row, toFiniteNumber(row?.info?.lastPrice)), 0);
-};
-
-/** Total pending (T+1) quantity across a list. */
-export const getTotalPendingQuantity = (rows: MSNListResponse[] | undefined): number => {
-    if (!Array.isArray(rows)) return 0;
-    return rows.reduce((total, row) => total + getT1Quantity(row), 0);
-};
+// getTotalPendingValue / getTotalPendingQuantity removed in ak-yz9c — sole caller
+// was the MSNSummary Pending (T+1) column that ak-yz9c retires (T+1 exposure now
+// folds into portfolio totals via row-level `invested`/`current_value`, so a
+// summary-column-level aggregate is no longer meaningful). Per-row `getPendingValue`
+// stays for tooltip / detail contexts that still surface the pending sub-line.
 
 export interface DayChange {
     /**

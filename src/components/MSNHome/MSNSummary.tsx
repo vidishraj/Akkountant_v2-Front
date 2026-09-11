@@ -9,7 +9,6 @@ import DepositModal from "../DepositsComponent.tsx";
 import {fetchRates} from "../../services/investmentService.ts";
 import RatesModal from "../RatesModal.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
-import {formatQuantity, getTotalPendingQuantity, getTotalPendingValue} from "../../utils/holdings.ts";
 
 const MSNSummary = () => {
     const [summary, setSummary] = useState<any | undefined>(undefined);
@@ -136,12 +135,12 @@ const MSNSummary = () => {
         return tooltip ? <Tooltip arrow title={tooltip}>{item}</Tooltip> : item;
     };
 
-    // Pending-settlement (T+1) exposure, surfaced as its OWN stat rather than merged into
-    // "Total Asset Value"/"Invested": those come from the backend and are computed on
-    // settled quantities against our statement-derived cost basis. Adding pending shares
-    // to the value without their cost in the basis would inflate the reported change.
-    const pendingQuantity = state.selectedCard.stocks ? getTotalPendingQuantity(state.lists?.stocks) : 0;
-    const pendingValue = state.selectedCard.stocks ? getTotalPendingValue(state.lists?.stocks) : 0;
+    // T+1 exposure derivations removed in ak-yz9c — the standalone "Pending
+    // (T+1)" summary column that consumed them is retired. T+1 shares now
+    // fold into portfolio totals (Invested / Total Asset Value / Change / %
+    // Change) via BE-computed row-level `invested`/`current_value`. Per-row
+    // chips on MSNList + MSNDetails continue to surface the T+1 quantity
+    // as a visual indicator.
 
     if (!summary) return null;
 
@@ -193,18 +192,6 @@ const MSNSummary = () => {
                                 "Realized P&L",
                                 `${state.realizedPnl.netRealizedPnL >= 0 ? "+" : ""}\u20B9${formatINR(state.realizedPnl.netRealizedPnL)}`,
                                 state.realizedPnl.netRealizedPnL >= 0 ? "#4caf50" : "#f44336"
-                            )
-                        }
-                        {pendingQuantity > 0 &&
-                            renderStatItem(
-                                "Pending (T+1)",
-                                pendingValue > 0
-                                    ? `₹${formatINR(pendingValue)}`
-                                    : `${formatQuantity(pendingQuantity)} sh`,
-                                "#7fb5ff",
-                                `${formatQuantity(pendingQuantity)} share(s) bought and awaiting demat settlement (T+1)` +
-                                `${pendingValue > 0 ? `, worth about ₹${formatINR(pendingValue)} at market` : ""}. ` +
-                                `Not included in Total Asset Value / Invested above, which cover settled holdings only.`
                             )
                         }
                         {state.selectedCard.stocks && state.foSummary && state.foSummary.tradeCount > 0 &&
