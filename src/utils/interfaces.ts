@@ -136,7 +136,31 @@ export interface MSNRateResponse {
 export interface MSNListResponse {
     buyID: number | string; // The ID of the buy transaction, inferred as number or string
     buyCode: string; // Security code of the transaction
-    buyPrice: number; // Our statement-derived average cost basis — never overwrite with broker data
+    // Statement-derived average cost basis, from user's Zerodha tradebook uploads.
+    //
+    // POLICY CHAIN (three anchors — read this before touching buyPrice authority):
+    //   1. **Pre-2026-09-04** (ak-w4p era): statement-derived buyPrice was
+    //      authoritative; Kite's `average_price` was a cross-check hint only.
+    //      Under this policy, T+1 shares had no cost basis (statement pipeline
+    //      generates rows post-settlement) — including them in P&L would book
+    //      their whole market value as phantom profit.
+    //   2. **2026-09-04** (flatten-on-sync policy): Overseer accepted Kite's
+    //      `average_price` as broker-canonical for the fields we sync from
+    //      Kite. Broker view starts flattening our internal state on each sync.
+    //   3. **2026-09-11** (ak-yz9c T+1 fold-in, Path A stamped): Kite avg is
+    //      now authoritative for cost basis on the Kite-view screen — folded
+    //      fields (`invested`, `unrealized_pnl`, `current_value`,
+    //      `day_change_amount`) are computed server-side off Kite's blended
+    //      avg. `buyPrice` remains DB-authoritative for the statement pipeline
+    //      (`sync_kite_holdings_to_db` still preserves it) but is display-
+    //      advisory on this screen.
+    //
+    // CONSEQUENCE ACCEPTED BY OVERSEER: on holdings with corporate actions
+    // (splits/rights/dividend adjustments), Kite's broker-blended avg diverges
+    // from statement-derived per-share cost. The Kite-view screen shows broker's
+    // number, not out-of-pocket per share. Statement history keeps populating
+    // DB but stops driving the Kite-view display.
+    buyPrice: number;
     buyQuant: number; // Settled/demat quantity we hold (broker `quantity`, EXCLUDING T+1)
     schemeCode: string; // Code representing the security type or scheme
     serviceType: string; // Type of service (investment type)
@@ -177,8 +201,15 @@ export interface MSNListResponse {
     day_change?: number;             // absolute per-share day change (₹), broker-computed
     day_change_percentage?: number;  // day change (%), broker-computed
     close_price?: number;            // previous close, broker-provided
-    // Broker-computed cost basis. CROSS-CHECK SURFACE ONLY — our statement-derived
-    // `buyPrice` remains the source of truth for all P&L math.
+    // Broker-computed cost basis. **NOW AUTHORITATIVE for the Kite-view P&L
+    // math** (2026-09-11 ak-yz9c fold-in, per 2026-09-04 flatten-on-sync
+    // policy — see the `buyPrice` policy-chain comment above for the full
+    // three-anchor history). BE uses this to compute the row-level
+    // `invested` / `unrealized_pnl` / `current_value` / `day_change_amount`
+    // folded values. Pre-2026-09-11 this was cross-check-only;
+    // `getCostBasisDivergence` still surfaces the delta vs `buyPrice` as a
+    // visible hint on rows where broker and statement diverge (informational
+    // only — doesn't feed math).
     average_price?: number;
     // Broker's own price. DO NOT RENDER — the live NSE feed (`info.lastPrice`) remains
     // the pricing source; this exists purely for backend-side comparison until the

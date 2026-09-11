@@ -1,18 +1,31 @@
-// Broker (Kite) holdings helpers — ak-9we.
+// Broker (Kite) holdings helpers — ak-9we / ak-yz9c fold-in.
 //
 // The dashboard row carries optional broker fields (see `MSNListResponse`). They are
-// absent for MF / NPS / manually added securities and absent entirely until the backend
-// row-9 change (ak-w4p) lands, so every reader must tolerate `undefined`.
+// absent for MF / NPS / manually added securities, so every reader must tolerate
+// `undefined`.
 //
 // ACCOUNTING RULES encoded here (do not bypass these helpers in components):
-//  1. `buyQuant` is the SETTLED quantity; `t1_quantity` is bought-but-unsettled and is
-//     NOT included in it. Committed position = buyQuant + t1_quantity.
-//  2. P&L is computed on the settled quantity only, because our statement-derived cost
-//     basis (`buyPrice`) covers exactly those shares. Valuing T+1 shares at market while
-//     their purchase cost is missing from the basis would book their whole market value
-//     as profit. T+1 value is therefore surfaced separately, never folded into P&L.
-//  3. The broker's `average_price` is a cross-check surface only — it never replaces
-//     `buyPrice` in any calculation.
+//
+//  1. `buyQuant` is DB-truthed SETTLED quantity (statement-derived, unchanged).
+//     `t1_qty` is broker-reported bought-but-unsettled (T+1 window).
+//     `total_qty` is BE-emitted blended (settled + T+1), the single source of
+//     truth for the blended position on Kite-enriched rows — helpers prefer
+//     it over recomputing settled + t1.
+//
+//  2. P&L on the Kite-view screen FOLDS T+1 shares into the totals via
+//     BE-computed row-level `invested` / `unrealized_pnl` / `current_value` /
+//     `day_change_amount`. This SUPERSEDED the earlier "settled-only P&L"
+//     rule on 2026-09-11 (ak-yz9c fold-in, per 2026-09-04 flatten-on-sync
+//     policy). See `MSNListResponse.buyPrice` comment in `interfaces.ts` for
+//     the full three-anchor policy chain (pre-2026-09-04 / 2026-09-04 /
+//     2026-09-11).
+//
+//  3. Broker's `average_price` is now AUTHORITATIVE for the Kite-view cost
+//     basis (post-2026-09-11 ak-yz9c). `buyPrice` remains DB-authoritative
+//     for the statement pipeline but is display-advisory on the Kite view.
+//     `getCostBasisDivergence` still surfaces the delta as a cross-check
+//     hint on rows where broker and statement diverge — informational, does
+//     not feed any math.
 import {MSNListResponse} from "./interfaces.ts";
 
 /** Broker average-price divergence (fraction) at/above which we surface a cross-check hint. */
@@ -139,20 +152,23 @@ export const getPledgeInfo = (row: MSNListResponse): PledgeInfo | null => {
 };
 
 export interface CostBasisDivergence {
-    /** Our statement-derived cost basis — the source of truth. */
+    /** DB-truthed statement-derived cost basis (display-advisory post-2026-09-11). */
     ours: number;
-    /** Broker-computed average price. */
+    /** Broker (Kite) average price — authoritative for Kite-view P&L post-2026-09-11. */
     broker: number;
     /** broker - ours, in ₹. */
     difference: number;
-    /** Divergence relative to our basis, in %. */
+    /** Divergence relative to the statement basis, in %. */
     percent: number;
 }
 
 /**
- * Informational cross-check between our cost basis and the broker's average price.
- * Returns null unless both are usable and they diverge by more than the threshold.
- * Purely a display hint — nothing here feeds P&L.
+ * Informational cross-check between the statement-derived cost basis and Kite's
+ * broker average. Returns null unless both are usable and they diverge by more
+ * than the threshold. Post-2026-09-11 (ak-yz9c), Kite avg is authoritative — this
+ * helper still surfaces the delta as a visible hint on rows where broker and
+ * statement diverge (typically after corporate actions), but the delta is
+ * informational only and doesn't feed any math.
  */
 export const getCostBasisDivergence = (row: MSNListResponse): CostBasisDivergence | null => {
     const ours = toFiniteNumber(row?.buyPrice);
