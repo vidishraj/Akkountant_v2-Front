@@ -16,6 +16,7 @@ import {
 import styles from "./AgentChat.module.scss";
 import { useAgentChatBridge } from "../../contexts/AgentChatBridgeContext";
 import FileAttachmentCard from "./FileAttachmentCard";
+import useModalA11y from "../../hooks/useModalA11y";
 
 // ── Attachment policy ───────────────────────────────────────────────────────
 // Must match the backend's allowed_types / max_size / per-message-cap exactly,
@@ -264,6 +265,21 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // FE-7 (ak-6lyp) a11y plumbing — drawer panel + initial-focus target
+  // consumed by useModalA11y below.
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  // Focus / restore / tab-trap wired via the shared hook. The initial
+  // focus target is the composer textarea — that's the dialog's primary
+  // interaction surface, and dropping the user there matches how chat UIs
+  // behave elsewhere (Slack, Teams, ChatGPT). Esc-to-close is NOT handled
+  // by the hook (chat may want Esc to clear a draft rather than close);
+  // the backdrop click already provides the explicit close.
+  useModalA11y({
+    open: isOpen,
+    panelRef: drawerRef,
+    firstFocusableRef: inputRef as React.RefObject<HTMLElement>,
+  });
 
   const attachmentsEnabled = agentSupportsAttachments(agentType);
   const hasUploadingAttachment = pendingAttachments.some(
@@ -862,14 +878,21 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
 
       {/* Drawer */}
       {isOpen && (
-        <div className={styles.drawer}>
+        <div
+          className={styles.drawer}
+          ref={drawerRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={AGENT_TITLES[agentType]}
+        >
           <div className={styles.header}>
             <h3>{AGENT_TITLES[agentType]}</h3>
             <button
               className={styles.closeBtn}
               onClick={() => setIsOpen(false)}
+              aria-label="Close chat"
             >
-              x
+              <i className="ph ph-x"/>
             </button>
           </div>
 
@@ -1014,27 +1037,59 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
               </div>
             )}
 
-            {confirmDialog && (
-              <div className={styles.confirmDialog}>
-                <div className={styles.confirmMessage}>
-                  {confirmDialog.message}
+            {confirmDialog && (() => {
+              // FE-7 (ak-6lyp) confirm-gate visual distinction. Bead §5:
+              // confirm-gate MUST be distinct from loading. Bead B
+              // insert-after-web-fetch requires a visible confirm that reads
+              // differently from the destructive-delete confirm — same
+              // affordance pattern, different tone.
+              //   - delete_* tools      → destructive variant (error tint)
+              //   - everything else     → accent variant (mutation)
+              const isDestructive = confirmDialog.tool.startsWith("delete");
+              const variantClass = isDestructive
+                ? styles.confirmDialogDestructive
+                : styles.confirmDialogMutation;
+              const yesClass = isDestructive
+                ? styles.confirmYesDestructive
+                : styles.confirmYesMutation;
+              const yesLabel = isDestructive ? "Confirm delete" : "Apply";
+              return (
+                <div
+                  className={`${styles.confirmDialog} ${variantClass}`}
+                  role="alertdialog"
+                  aria-label={isDestructive ? "Confirm destructive action" : "Confirm agent action"}
+                >
+                  <div className={styles.confirmKicker}>
+                    <i
+                      className={`ph ${isDestructive ? "ph-warning" : "ph-sparkle"}`}
+                      aria-hidden
+                    />
+                    <span>
+                      {isDestructive ? "Destructive action" : "Agent wants to apply a change"}
+                    </span>
+                  </div>
+                  <div className={styles.confirmMessage}>
+                    {confirmDialog.message}
+                  </div>
+                  <div className={styles.confirmActions}>
+                    <button
+                      type="button"
+                      className={`${styles.confirmBtn} ${yesClass}`}
+                      onClick={() => handleConfirm(true)}
+                    >
+                      {yesLabel}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.confirmBtn} ${styles.confirmNo}`}
+                      onClick={() => handleConfirm(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-                <div className={styles.confirmActions}>
-                  <button
-                    className={`${styles.confirmBtn} ${styles.confirmYes}`}
-                    onClick={() => handleConfirm(true)}
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    className={`${styles.confirmBtn} ${styles.confirmNo}`}
-                    onClick={() => handleConfirm(false)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div ref={messagesEndRef} />
           </div>
