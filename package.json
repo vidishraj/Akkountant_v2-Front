@@ -16,6 +16,7 @@
     "@microsoft/fetch-event-source": "^2.0.1",
     "@mui/x-charts": "^7.23.2",
     "@mui/x-date-pickers": "^7.22.2",
+    "@phosphor-icons/web": "^2.1.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",

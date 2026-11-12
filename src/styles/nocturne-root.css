@@ -1,0 +1,44 @@
+/* Nocturne wrapper class (ak-abic, FE-0).
+ *
+ * `nocturne.css` upstream (lead's design/_ds/nocturne-*) is kept byte-identical so a
+ * design-system refresh is a straight recopy. That file applies dark base styles at
+ * `body { ... }`, which is masked for us because the pre-existing index.css defines
+ * `.layout { background: #121C24; color: white; }` on an ancestor of App. This file
+ * re-applies the same base style stack at a `.nocturne` scope, so wrapping any
+ * subtree in `<div className="nocturne">` flips its background + text to Nocturne's
+ * tokens without touching legacy layout CSS.
+ *
+ * Why not edit index.css: existing MUI screens still render over the legacy layout;
+ * that transition is explicit scope in the bead (only the App content flips). Later
+ * FE beads retire the legacy layout once their screens are Nocturne-native.
+ */
+
+.nocturne {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    font-weight: 400;
+    /* Fill the host's content box so the dark ground reaches the container's
+     * edges even when child routes render nothing above the fold. */
+    min-height: 100%;
+}
+
+.nocturne h1,
+.nocturne h2,
+.nocturne h3,
+.nocturne h4,
+.nocturne h5,
+.nocturne h6 {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+}
+
+.nocturne a {
+    color: var(--color-accent);
+    text-underline-offset: 3px;
+}
