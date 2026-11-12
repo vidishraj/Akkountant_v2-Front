@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import style from './Files.module.scss';
 import {UserFileData, UserFolderData} from '../../utils/interfaces';
 import {
@@ -14,6 +14,68 @@ import {
     deleteFolder,
 } from '../../services/fileStorageService';
 import {useMessage} from '../../contexts/MessageContext';
+import useModalA11y from '../../hooks/useModalA11y';
+
+// ──────────────────────────────── FE-10 (ak-2o3x) PII containment ─────────
+// Document-type classification from filename + label + extension. This is
+// the §4 critical path: thumbnails MUST default to type icons, NEVER raw
+// file contents (brief 07 §7). The classifier has deliberately-broad
+// patterns because mislabeling as "Identity" fails *closed* (icon shown
+// instead of content) — the only failure mode worth optimizing for.
+type FileCategory = 'identity' | 'insurance' | 'tax' | 'travel' | 'property' | 'other';
+
+interface CategoryMeta {
+    key: FileCategory;
+    label: string;
+    icon: string;     // phosphor ph-* name
+    isIdentity: boolean; // governs the lock-affordance shown on the card
+}
+
+const CATEGORY_META: Record<FileCategory, CategoryMeta> = {
+    identity: {key: 'identity', label: 'Identity', icon: 'ph-identification-badge', isIdentity: true},
+    insurance: {key: 'insurance', label: 'Insurance', icon: 'ph-shield-check', isIdentity: false},
+    tax: {key: 'tax', label: 'Tax', icon: 'ph-receipt', isIdentity: false},
+    travel: {key: 'travel', label: 'Travel', icon: 'ph-airplane-tilt', isIdentity: true},
+    property: {key: 'property', label: 'Property', icon: 'ph-house-line', isIdentity: false},
+    other: {key: 'other', label: 'Other', icon: 'ph-file', isIdentity: false},
+};
+
+/**
+ * Classify a file into a vault category from filename + label + extension.
+ * Case-insensitive substring match; first-hit wins. Identity patterns (DL /
+ * Aadhaar / PAN / Passport) take precedence because misclassifying an
+ * identity doc as "Other" would surface a generic icon instead of flagging
+ * it for the lock affordance.
+ */
+function classifyFile(f: UserFileData): FileCategory {
+    const needle = (
+        (f.original_filename || '') +
+        ' ' +
+        (f.label || '') +
+        ' ' +
+        (f.file_type || '')
+    ).toLowerCase();
+
+    if (/\b(aadhaar|aadhar|pan|voter)\b|pan[\s_-]?card/.test(needle)) return 'identity';
+    if (/driving|licen[sc]e|\bdl\b|dl[\s_-]?no/.test(needle)) return 'identity';
+    if (/passport/.test(needle)) return 'travel';
+    if (/visa|ticket|boarding|itinerary/.test(needle)) return 'travel';
+    if (/insur|policy|mediclaim|health|motor|bike|car[\s_-]?insur/.test(needle)) return 'insurance';
+    if (/tax|itr|form\s?16|26as|tds|gst/.test(needle)) return 'tax';
+    if (/rent|lease|property|deed|sale[\s_-]?agreement|khata/.test(needle)) return 'property';
+    return 'other';
+}
+
+/**
+ * File-extension → Phosphor icon fallback for the `other` category.
+ */
+function iconForExtension(ext: string): string {
+    const e = (ext || '').toLowerCase();
+    if (e === 'pdf') return 'ph-file-pdf';
+    if (e === 'zip') return 'ph-file-zip';
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(e)) return 'ph-image';
+    return 'ph-file';
+}
 
 const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'zip'];
 
@@ -72,6 +134,70 @@ const Files = () => {
 
     // Context menu
     const [contextMenu, setContextMenu] = useState<{x: number; y: number; file?: UserFileData; folder?: UserFolderData} | null>(null);
+
+    // ─── FE-10 (ak-2o3x) PII state ────────────────────────────────────────
+    // Search over filename/label — brief 07 critical for 100+ item vaults.
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Revealed set: file IDs where the user has EXPLICITLY clicked the eye
+    // icon to show the real thumbnail. `undefined` or absent → show the
+    // type-icon (default-hidden state). Design choice per bead: a one-shot
+    // auto-hide after 5s keeps the surface safe for ambient screenshotting
+    // while still allowing a quick glance.
+    const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+    const revealTimersRef = useRef<Map<string, number>>(new Map());
+
+    const toggleReveal = useCallback((fileId: string) => {
+        setRevealedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(fileId)) {
+                // Explicit hide.
+                next.delete(fileId);
+                const t = revealTimersRef.current.get(fileId);
+                if (t) {
+                    window.clearTimeout(t);
+                    revealTimersRef.current.delete(fileId);
+                }
+            } else {
+                next.add(fileId);
+                // Auto-hide after 5s — single-shot preview per bead.
+                const timerId = window.setTimeout(() => {
+                    setRevealedIds((p) => {
+                        const n = new Set(p);
+                        n.delete(fileId);
+                        return n;
+                    });
+                    revealTimersRef.current.delete(fileId);
+                }, 5000);
+                revealTimersRef.current.set(fileId, timerId);
+            }
+            return next;
+        });
+    }, []);
+
+    // Cleanup timers on unmount so a stale reveal doesn't fire after the
+    // page navigates away.
+    useEffect(() => {
+        return () => {
+            revealTimersRef.current.forEach((t) => window.clearTimeout(t));
+            revealTimersRef.current.clear();
+        };
+    }, []);
+
+    // Soft-delete + undo window (5s). The BE has no soft-delete endpoint,
+    // so FE emulates one: on confirm, hide the card + fire an undo toast;
+    // if the user doesn't click undo within 5s, call the real delete API.
+    // Dialog state for the Nocturne confirm-gate (replaces window.confirm).
+    const [deleteConfirmFile, setDeleteConfirmFile] = useState<UserFileData | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{
+        file: UserFileData;
+        timerId: number;
+    } | null>(null);
+    const deleteDialogRef = useRef<HTMLDivElement>(null);
+    useModalA11y({
+        open: deleteConfirmFile !== null,
+        panelRef: deleteDialogRef as React.RefObject<HTMLElement>,
+    });
 
     const loadFiles = useCallback(async (folderId: string | null = currentFolderId, clearCache = false) => {
         try {
@@ -171,16 +297,49 @@ const Files = () => {
         }
     };
 
-    // Delete file
-    const handleDelete = async (file: UserFileData) => {
-        if (!confirm(`Delete "${file.original_filename}"?`)) return;
-        try {
-            await deleteVaultFile(file.id);
-            setPayload({type: 'success', message: 'File deleted'});
-            await loadFiles(currentFolderId, true);
-        } catch {
-            setPayload({type: 'error', message: 'Delete failed'});
-        }
+    // Delete file (FE-10): NEVER call deleteVaultFile directly. Open the
+    // Nocturne confirm-gate modal first. On confirm, enter soft-delete:
+    // hide the card locally + schedule the real BE delete after 5s. The
+    // undo toast lets the user cancel the pending delete within that
+    // window. Preserves the pre-FE-10 success/failure semantics.
+    const handleDelete = (file: UserFileData) => {
+        setDeleteConfirmFile(file);
+    };
+
+    const confirmDelete = () => {
+        const file = deleteConfirmFile;
+        setDeleteConfirmFile(null);
+        if (!file) return;
+
+        // Local soft-hide: filter the card out of the visible list
+        // optimistically. We re-insert if the user clicks undo; otherwise
+        // the real BE call fires + loadFiles refreshes.
+        setFiles((prev) => prev.filter((f) => f.id !== file.id));
+
+        const timerId = window.setTimeout(async () => {
+            setPendingDelete((p) => (p?.file.id === file.id ? null : p));
+            try {
+                await deleteVaultFile(file.id);
+                setPayload({type: 'success', message: 'File deleted'});
+                await loadFiles(currentFolderId, true);
+            } catch {
+                setPayload({type: 'error', message: 'Delete failed'});
+                // Restore the card — the BE never actually deleted it.
+                await loadFiles(currentFolderId, true);
+            }
+        }, 5000);
+
+        setPendingDelete({file, timerId});
+    };
+
+    const undoDelete = () => {
+        if (!pendingDelete) return;
+        window.clearTimeout(pendingDelete.timerId);
+        // Restore the file into the local list; its position may shift
+        // but the user's mental model is "the card came back" — accurate.
+        setFiles((prev) => [pendingDelete.file, ...prev]);
+        setPendingDelete(null);
+        setPayload({type: 'success', message: 'Delete undone'});
     };
 
     // Preview
@@ -319,13 +478,46 @@ const Files = () => {
 
     const isImage = (fileType: string) => fileType.startsWith('image/');
 
+    // FE-10: filter + classify + group. Search matches filename + label
+    // (case-insensitive), then classify remaining files by category. The
+    // `fileGroups` memo drives the rendered Category section lineup so the
+    // user sees Identity / Insurance / Tax grouped together instead of
+    // chronological upload order.
+    const filteredFiles = useMemo(() => {
+        const q = searchTerm.trim().toLowerCase();
+        if (!q) return files;
+        return files.filter((f) => {
+            const needle = (
+                (f.original_filename || '') + ' ' + (f.label || '')
+            ).toLowerCase();
+            return needle.includes(q);
+        });
+    }, [files, searchTerm]);
+
+    const fileGroups = useMemo(() => {
+        const groups: Record<FileCategory, UserFileData[]> = {
+            identity: [], insurance: [], tax: [], travel: [], property: [], other: [],
+        };
+        filteredFiles.forEach((f) => groups[classifyFile(f)].push(f));
+        // Only emit categories that actually have files; keep ordering stable
+        // so the user's mental map survives filter toggles.
+        const order: FileCategory[] = ['identity', 'insurance', 'tax', 'travel', 'property', 'other'];
+        return order
+            .filter((k) => groups[k].length > 0)
+            .map((k) => ({...CATEGORY_META[k], files: groups[k]}));
+    }, [filteredFiles]);
+
     const isEmpty = files.length === 0 && folders.length === 0;
+    const isFilteredEmpty = !isEmpty && filteredFiles.length === 0;
 
     return (
         <div className={style.filesPage} onClick={closeContextMenu}>
             <div className={style.header}>
                 <div className={style.headerLeft}>
-                    <h2>Document Vault</h2>
+                    <h2 className={style.pageTitle}>
+                        <i className="ph ph-vault" aria-hidden/>
+                        Document Vault
+                    </h2>
                     {breadcrumbs.length > 1 && (
                         <div className={style.breadcrumbs}>
                             {breadcrumbs.map((crumb, i) => (
@@ -342,12 +534,45 @@ const Files = () => {
                         </div>
                     )}
                 </div>
+                {/* FE-10 search bar (brief 07 — critical for 100+ item vaults) */}
+                <label className={style.searchHost}>
+                    <i className="ph ph-magnifying-glass" aria-hidden/>
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search filename or label…"
+                        className={style.searchInput}
+                        aria-label="Search files"
+                    />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            className={style.searchClear}
+                            aria-label="Clear search"
+                        >
+                            <i className="ph ph-x"/>
+                        </button>
+                    )}
+                </label>
                 <div className={style.headerActions}>
-                    <button className={style.folderBtn} onClick={() => setShowCreateFolder(true)}>
-                        + Folder
+                    <button
+                        type="button"
+                        className={`btn btn-secondary ${style.folderBtn}`}
+                        onClick={() => setShowCreateFolder(true)}
+                    >
+                        <i className="ph ph-folder-plus"/>
+                        <span>Folder</span>
                     </button>
-                    <button className={style.uploadBtn} onClick={() => setShowUpload(true)}>
-                        + Upload
+                    {/* Upload is the PRIMARY action per brief 07 §7 */}
+                    <button
+                        type="button"
+                        className={`btn btn-primary ${style.uploadBtn}`}
+                        onClick={() => setShowUpload(true)}
+                    >
+                        <i className="ph ph-upload-simple"/>
+                        <span>Upload</span>
                     </button>
                 </div>
             </div>
@@ -357,112 +582,242 @@ const Files = () => {
             ) : isEmpty ? (
                 <div className={style.emptyState}>
                     <span>{currentFolderId ? 'This folder is empty' : 'No files uploaded yet'}</span>
-                    <button className={style.uploadBtn} onClick={() => setShowUpload(true)}>
-                        Upload your first file
+                    <button className={`btn btn-primary ${style.uploadBtn}`} onClick={() => setShowUpload(true)}>
+                        <i className="ph ph-upload-simple"/>
+                        <span>Upload your first file</span>
+                    </button>
+                </div>
+            ) : isFilteredEmpty ? (
+                <div className={style.emptyState}>
+                    <span>No files match "{searchTerm}"</span>
+                    <button className={`btn btn-secondary ${style.folderBtn}`} onClick={() => setSearchTerm('')}>
+                        Clear search
                     </button>
                 </div>
             ) : (
-                <div className={style.fileGrid}>
-                    {/* Folders */}
-                    {folders.map((folder) => (
-                        <div
-                            key={folder.id}
-                            className={style.folderCard}
-                            onDoubleClick={() => navigateToFolder(folder)}
-                            onClick={() => navigateToFolder(folder)}
-                            onContextMenu={(e) => handleContextMenu(e, undefined, folder)}
-                        >
-                            <div className={style.folderIcon}>
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#7b68ee" strokeWidth="1.5">
-                                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                </svg>
-                            </div>
-                            {renamingFolderId === folder.id ? (
-                                <input
-                                    autoFocus
-                                    className={style.renameInput}
-                                    value={renameFolderValue}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => setRenameFolderValue(e.target.value)}
-                                    onBlur={() => handleRenameFolder(folder.id)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleRenameFolder(folder.id);
-                                        if (e.key === 'Escape') setRenamingFolderId(null);
-                                    }}
-                                />
-                            ) : (
-                                <div className={style.folderName} title={folder.name}>
-                                    {folder.name}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-
-                    {/* Files */}
-                    {files.map((file) => (
-                        <div
-                            key={file.id}
-                            className={style.fileCard}
-                            onContextMenu={(e) => handleContextMenu(e, file)}
-                        >
-                            <div
-                                className={style.thumbnailContainer}
-                                onClick={() => handlePreview(file)}
-                            >
-                                {file.thumbnail ? (
-                                    <img
-                                        src={`data:image/png;base64,${file.thumbnail}`}
-                                        alt={file.original_filename}
-                                    />
-                                ) : (
-                                    <span className={style.genericIcon}>
-                                        {file.file_extension}
-                                    </span>
-                                )}
-                            </div>
-                            <div className={style.fileInfo}>
-                                <div className={style.fileName} title={file.original_filename}>
-                                    {file.original_filename}
-                                </div>
-                                <div className={style.fileMeta}>
-                                    {formatFileSize(file.file_size)}
-                                </div>
-                                {editingLabelId === file.id ? (
-                                    <input
-                                        autoFocus
-                                        value={editLabelValue}
-                                        onChange={(e) => setEditLabelValue(e.target.value)}
-                                        onBlur={() => handleLabelSave(file.id)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') handleLabelSave(file.id);
-                                            if (e.key === 'Escape') setEditingLabelId(null);
-                                        }}
-                                        className={style.labelEditInput}
-                                    />
-                                ) : (
-                                    <div
-                                        className={style.fileLabel}
-                                        onClick={() => {
-                                            setEditingLabelId(file.id);
-                                            setEditLabelValue(file.label || '');
-                                        }}
-                                        title="Click to edit label"
-                                    >
-                                        {file.label || 'Add label'}
-                                    </div>
-                                )}
-                            </div>
-                            <div className={style.fileActions}>
-                                <button onClick={() => handleDownload(file)}>Download</button>
+                <>
+                    {/* Folders (unchanged position, now with Phosphor icon) */}
+                    {!searchTerm && folders.length > 0 && (
+                        <div className={style.folderGrid}>
+                            {folders.map((folder) => (
                                 <button
-                                    className={style.deleteBtn}
-                                    onClick={() => handleDelete(file)}
+                                    type="button"
+                                    key={folder.id}
+                                    className={style.folderCard}
+                                    onDoubleClick={() => navigateToFolder(folder)}
+                                    onClick={() => navigateToFolder(folder)}
+                                    onContextMenu={(e) => handleContextMenu(e, undefined, folder)}
                                 >
-                                    Delete
+                                    <i className={`ph ph-folder-simple ${style.folderIconPh}`} aria-hidden/>
+                                    {renamingFolderId === folder.id ? (
+                                        <input
+                                            autoFocus
+                                            className={style.renameInput}
+                                            value={renameFolderValue}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => setRenameFolderValue(e.target.value)}
+                                            onBlur={() => handleRenameFolder(folder.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleRenameFolder(folder.id);
+                                                if (e.key === 'Escape') setRenamingFolderId(null);
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className={style.folderName} title={folder.name}>
+                                            {folder.name}
+                                        </div>
+                                    )}
                                 </button>
-                            </div>
+                            ))}
                         </div>
+                    )}
+
+                    {/* FE-10: files grouped by category with Phosphor type icons. */}
+                    {fileGroups.map((group) => (
+                        <section key={group.key} className={style.categorySection}>
+                            <h3 className={style.categoryHeading}>
+                                <i className={`ph ${group.icon}`} aria-hidden/>
+                                <span>{group.label}</span>
+                                <span className={style.categoryCount}>{group.files.length}</span>
+                            </h3>
+                            <div className={style.fileGrid}>
+                                {group.files.map((file) => {
+                                    const cat = CATEGORY_META[classifyFile(file)];
+                                    const revealed = revealedIds.has(file.id);
+                                    const iconClass = cat.key === 'other'
+                                        ? iconForExtension(file.file_extension)
+                                        : cat.icon;
+                                    return (
+                                        <div
+                                            key={file.id}
+                                            className={`${style.fileCard} ${cat.isIdentity ? style.fileCardIdentity : ''}`}
+                                            onContextMenu={(e) => handleContextMenu(e, file)}
+                                        >
+                                            <div className={style.thumbnailContainer}>
+                                                {/* §4 CRITICAL: thumbnail defaults to type icon.
+                                                    File contents only render AFTER the user clicks
+                                                    the eye icon AND auto-hides after 5 seconds. */}
+                                                {revealed && file.thumbnail ? (
+                                                    <img
+                                                        src={`data:image/png;base64,${file.thumbnail}`}
+                                                        alt=""  /* no filename in alt — PII-safe */
+                                                        className={style.revealedThumb}
+                                                    />
+                                                ) : (
+                                                    <i className={`ph ${iconClass} ${style.typeIcon}`} aria-hidden/>
+                                                )}
+                                                {cat.isIdentity && !revealed && (
+                                                    <span className={style.lockBadge} title="Identity document — contents hidden">
+                                                        <i className="ph ph-lock"/>
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className={style.fileInfo}>
+                                                <div className={style.fileName} title={file.original_filename}>
+                                                    {file.original_filename}
+                                                </div>
+                                                <div className={style.fileMeta}>
+                                                    {formatFileSize(file.file_size)}
+                                                </div>
+                                                {editingLabelId === file.id ? (
+                                                    <input
+                                                        autoFocus
+                                                        value={editLabelValue}
+                                                        onChange={(e) => setEditLabelValue(e.target.value)}
+                                                        onBlur={() => handleLabelSave(file.id)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleLabelSave(file.id);
+                                                            if (e.key === 'Escape') setEditingLabelId(null);
+                                                        }}
+                                                        className={style.labelEditInput}
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        className={style.fileLabel}
+                                                        onClick={() => {
+                                                            setEditingLabelId(file.id);
+                                                            setEditLabelValue(file.label || '');
+                                                        }}
+                                                        title="Click to edit label"
+                                                    >
+                                                        {file.label || 'Add label'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className={style.fileActions}>
+                                                {/* Eye-icon reveal (bead ask): one-shot preview
+                                                    with 5-second auto-hide. Lock icon on identity
+                                                    cards shown above; this button reveals. */}
+                                                <button
+                                                    type="button"
+                                                    className={`btn btn-icon ${style.iconActionBtn}`}
+                                                    onClick={() => toggleReveal(file.id)}
+                                                    title={revealed ? 'Hide preview' : 'Reveal preview (auto-hides in 5s)'}
+                                                    aria-label={revealed ? 'Hide file preview' : 'Reveal file preview'}
+                                                >
+                                                    <i className={`ph ${revealed ? 'ph-eye-slash' : 'ph-eye'}`}/>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`btn btn-icon ${style.iconActionBtn}`}
+                                                    onClick={() => handlePreview(file)}
+                                                    title="Open full preview"
+                                                    aria-label="Open full preview"
+                                                >
+                                                    <i className="ph ph-arrows-out"/>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`btn btn-icon ${style.iconActionBtn}`}
+                                                    onClick={() => handleDownload(file)}
+                                                    title="Download"
+                                                    aria-label="Download"
+                                                >
+                                                    <i className="ph ph-download-simple"/>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`btn btn-icon ${style.iconActionBtn} ${style.deleteBtn}`}
+                                                    onClick={() => handleDelete(file)}
+                                                    title="Delete"
+                                                    aria-label="Delete"
+                                                >
+                                                    <i className="ph ph-trash"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
                     ))}
+                </>
+            )}
+
+            {/* FE-10 (ak-2o3x) Nocturne destructive confirm-gate — replaces
+                the window.confirm() path. Matches FE-7's destructive variant
+                (ph-warning + kicker + "Confirm delete" affordance). */}
+            {deleteConfirmFile && (
+                <>
+                    <div
+                        className={style.dialogBackdrop}
+                        onClick={() => setDeleteConfirmFile(null)}
+                        role="presentation"
+                    />
+                    <div
+                        ref={deleteDialogRef}
+                        className={style.confirmDialog}
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-label="Confirm delete"
+                        tabIndex={-1}
+                    >
+                        <div className={style.confirmKicker}>
+                            <i className="ph ph-warning" aria-hidden/>
+                            <span>Destructive action</span>
+                        </div>
+                        <div className={style.confirmTitle}>
+                            Delete "{deleteConfirmFile.original_filename}"?
+                        </div>
+                        <div className={style.confirmBody}>
+                            This moves the file to a 5-second undo window. If you
+                            don't click Undo, it's permanently removed from your vault.
+                        </div>
+                        <div className={style.confirmActions}>
+                            <button
+                                type="button"
+                                className={`btn btn-secondary ${style.confirmNo}`}
+                                onClick={() => setDeleteConfirmFile(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={`${style.confirmYesDestructive}`}
+                                onClick={confirmDelete}
+                            >
+                                Confirm delete
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* FE-10 soft-delete undo toast (5-second window) */}
+            {pendingDelete && (
+                <div className={style.undoToast} role="status" aria-live="polite">
+                    <i className="ph ph-trash" aria-hidden/>
+                    <span className={style.undoToastText}>
+                        "{pendingDelete.file.original_filename}" will be deleted in 5s
+                    </span>
+                    <button
+                        type="button"
+                        onClick={undoDelete}
+                        className={`btn btn-primary ${style.undoToastBtn}`}
+                    >
+                        Undo
+                    </button>
                 </div>
             )}
 
