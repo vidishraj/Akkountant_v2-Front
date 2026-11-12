@@ -12,7 +12,8 @@ import {fetchFreelanceDashboard} from "../../services/freelanceService.ts";
 import {fetchTransactions} from "../../services/transactionService.ts";
 import {fetchPortfolioTrend} from "../../services/wealthDigestService.ts";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
-import type {FreelanceDashboard, FreelanceEarning, Transaction} from "../../utils/interfaces.ts";
+import {getRowDayChangeAmount} from "../../utils/holdings.ts";
+import type {FreelanceDashboard, FreelanceEarning, MSNListResponse, Transaction} from "../../utils/interfaces.ts";
 import type {AgentType} from "../../services/agentService.ts";
 import style from "./Home.module.scss";
 
@@ -109,13 +110,35 @@ function sparklinePath(values: number[]): string | null {
 }
 
 /**
- * Aggregates currentValue / invested / changeAmount across the six asset
- * summaries. day_change_known gate: returns `dayChangeKnown=false` when ANY
- * MSN summary signals a closed market (marketStatus=false) OR every summary
- * reports a zero changeAmount while the market is open (ambiguous — could
- * mean "actually flat" or "day basis missing"). Rendered as '—' in that case.
+ * Aggregates currentValue / invested / profit across the six asset summaries,
+ * and aggregates day change by consuming the authoritative per-row
+ * `getRowDayChangeAmount` helper (utils/holdings.ts) across the MSN holdings
+ * lists.
+ *
+ * **ak-7mru CRITICAL (reviewer-caught)**: a previous revision summed
+ * `MSNSummaryResponse.changeAmount` into both `profit` AND `dayChange`. But
+ * `changeAmount` is total unrealized P&L in MSNSummary semantics (see
+ * MSNContext.tsx and interfaces.ts — there is NO day-change field on the
+ * summary), so using it as a day delta rendered lifetime P&L in the hero's
+ * "Today" line. Fixed by:
+ *   - `profit` keeps `changeAmount` as its sole source (correct — lifetime P&L).
+ *   - `dayChange` + `dayChangeKnown` derive from per-row MSN holdings via
+ *     `getRowDayChangeAmount` (the BE-authoritative ₹-amount — carries the
+ *     ak-4o41 `day_change_known` gate AND the broker > market-feed source
+ *     precedence). EPG assets (epf/ppf/gold) don't have a day-change concept
+ *     and don't contribute.
+ *
+ * `dayChangeKnown` rules (strict — "unknown, not flat" per rule §23#3):
+ *   - no MSN holdings loaded yet                          → false, render '—'
+ *   - any single MSN row returns `null` from the helper   → false, render '—'
+ *     (we don't know the portfolio-level total; one row of ambiguity poisons
+ *     the aggregate — the honest render is '—', NEVER substitute lifetime P&L)
+ *   - every MSN row returned a finite ₹ value             → true, sum them
  */
-function derivePortfolio(summaries: Record<string, unknown>): {
+function derivePortfolio(
+    summaries: Record<string, unknown>,
+    lists: Record<string, MSNListResponse[] | undefined>,
+): {
     currentValue: number;
     invested: number;
     profit: number;
@@ -126,24 +149,17 @@ function derivePortfolio(summaries: Record<string, unknown>): {
     let currentValue = 0;
     let invested = 0;
     let profit = 0;
-    let dayChange = 0;
-    let allMarketsOpen = true;
-    let anyMsnWithPositiveBasis = false;
 
     MSN_SUMMARY_KEYS.forEach((k) => {
         const s = summaries[k] as
-            | {totalValue?: number; currentValue?: number; changeAmount?: number | string; marketStatus?: boolean}
+            | {totalValue?: number; currentValue?: number; changeAmount?: number | string}
             | undefined;
         if (!s) return;
         const totalValue = Number(s.totalValue) || 0;
         if (totalValue === 0) return;
-        anyMsnWithPositiveBasis = true;
         invested += totalValue;
         currentValue += Number(s.currentValue) || 0;
-        const ch = Number(s.changeAmount) || 0;
-        profit += ch; // changeAmount is total unrealized P&L in MSNSummary semantics
-        dayChange += ch;
-        if (s.marketStatus === false) allMarketsOpen = false;
+        profit += Number(s.changeAmount) || 0; // lifetime P&L, NOT day delta
     });
 
     EPG_SUMMARY_KEYS.forEach((k) => {
@@ -165,9 +181,28 @@ function derivePortfolio(summaries: Record<string, unknown>): {
         profit += netProfit;
     });
 
-    const profitPct = invested !== 0 ? (profit / invested) * 100 : 0;
-    const dayChangeKnown = allMarketsOpen && anyMsnWithPositiveBasis && dayChange !== 0;
+    // Day change — consume authoritative per-row helper. Any unknown row
+    // poisons the aggregate per the §23#3 "unknown, not flat" rule.
+    let dayChange = 0;
+    let anyMsnHoldings = false;
+    let anyUnknown = false;
+    MSN_SUMMARY_KEYS.forEach((k) => {
+        const list = lists[k];
+        if (!Array.isArray(list) || list.length === 0) return;
+        list.forEach((row) => {
+            anyMsnHoldings = true;
+            const amt = getRowDayChangeAmount(row);
+            if (amt === null) {
+                anyUnknown = true;
+                return;
+            }
+            dayChange += amt;
+        });
+    });
+    const dayChangeKnown = anyMsnHoldings && !anyUnknown;
+    if (!dayChangeKnown) dayChange = 0; // callers must gate on the flag; zero out to avoid leak
 
+    const profitPct = invested !== 0 ? (profit / invested) * 100 : 0;
     return {currentValue, invested, profit, profitPct, dayChange, dayChangeKnown};
 }
 
@@ -253,8 +288,12 @@ const Home = () => {
 
     // ── derived state ──────────────────────────────────────────────────
     const portfolio = useMemo(
-        () => derivePortfolio(msnState.summaries as Record<string, unknown>),
-        [msnState.summaries],
+        () =>
+            derivePortfolio(
+                msnState.summaries as Record<string, unknown>,
+                msnState.lists as Record<string, MSNListResponse[] | undefined>,
+            ),
+        [msnState.summaries, msnState.lists],
     );
     const spark = useMemo(() => sparklinePath((trend || []).map((p) => p.value)), [trend]);
     const trendIsSample = spark === null; // dashed 'Sample trend' chip mirrors design
