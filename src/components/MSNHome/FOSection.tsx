@@ -1,11 +1,7 @@
 import React, {useMemo, useState} from "react";
-import {Box, Card, CardContent, Typography, Chip, CircularProgress} from "@mui/material";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import {FOContract} from "../../utils/interfaces";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import {formatCurrency} from "../WealthDigest/formatters.ts";
 import style from "./MSNHome.module.scss";
 
 type SortKey = "name" | "pnl" | "contracts";
@@ -17,12 +13,20 @@ interface GroupedContract {
     contractCount: number;
 }
 
+/**
+ * FE-4 (ak-gkqp) Nocturne-skin of the F&O P&L panel. Preserves the pre-FE-4
+ * grouping (by underlying) + sort + expand pattern byte-for-byte; only the
+ * rendering swaps from MUI to plain divs + Nocturne SCSS.
+ */
 const FOSection: React.FC = () => {
     const {state} = useMSNContext();
     const data = state.foSummary;
     const [sortKey, setSortKey] = useState<SortKey>("pnl");
     const [sortAsc, setSortAsc] = useState(false);
     const [expandedUnderlying, setExpandedUnderlying] = useState<string | null>(null);
+
+    const CLR_GAIN = "oklch(0.80 0.13 155)";
+    const CLR_LOSS = "oklch(0.74 0.15 25)";
 
     const groupedContracts = useMemo((): GroupedContract[] => {
         if (!data || !data.contracts) return [];
@@ -71,15 +75,7 @@ const FOSection: React.FC = () => {
         }
     };
 
-    const formatCurrency = (value: number) =>
-        value.toLocaleString("en-IN", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        });
-
-    const SortIcon = sortAsc ? ArrowUpwardIcon : ArrowDownwardIcon;
-
-    const sortOptions: { key: SortKey; label: string }[] = [
+    const sortOptions: {key: SortKey; label: string}[] = [
         {key: "name", label: "Name"},
         {key: "pnl", label: "P&L"},
         {key: "contracts", label: "Contracts"},
@@ -87,111 +83,96 @@ const FOSection: React.FC = () => {
 
     if (data === null) {
         return (
-            <Box className={style.noDataMessage}>
-                <CircularProgress size={28} sx={{color: "#7a7d85"}}/>
-            </Box>
+            <div className={style.emptyPanel}>
+                <span className={style.spinner}><i className="ph ph-spinner"/></span>
+            </div>
         );
     }
 
     if (data.tradeCount === 0) {
         return (
-            <Box className={style.noDataMessage}>
-                <Typography variant="body1" sx={{color: "#FAFAFA", mb: 1}}>
-                    No F&O trades
-                </Typography>
-                <Typography variant="body2" sx={{color: "#7a7d85"}}>
-                    Upload a statement to see F&O P&L
-                </Typography>
-            </Box>
+            <div className={style.emptyPanel}>
+                <span className={style.emptyPrimary}>No F&amp;O trades</span>
+                <span className={style.emptySub}>Upload a statement to see F&amp;O P&amp;L</span>
+            </div>
         );
     }
 
     return (
         <>
-            <Box className={style.sortBar}>
-                {sortOptions.map(({key, label}) => (
-                    <Chip
-                        key={key}
-                        label={label}
-                        size="small"
-                        icon={sortKey === key ? <SortIcon style={{fontSize: 16, color: "#fafafa"}}/> : undefined}
-                        onClick={() => handleSort(key)}
-                        className={sortKey === key ? style.sortChipActive : style.sortChip}
-                    />
-                ))}
-            </Box>
-            <Box className={style.scrollContainer}>
+            <div className={style.sortBar} role="toolbar" aria-label="Sort F&O P&L">
+                {sortOptions.map(({key, label}) => {
+                    const active = sortKey === key;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => handleSort(key)}
+                            className={`${style.sortChip} ${active ? style.sortChipActive : ""}`}
+                            aria-pressed={active}
+                        >
+                            {label}
+                            {active && <i className={`ph ${sortAsc ? "ph-arrow-up" : "ph-arrow-down"}`}/>}
+                        </button>
+                    );
+                })}
+            </div>
+            <div className={style.scrollContainer}>
                 {sortedGroups.map((group) => {
                     const isExpanded = expandedUnderlying === group.underlying;
                     const isPositive = group.totalPnl >= 0;
-
                     return (
                         <React.Fragment key={group.underlying}>
-                            <Card
-                                className={style.historicalCard}
-                                style={{borderLeft: `3px solid ${isPositive ? '#4caf50' : '#f44336'}`}}
+                            <button
+                                type="button"
+                                className={style.historicalRow}
+                                style={{borderLeft: `3px solid ${isPositive ? CLR_GAIN : CLR_LOSS}`}}
                                 onClick={() => setExpandedUnderlying(isExpanded ? null : group.underlying)}
+                                aria-expanded={isExpanded}
                             >
-                                <CardContent className={style.cardContent}>
-                                    <Typography
-                                        variant="body2"
-                                        className={style.symbol}
-                                        sx={{fontSize: "14px", fontWeight: "bold"}}
-                                    >
-                                        {group.underlying}
-                                    </Typography>
-
-                                    <Box sx={{textAlign: "center", width: "20%"}}>
-                                        <Typography variant="caption" sx={{color: "#888"}}>
-                                            {group.contractCount} contract{group.contractCount !== 1 ? "s" : ""}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box sx={{textAlign: "right", width: "30%", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1}}>
-                                        <Typography
-                                            variant="body2"
-                                            className={isPositive ? style.positiveChange : style.negativeChange}
-                                            sx={{fontWeight: "bold"}}
-                                        >
-                                            {isPositive ? "+" : ""}{"\u20B9"}{formatCurrency(group.totalPnl)}
-                                        </Typography>
-                                        {isExpanded ? (
-                                            <ExpandLessIcon sx={{color: "#fafafa", fontSize: 18}}/>
-                                        ) : (
-                                            <ExpandMoreIcon sx={{color: "#7a7d85", fontSize: 18}}/>
-                                        )}
-                                    </Box>
-                                </CardContent>
-                            </Card>
+                                <span className={style.rowSymbol}>{group.underlying}</span>
+                                <span className={style.historicalMeta}>
+                                    <span>{group.contractCount} contract{group.contractCount !== 1 ? "s" : ""}</span>
+                                </span>
+                                <span className={style.historicalPnl}>
+                                    <span style={{color: isPositive ? CLR_GAIN : CLR_LOSS}}>
+                                        {isPositive ? "+" : "−"}₹{formatCurrency(Math.abs(group.totalPnl))}
+                                    </span>
+                                    <i className={`ph ${isExpanded ? "ph-caret-up" : "ph-caret-down"}`}/>
+                                </span>
+                            </button>
 
                             {isExpanded && (
-                                <Box className={style.expandedTradesContainer}>
+                                <div className={style.expandedTradesContainer}>
                                     {group.contracts.map((contract, idx) => (
-                                        <Box key={`${contract.symbol}_${contract.expiry_date}_${idx}`} className={style.expandedTradeRow}>
+                                        <div
+                                            key={`${contract.symbol}_${contract.expiry_date}_${idx}`}
+                                            className={style.expandedTradeRow}
+                                        >
                                             <span>
                                                 {contract.strike_price}{" "}
-                                                <span style={{
-                                                    color: contract.option_type === "CE" ? "#4caf50" : "#f44336",
-                                                    fontWeight: "bold",
-                                                }}>
+                                                <span
+                                                    style={{
+                                                        color: contract.option_type === "CE" ? CLR_GAIN : CLR_LOSS,
+                                                        fontWeight: 600,
+                                                    }}
+                                                >
                                                     {contract.option_type}
                                                 </span>
                                             </span>
                                             <span>{contract.expiry_date}</span>
                                             <span>Qty: {contract.buy_qty}</span>
-                                            <span
-                                                style={{color: contract.pnl >= 0 ? "#4caf50" : "#f44336", fontWeight: "bold"}}
-                                            >
-                                                {contract.pnl >= 0 ? "+" : ""}{"\u20B9"}{formatCurrency(contract.pnl)}
+                                            <span style={{color: contract.pnl >= 0 ? CLR_GAIN : CLR_LOSS}}>
+                                                {contract.pnl >= 0 ? "+" : "−"}₹{formatCurrency(Math.abs(contract.pnl))}
                                             </span>
-                                        </Box>
+                                        </div>
                                     ))}
-                                </Box>
+                                </div>
                             )}
                         </React.Fragment>
                     );
                 })}
-            </Box>
+            </div>
         </>
     );
 };

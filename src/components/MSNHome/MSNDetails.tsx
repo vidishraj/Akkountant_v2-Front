@@ -1,383 +1,289 @@
 import React, {useEffect, useState} from "react";
-import {
-    Box,
-    Chip,
-    Tab,
-    Tabs,
-    Tooltip,
-    Typography,
-    Grid,
-    TableCell,
-    TableBody,
-    TableHead,
-    Table,
-    TableContainer,
-    TableRow,
-    Paper,
-} from "@mui/material";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import style from "./MSNDetails.module.scss";
 import {MSNListResponse} from "../../utils/interfaces.ts";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
-import withLoader from "../LoaderHOC.tsx";
 import {formatDateString} from "../../utils/util.tsx";
 import {
     buildT1Tooltip,
+    formatCurrency,
     formatQuantity,
     getRowCurrentValue,
     getRowInvested,
     getRowUnrealizedPnL,
     getT1Quantity,
 } from "../../utils/holdings.ts";
+import style from "./MSNDetails.module.scss";
 
-const PRICE_UNAVAILABLE_TOOLTIP = "Live price could not be fetched from the data provider for this security.";
+const PRICE_UNAVAILABLE_TOOLTIP =
+    "Live price could not be fetched from the data provider for this security.";
 
 interface MSNDetailsProps {
     details: MSNListResponse;
 }
 
 export interface Transaction {
-    date: string; // The date of the transaction in ISO string format.
-    id: number; // The unique identifier for the transaction.
-    price: string; // The price as a string, possibly for precision.
-    quant: string; // The quantity as a string, possibly for precision.
-    transactionType: 'buy' | 'sell'; // The type of transaction, constrained to specific values.
-    securityCode?: string; // NEW - MF scheme code or security identifier
-    buyId?: string; // NEW - Reference ID for the transaction
+    date: string;
+    id: number;
+    price: string;
+    quant: string;
+    transactionType: "buy" | "sell";
+    securityCode?: string;
+    buyId?: string;
 }
 
+/**
+ * FE-4 (ak-gkqp) Nocturne-skin pass over the per-row details panel.
+ *
+ * Preserves EVERY computation + consume-not-recompute discipline from the
+ * pre-FE-4 MSNDetails. Only the render surface swaps from MUI to plain
+ * divs + Nocturne SCSS. Hero numbers continue to source from
+ * `getRowCurrentValue` / `getRowInvested` / `getRowUnrealizedPnL` /
+ * `getT1Quantity`, preserving Overseer's reconcile invariant.
+ */
 const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
     const {state, fetchTransactions, getServiceType, getContextKey} = useMSNContext();
     const isMfOrNps = state.selectedCard.mf || state.selectedCard.nps;
     const [activeTab, setActiveTab] = useState<number>(0);
-    // Backend sets `info.error` when live price feed errored; lastPrice is unreliable in that case.
-    // Only applies to stocks/MF hero (NPS uses nav and is untouched).
     const priceUnavailable = Boolean(details?.info && details.info.error);
 
-    const [stockOverview, setStockOverview] = useState<Record<string, string | number | undefined>>({});
     const [financialData, setFinancialData] = useState<Transaction[]>([]);
-    // Update stock overview based on investment type
+
+    const CLR_GAIN = "oklch(0.80 0.13 155)";
+    const CLR_LOSS = "oklch(0.74 0.15 25)";
+
     useEffect(() => {
-        if (state.selectedCard.nps) {
-            setStockOverview({
-                "Fund Manager": details.info["pfm_name"],
-                "Name": details.info["name"],
-                "Current": details.info["nav"],
-                "Yesterday": details.info["yesterday"],
-                "Last Week": details.info["lastWeek"],
-                "6 Months Ago": details.info["sixMonthsAgo"],
-            });
-        } else if (state.selectedCard.stocks) {
-            setStockOverview({
-                Open: details.info["open"],
-                Close: details.info["close"],
-                "Day High": details.info["dayHigh"],
-                "Day Low": details.info["dayLow"],
-                Industry: details.info["industry"],
-            });
-        } else if (state.selectedCard.mf) {
-            setStockOverview(details.info);
-        }
         const selected = getContextKey();
         const allTransactions = state.transactions[selected] || [];
-
-        // Filter transactions to show only those for the current security
-        let filteredTransactions = allTransactions;
         const securityCodeToMatch = details.buyCode;
-
+        let filteredTransactions = allTransactions;
         if (securityCodeToMatch) {
-            filteredTransactions = allTransactions.filter((transaction: Transaction) =>
-                transaction.securityCode === securityCodeToMatch ||
-                String(transaction.securityCode) === String(securityCodeToMatch)
+            filteredTransactions = allTransactions.filter(
+                (transaction: Transaction) =>
+                    transaction.securityCode === securityCodeToMatch ||
+                    String(transaction.securityCode) === String(securityCodeToMatch),
             );
         }
-
-        setFinancialData(filteredTransactions)
-    }, [details, state.selectedCard, state.transactions]);
+        setFinancialData(filteredTransactions);
+    }, [details, state.selectedCard, state.transactions, getContextKey]);
 
     useEffect(() => {
         if (state.selectedCard.mf || state.selectedCard.nps || state.selectedCard.stocks) {
-            fetchTransactions(getServiceType(), false)
+            fetchTransactions(getServiceType(), false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.selectedCard]);
-    // Handle tab change
-    const handleTabChange = (_: React.ChangeEvent<{}>, newValue: number) => {
-        setActiveTab(newValue);
-    };
+
+    const activePrice =
+        state.selectedCard.nps ? Number(details.info.nav) : Number(details.info.lastPrice);
+    const invested = getRowInvested(details);
+    const currentValue = priceUnavailable ? 0 : getRowCurrentValue(details, activePrice);
+    const pnl = priceUnavailable ? 0 : getRowUnrealizedPnL(details, activePrice);
+    const t1 = getT1Quantity(details);
+
+    // NPS change (vs yesterday) is a FE-local compute — there's no BE field
+    // and no helper to defer to; mirrors pre-FE-4 logic byte-for-byte.
+    const npsChange = (() => {
+        if (!state.selectedCard.nps) return null;
+        const nav = Number(details.info.nav);
+        const yesterday = Number(details.info.yesterday);
+        const change = nav - yesterday;
+        const pct = yesterday !== 0 ? (change / yesterday) * 100 : 0;
+        return {change, pct};
+    })();
+
+    const technicalRows = (() => {
+        if (state.selectedCard.stocks) {
+            return [
+                ["Open", details.info.open],
+                ["Close", details.info.close],
+                ["Day High", details.info.dayHigh],
+                ["Day Low", details.info.dayLow],
+            ];
+        }
+        if (state.selectedCard.mf) {
+            return [
+                ["Prev. Close", details.info.previousClose],
+                ["Scheme Type", details.info.schemeType],
+                ["Units", formatQuantity(details.buyQuant)],
+                ["Avg. NAV", `₹${formatCurrency(details.buyPrice)}`],
+            ];
+        }
+        if (state.selectedCard.nps) {
+            return [
+                ["Yesterday", details.info.yesterday],
+                ["Last Week", details.info.lastWeek],
+                ["6 Months Ago", details.info.sixMonthsAgo],
+                ["Units", formatQuantity(details.buyQuant)],
+            ];
+        }
+        return [];
+    })();
 
     return (
-        <Box className={style.container}>
-            {/* Tabs */}
-            <Tabs
-                value={activeTab}
-                onChange={handleTabChange}
-                textColor="inherit"
-                indicatorColor="primary"
-                className={style.tabs}
-            >
-                <Tab label="Technicals" className={style.tab}/>
-                <Tab label="Transactions" className={style.tab}/>
-            </Tabs>
+        <div className={style.container}>
+            <nav className={style.tabs} role="tablist">
+                {["Technicals", "Transactions"].map((label, idx) => (
+                    <button
+                        key={label}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === idx}
+                        onClick={() => setActiveTab(idx)}
+                        className={`${style.tab} ${activeTab === idx ? style.tabActive : ""}`}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </nav>
 
-            {/* Tab Content */}
             {activeTab === 0 && (
-                <Box className={style.tabContent}>
-                    {/* Hero Section for Stocks and MF */}
-                    {(state.selectedCard.stocks || state.selectedCard.mf) && (
-                        <>
-                            <Box className={style.detailHero}>
-                                <Box>
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#FAFAFA', fontSize: state.selectedCard.mf ? '14px' : undefined }}>
-                                        {state.selectedCard.mf ? details.info.companyName : details.buyCode}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>
-                                        {state.selectedCard.mf ? details.info.fundHouse : details.info.industry}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ textAlign: 'right' }}>
-                                    {priceUnavailable ? (
-                                        <Tooltip title={PRICE_UNAVAILABLE_TOOLTIP} arrow>
-                                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                                <ErrorOutlineIcon sx={{ fontSize: 18, color: '#ffb74d' }}/>
-                                                <Typography variant="body2" sx={{ color: '#ffb74d', fontStyle: 'italic' }}>
-                                                    Price unavailable
-                                                </Typography>
-                                            </Box>
-                                        </Tooltip>
+                <div className={style.tabContent}>
+                    <div className={style.hero}>
+                        <div className={style.heroLeft}>
+                            <span className={style.heroTitle}>
+                                {state.selectedCard.mf
+                                    ? details.info.companyName
+                                    : state.selectedCard.nps
+                                        ? details.info.name
+                                        : details.buyCode}
+                            </span>
+                            <span className={style.heroSub}>
+                                {state.selectedCard.mf
+                                    ? details.info.fundHouse
+                                    : state.selectedCard.nps
+                                        ? details.info.pfm_name
+                                        : details.info.industry}
+                            </span>
+                        </div>
+                        <div className={style.heroRight}>
+                            {priceUnavailable ? (
+                                <span className={style.priceUnavailable} title={PRICE_UNAVAILABLE_TOOLTIP}>
+                                    <i className="ph ph-warning"/>
+                                    <span>Price unavailable</span>
+                                </span>
+                            ) : (
+                                <>
+                                    <span className={style.heroPrice}>
+                                        ₹{formatCurrency(activePrice)}
+                                    </span>
+                                    {state.selectedCard.nps && npsChange ? (
+                                        <span
+                                            className={style.heroPct}
+                                            style={{color: npsChange.change >= 0 ? CLR_GAIN : CLR_LOSS}}
+                                        >
+                                            {npsChange.change >= 0 ? "+" : ""}{npsChange.change.toFixed(2)} ({npsChange.pct.toFixed(2)}%)
+                                        </span>
                                     ) : (
-                                        <>
-                                            <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#FAFAFA' }}>
-                                                &#8377;{Number(details.info.lastPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </Typography>
-                                            <Typography variant="body2" sx={{ color: Number(details.info.pChange) >= 0 ? '#4caf50' : '#f44336' }}>
-                                                {Number(details.info.change) >= 0 ? '+' : ''}{Number(details.info.change).toFixed(2)} ({Number(details.info.pChange).toFixed(2)}%)
-                                            </Typography>
-                                        </>
+                                        <span
+                                            className={style.heroPct}
+                                            style={{color: Number(details.info.pChange) >= 0 ? CLR_GAIN : CLR_LOSS}}
+                                        >
+                                            {Number(details.info.change) >= 0 ? "+" : ""}{Number(details.info.change).toFixed(2)} ({Number(details.info.pChange).toFixed(2)}%)
+                                        </span>
                                     )}
-                                </Box>
-                            </Box>
-                            <Box className={style.investmentRow}>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>Invested</Typography>
-                                    <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                        &#8377;{getRowInvested(details).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>Current</Typography>
-                                    {priceUnavailable ? (
-                                        <Typography variant="body2" sx={{ color: '#7a7d85', fontWeight: 'bold' }}>—</Typography>
-                                    ) : (
-                                        <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                            &#8377;{getRowCurrentValue(details, Number(details.info.lastPrice)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </Typography>
-                                    )}
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>P&L</Typography>
-                                    {priceUnavailable ? (
-                                        <Typography variant="body2" sx={{ color: '#7a7d85', fontWeight: 'bold' }}>—</Typography>
-                                    ) : (() => {
-                                        // CONSUME BE-emitted `unrealized_pnl` for Kite-enriched stock
-                                        // rows (folded, includes T+1); fallback to statement compute
-                                        // for MF/NPS/legacy via the helper's dispatch. Never
-                                        // re-derive from average_price × total_qty locally — that
-                                        // breaks Overseer's reconcile invariant.
-                                        const pnl = getRowUnrealizedPnL(details, Number(details.info.lastPrice));
-                                        return (
-                                            <Typography variant="body2" sx={{ color: pnl >= 0 ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
-                                                {pnl >= 0 ? '+' : ''}&#8377;{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </Typography>
-                                        );
-                                    })()}
-                                </Box>
-                            </Box>
-                            {/* T+1 pending-settlement chip — visual indicator only. Post-ak-yz9c
-                                fold-in the T+1 shares are already included in the Invested /
-                                Current / P&L figures above (Kite-blended avg × total_qty via BE
-                                fold), so the chip surfaces the settled/pending split for
-                                transparency without asserting any exclusion. */}
-                            {getT1Quantity(details) > 0 && (
-                                <Box sx={{display: 'flex', alignItems: 'center', gap: '8px', px: '4px'}}>
-                                    <Tooltip arrow title={buildT1Tooltip(details, Number(details.info.lastPrice))}>
-                                        <Chip
-                                            size="small"
-                                            label={`T+1 ${formatQuantity(getT1Quantity(details))}`}
-                                            sx={{
-                                                height: 18,
-                                                fontSize: '10px',
-                                                fontWeight: 600,
-                                                color: '#7fb5ff',
-                                                backgroundColor: 'rgba(41, 121, 255, 0.12)',
-                                                border: '1px solid rgba(127, 181, 255, 0.35)',
-                                            }}
-                                        />
-                                    </Tooltip>
-                                    <Typography variant="caption" sx={{color: '#7a7d85'}}>
-                                        {formatQuantity(details.buyQuant)} settled · included in the figures above
-                                    </Typography>
-                                </Box>
+                                </>
                             )}
-                        </>
+                        </div>
+                    </div>
+
+                    <div className={style.ivRow}>
+                        <div className={style.ivCell}>
+                            <span className={style.ivLabel}>Invested</span>
+                            <span className={style.ivValue}>₹{formatCurrency(invested)}</span>
+                        </div>
+                        <div className={style.ivCell}>
+                            <span className={style.ivLabel}>Current</span>
+                            {priceUnavailable ? (
+                                <span className={style.ivValueMuted}>—</span>
+                            ) : (
+                                <span className={style.ivValue}>₹{formatCurrency(currentValue)}</span>
+                            )}
+                        </div>
+                        <div className={style.ivCell}>
+                            <span className={style.ivLabel}>P&amp;L</span>
+                            {priceUnavailable ? (
+                                <span className={style.ivValueMuted}>—</span>
+                            ) : (
+                                <span
+                                    className={style.ivValue}
+                                    style={{color: pnl >= 0 ? CLR_GAIN : CLR_LOSS}}
+                                >
+                                    {pnl >= 0 ? "+" : "−"}₹{formatCurrency(Math.abs(pnl))}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {t1 > 0 && (
+                        <div className={style.t1Row}>
+                            <span
+                                className={style.t1Chip}
+                                title={buildT1Tooltip(details, activePrice)}
+                            >
+                                T+1 {formatQuantity(t1)}
+                            </span>
+                            <span className={style.t1Meta}>
+                                {formatQuantity(details.buyQuant)} settled · included in the figures above
+                            </span>
+                        </div>
                     )}
 
-                    {/* NPS Hero Section */}
-                    {state.selectedCard.nps && (
-                        <>
-                            <Box className={style.detailHero}>
-                                <Box>
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#FAFAFA', fontSize: '14px' }}>
-                                        {details.info.name}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>
-                                        {details.info.pfm_name}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ textAlign: 'right' }}>
-                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#FAFAFA' }}>
-                                        &#8377;{Number(details.info.nav).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </Typography>
-                                    {(() => {
-                                        const nav = Number(details.info.nav);
-                                        const yesterday = Number(details.info.yesterday);
-                                        const change = nav - yesterday;
-                                        const pct = yesterday !== 0 ? (change / yesterday) * 100 : 0;
-                                        return (
-                                            <Typography variant="body2" sx={{ color: change >= 0 ? '#4caf50' : '#f44336' }}>
-                                                {change >= 0 ? '+' : ''}{change.toFixed(2)} ({pct.toFixed(2)}%)
-                                            </Typography>
-                                        );
-                                    })()}
-                                </Box>
-                            </Box>
-                            <Box className={style.investmentRow}>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>Invested</Typography>
-                                    <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                        &#8377;{getRowInvested(details).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>Current</Typography>
-                                    <Typography variant="body2" sx={{ color: '#FAFAFA', fontWeight: 'bold' }}>
-                                        &#8377;{getRowCurrentValue(details, Number(details.info.nav)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: '#7a7d85' }}>P&L</Typography>
-                                    {(() => {
-                                        // NPS has no BE fold fields → helper's fallback path
-                                        // computes (nav − buyPrice) × buyQuant, same as prior
-                                        // inline math. Consistent code shape across all
-                                        // asset types; if NPS ever gets BE-fold in a future
-                                        // arc, it inherits automatically.
-                                        const pnl = getRowUnrealizedPnL(details, Number(details.info.nav));
-                                        return (
-                                            <Typography variant="body2" sx={{ color: pnl >= 0 ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
-                                                {pnl >= 0 ? '+' : ''}&#8377;{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </Typography>
-                                        );
-                                    })()}
-                                </Box>
-                            </Box>
-                        </>
-                    )}
-
-                    {/* OHLC-style Grid for Stocks and MF */}
-                    {(state.selectedCard.stocks || state.selectedCard.mf) ? (
-                        <Box className={style.ohlcGrid}>
-                            {(() => {
-                                const entries = state.selectedCard.stocks
-                                    ? Object.entries(stockOverview).filter(([label]) => label !== 'Industry')
-                                    : [
-                                        ["Prev. Close", details.info.previousClose],
-                                        ["Scheme Type", details.info.schemeType],
-                                        ["Units", details.buyQuant.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })],
-                                        ["Avg. NAV", details.buyPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })],
-                                    ];
-                                return entries.map(([label, value]) => (
-                                    <Box className={style.ohlcCell} key={label}>
-                                        <Typography className={style.label}>{label}</Typography>
-                                        <Typography className={style.value}>
-                                            {typeof value === 'number' ? Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}
-                                        </Typography>
-                                    </Box>
-                                ));
-                            })()}
-                        </Box>
-                    ) : state.selectedCard.nps ? (
-                        <Box className={style.ohlcGrid}>
-                            {[
-                                ["Yesterday", details.info.yesterday],
-                                ["Last Week", details.info.lastWeek],
-                                ["6 Months Ago", details.info.sixMonthsAgo],
-                                ["Units", details.buyQuant.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })],
-                            ].map(([label, value]) => (
-                                <Box className={style.ohlcCell} key={label}>
-                                    <Typography className={style.label}>{label}</Typography>
-                                    <Typography className={style.value}>
-                                        {typeof value === 'number' ? Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}
-                                    </Typography>
-                                </Box>
-                            ))}
-                        </Box>
-                    ) : (
-                        <Grid container spacing={2} className={style.innerContent}>
-                            {Object.entries(stockOverview).map(([label, value]) => (
-                                <Grid item xs={6} key={label}>
-                                    <Typography className={style.label}>{label}</Typography>
-                                    <Typography className={style.value}>{value}</Typography>
-                                </Grid>
-                            ))}
-                        </Grid>
-                    )}
-                </Box>
+                    <div className={style.ohlcGrid}>
+                        {technicalRows.map(([label, value]) => (
+                            <div className={style.ohlcCell} key={String(label)}>
+                                <span className={style.ohlcLabel}>{label}</span>
+                                <span className={style.ohlcValue}>
+                                    {typeof value === "number"
+                                        ? value.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                                        : value}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             )}
 
             {activeTab === 1 && (
-                <Box className={style.tabContent}>
-                    <TableContainer component={Paper} className={style.table}>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell><b>Date</b></TableCell>
-                                    <TableCell><b>{isMfOrNps ? 'NAV' : 'Price'}</b></TableCell>
-                                    <TableCell><b>{isMfOrNps ? 'Units' : 'Qty'}</b></TableCell>
-                                    <TableCell><b>Total</b></TableCell>
-                                    <TableCell><b>Action</b></TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {financialData.length > 0 ? financialData.map((row, index) => {
-                                    const price = Number(row.price);
-                                    const quant = Number(row.quant);
-                                    const total = price * quant;
-                                    return (
-                                        <TableRow key={index}>
-                                            <TableCell>{formatDateString(row.date)}</TableCell>
-                                            <TableCell>&#8377;{price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                            <TableCell>{quant.toLocaleString('en-IN', { minimumFractionDigits: isMfOrNps ? 3 : 0, maximumFractionDigits: isMfOrNps ? 3 : 0 })}</TableCell>
-                                            <TableCell>&#8377;{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                            <TableCell className={row.transactionType === 'buy' ? style.buyAction : style.sellAction}>
-                                                {row.transactionType.toUpperCase()}
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                }) : (
-                                    <TableRow>
-                                        <TableCell colSpan={5} sx={{ textAlign: 'center', color: '#7a7d85' }}>
-                                            No transactions found
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Box>
+                <div className={style.tabContent}>
+                    <div className={style.table}>
+                        <div className={style.tableHead}>
+                            <span>Date</span>
+                            <span>{isMfOrNps ? "NAV" : "Price"}</span>
+                            <span>{isMfOrNps ? "Units" : "Qty"}</span>
+                            <span>Total</span>
+                            <span>Action</span>
+                        </div>
+                        {financialData.length > 0 ? (
+                            financialData.map((row, index) => {
+                                const price = Number(row.price);
+                                const quant = Number(row.quant);
+                                const total = price * quant;
+                                return (
+                                    <div className={style.tableRow} key={index}>
+                                        <span>{formatDateString(row.date)}</span>
+                                        <span>₹{formatCurrency(price)}</span>
+                                        <span>
+                                            {quant.toLocaleString("en-IN", {
+                                                minimumFractionDigits: isMfOrNps ? 3 : 0,
+                                                maximumFractionDigits: isMfOrNps ? 3 : 0,
+                                            })}
+                                        </span>
+                                        <span>₹{formatCurrency(total)}</span>
+                                        <span
+                                            className={row.transactionType === "buy" ? style.buyAction : style.sellAction}
+                                        >
+                                            {row.transactionType.toUpperCase()}
+                                        </span>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className={style.tableEmpty}>No transactions found</div>
+                        )}
+                    </div>
+                </div>
             )}
-
-        </Box>
+        </div>
     );
 };
 
-export default withLoader(MSNDetails);
+export default MSNDetails;

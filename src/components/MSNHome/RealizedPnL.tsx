@@ -1,11 +1,7 @@
 import React, {useMemo, useState} from "react";
-import {Box, Card, CardContent, Typography, Chip, CircularProgress} from "@mui/material";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import {RealizedTrade} from "../../utils/interfaces";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import {formatCurrency} from "../WealthDigest/formatters.ts";
 import style from "./MSNHome.module.scss";
 
 type SortKey = "name" | "pnl" | "trades";
@@ -17,12 +13,21 @@ interface GroupedTrade {
     totalQty: number;
 }
 
+/**
+ * FE-4 (ak-gkqp) Nocturne-skin of the realized-gains panel. Preserves the
+ * pre-FE-4 grouping (by symbol) + sort + expand pattern byte-for-byte;
+ * only the rendering swaps from MUI (Card/Chip/Expand) to plain divs +
+ * Nocturne SCSS.
+ */
 const RealizedPnL: React.FC = () => {
     const {state} = useMSNContext();
     const data = state.realizedPnl;
     const [sortKey, setSortKey] = useState<SortKey>("pnl");
     const [sortAsc, setSortAsc] = useState(false);
     const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
+
+    const CLR_GAIN = "oklch(0.80 0.13 155)";
+    const CLR_LOSS = "oklch(0.74 0.15 25)";
 
     const groupedTrades = useMemo((): GroupedTrade[] => {
         if (!data || !data.trades) return [];
@@ -71,15 +76,7 @@ const RealizedPnL: React.FC = () => {
         }
     };
 
-    const formatCurrency = (value: number) =>
-        value.toLocaleString("en-IN", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        });
-
-    const SortIcon = sortAsc ? ArrowUpwardIcon : ArrowDownwardIcon;
-
-    const sortOptions: { key: SortKey; label: string }[] = [
+    const sortOptions: {key: SortKey; label: string}[] = [
         {key: "name", label: "Name"},
         {key: "pnl", label: "P&L"},
         {key: "trades", label: "Trades"},
@@ -87,108 +84,86 @@ const RealizedPnL: React.FC = () => {
 
     if (data === null) {
         return (
-            <Box className={style.noDataMessage}>
-                <CircularProgress size={28} sx={{color: "#7a7d85"}}/>
-            </Box>
+            <div className={style.emptyPanel}>
+                <span className={style.spinner}><i className="ph ph-spinner"/></span>
+            </div>
         );
     }
 
     if (data.tradeCount === 0) {
         return (
-            <Box className={style.noDataMessage}>
-                <Typography variant="body1" sx={{color: "#FAFAFA", mb: 1}}>
-                    No historical equity trades
-                </Typography>
-                <Typography variant="body2" sx={{color: "#7a7d85"}}>
-                    Upload a statement to see realized P&L
-                </Typography>
-            </Box>
+            <div className={style.emptyPanel}>
+                <span className={style.emptyPrimary}>No historical equity trades</span>
+                <span className={style.emptySub}>Upload a statement to see realized P&amp;L</span>
+            </div>
         );
     }
 
     return (
         <>
-            <Box className={style.sortBar}>
-                {sortOptions.map(({key, label}) => (
-                    <Chip
-                        key={key}
-                        label={label}
-                        size="small"
-                        icon={sortKey === key ? <SortIcon style={{fontSize: 16, color: "#fafafa"}}/> : undefined}
-                        onClick={() => handleSort(key)}
-                        className={sortKey === key ? style.sortChipActive : style.sortChip}
-                    />
-                ))}
-            </Box>
-            <Box className={style.scrollContainer}>
+            <div className={style.sortBar} role="toolbar" aria-label="Sort realized P&L">
+                {sortOptions.map(({key, label}) => {
+                    const active = sortKey === key;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => handleSort(key)}
+                            className={`${style.sortChip} ${active ? style.sortChipActive : ""}`}
+                            aria-pressed={active}
+                        >
+                            {label}
+                            {active && <i className={`ph ${sortAsc ? "ph-arrow-up" : "ph-arrow-down"}`}/>}
+                        </button>
+                    );
+                })}
+            </div>
+            <div className={style.scrollContainer}>
                 {sortedGroups.map((group) => {
                     const isExpanded = expandedSymbol === group.symbol;
                     const isPositive = group.totalPnl >= 0;
-
                     return (
                         <React.Fragment key={group.symbol}>
-                            <Card
-                                className={style.historicalCard}
-                                style={{borderLeft: `3px solid ${isPositive ? '#4caf50' : '#f44336'}`}}
+                            <button
+                                type="button"
+                                className={style.historicalRow}
+                                style={{borderLeft: `3px solid ${isPositive ? CLR_GAIN : CLR_LOSS}`}}
                                 onClick={() => setExpandedSymbol(isExpanded ? null : group.symbol)}
+                                aria-expanded={isExpanded}
                             >
-                                <CardContent className={style.cardContent}>
-                                    <Typography
-                                        variant="body2"
-                                        className={style.symbol}
-                                        sx={{fontSize: "14px", fontWeight: "bold"}}
-                                    >
-                                        {group.symbol}
-                                    </Typography>
-
-                                    <Box sx={{textAlign: "center", width: "20%"}}>
-                                        <Typography variant="caption" sx={{color: "#888"}}>
-                                            {group.trades.length} trade{group.trades.length !== 1 ? "s" : ""}
-                                        </Typography>
-                                        <Typography variant="caption" display="block" sx={{color: "#888"}}>
-                                            Qty: {group.totalQty}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box sx={{textAlign: "right", width: "30%", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1}}>
-                                        <Typography
-                                            variant="body2"
-                                            className={isPositive ? style.positiveChange : style.negativeChange}
-                                            sx={{fontWeight: "bold"}}
-                                        >
-                                            {isPositive ? "+" : ""}{"\u20B9"}{formatCurrency(group.totalPnl)}
-                                        </Typography>
-                                        {isExpanded ? (
-                                            <ExpandLessIcon sx={{color: "#fafafa", fontSize: 18}}/>
-                                        ) : (
-                                            <ExpandMoreIcon sx={{color: "#7a7d85", fontSize: 18}}/>
-                                        )}
-                                    </Box>
-                                </CardContent>
-                            </Card>
+                                <span className={style.rowSymbol}>{group.symbol}</span>
+                                <span className={style.historicalMeta}>
+                                    <span>{group.trades.length} trade{group.trades.length !== 1 ? "s" : ""}</span>
+                                    <span>Qty: {group.totalQty}</span>
+                                </span>
+                                <span className={style.historicalPnl}>
+                                    <span style={{color: isPositive ? CLR_GAIN : CLR_LOSS}}>
+                                        {isPositive ? "+" : "−"}₹{formatCurrency(Math.abs(group.totalPnl))}
+                                    </span>
+                                    <i className={`ph ${isExpanded ? "ph-caret-up" : "ph-caret-down"}`}/>
+                                </span>
+                            </button>
 
                             {isExpanded && (
-                                <Box className={style.expandedTradesContainer}>
+                                <div className={style.expandedTradesContainer}>
                                     {group.trades.map((trade) => (
-                                        <Box key={trade.sellID} className={style.expandedTradeRow}>
+                                        <div key={trade.sellID} className={style.expandedTradeRow}>
                                             <span>
-                                                {"\u20B9"}{formatCurrency(trade.buyPrice)} {"\u2192"} {"\u20B9"}{formatCurrency(trade.sellPrice)}
+                                                ₹{formatCurrency(trade.buyPrice)} → ₹{formatCurrency(trade.sellPrice)}
                                             </span>
                                             <span>Qty: {trade.quantity}</span>
-                                            <span
-                                                style={{color: trade.profit >= 0 ? "#4caf50" : "#f44336", fontWeight: "bold"}}
-                                            >
-                                                {trade.profit >= 0 ? "+" : ""}{"\u20B9"}{formatCurrency(trade.profit)}
+                                            <span style={{color: trade.profit >= 0 ? CLR_GAIN : CLR_LOSS}}>
+                                                {trade.profit >= 0 ? "+" : "−"}₹{formatCurrency(Math.abs(trade.profit))}
                                             </span>
                                             <span>{trade.sellDate}</span>
-                                        </Box>
+                                        </div>
                                     ))}
-                                </Box>
+                                </div>
                             )}
                         </React.Fragment>
                     );
                 })}
-            </Box>
+            </div>
         </>
     );
 };
