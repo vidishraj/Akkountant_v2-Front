@@ -6,6 +6,7 @@ import {useMessage} from "../../contexts/MessageContext";
 import {useWealthDigest} from "../../contexts/WealthDigestContext";
 import AgentHeaderInput from "./AgentHeaderInput";
 import {AgentType} from "../../services/agentService";
+import ChangepasswordDialog from "../ChangePasswordDialog/ChangepasswordDialog";
 import styles from "./Header.module.scss";
 
 /**
@@ -71,6 +72,11 @@ const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
     const [avatarOpen, setAvatarOpen] = useState(false);
+    // ak-3w6f: 'Change password' dialog folded into the avatar menu so the
+    // in-app password-change capability preserved from the retired Settings
+    // drawer. The dialog manages its own MUI backdrop + submit flow; this
+    // state only gates its mount/visibility.
+    const [changePasswordOpen, setChangePasswordOpen] = useState(false);
     const headerRef = useRef<HTMLElement | null>(null);
 
     // Per-page agent input — same gating as before: null on Home (omni lives
@@ -319,6 +325,23 @@ const Header = () => {
                             Signed in with Google
                         </span>
                     </div>
+                    {/* ak-3w6f: 'Change password' preserved from the retired
+                        Settings drawer so the auth-rule capability survives.
+                        Close-popover-then-open-dialog matches the sign-out
+                        pattern. Shares the sign-out button's styling block
+                        so font/padding/radius stay identical. */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setAvatarOpen(false);
+                            setChangePasswordOpen(true);
+                        }}
+                        className={styles.popoverAvatarSignOut}
+                        role="menuitem"
+                    >
+                        <i className="ph ph-lock-key"/>
+                        <span>Change password</span>
+                    </button>
                     <button
                         type="button"
                         onClick={signOut}
@@ -330,6 +353,16 @@ const Header = () => {
                     </button>
                 </div>
             )}
+
+            {/* ak-3w6f: MUI-backed password dialog mounted at the end of the
+                header tree so its portal + backdrop live outside headerRef.
+                Click-outside listener for the avatar popover won't fire while
+                the dialog is open because avatarOpen was already flipped false
+                when the menu item was clicked (so the listener detaches). */}
+            <ChangepasswordDialog
+                open={changePasswordOpen}
+                onClose={() => setChangePasswordOpen(false)}
+            />
         </header>
     );
 };
