@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useMSNContext } from "../../contexts/MSNContext.tsx";
 import { useWealthDigest } from "../../contexts/WealthDigestContext.tsx";
@@ -429,17 +428,17 @@ const WealthDigest = () => {
 
   if (error?.code === "not_configured") {
     return (
-      <Box className={wdStyle.wealthDigestRoot}>
+      <div className={wdStyle.wealthDigestRoot}>
         <DigestNotConfigured />
-      </Box>
+      </div>
     );
   }
 
   if (error?.code === "not_generated") {
     return (
-      <Box className={wdStyle.wealthDigestRoot}>
+      <div className={wdStyle.wealthDigestRoot}>
         <DigestZeroEmpty />
-      </Box>
+      </div>
     );
   }
 
@@ -449,7 +448,7 @@ const WealthDigest = () => {
 
   if (error && !latestDigest) {
     return (
-      <Box className={wdStyle.wealthDigestRoot}>
+      <div className={wdStyle.wealthDigestRoot}>
         <DigestHeader
           date={null}
           onOpenHistory={() => setArchiveOpen(true)}
@@ -458,7 +457,7 @@ const WealthDigest = () => {
           message={error.message}
           onRetry={() => void refresh()}
         />
-      </Box>
+      </div>
     );
   }
 
@@ -473,7 +472,7 @@ const WealthDigest = () => {
   const hasNarrative = !!displayed?.text;
 
   return (
-    <Box className={wdStyle.wealthDigestRoot}>
+    <div className={wdStyle.wealthDigestRoot}>
       <DigestHeader
         date={displayed?.date ?? null}
         generatedAt={displayed?.generated_at ?? null}
@@ -616,8 +615,8 @@ const WealthDigest = () => {
       </StatTileRow>
 
       {/* 2-col main body */}
-      <Box className={wdStyle.mainGrid}>
-        <Box className={wdStyle.digestColumn}>
+      <div className={wdStyle.mainGrid}>
+        <div className={wdStyle.digestColumn}>
           {displayed && (
             <DigestActions
               alreadyRead={alreadyRead || markReadInFlight}
@@ -631,11 +630,9 @@ const WealthDigest = () => {
           )}
 
           {hasActions && (
-            <Box className={wdStyle.section}>
-              <Typography className={wdStyle.sectionHeading} component="h2">
-                Actions
-              </Typography>
-              <Box className={wdStyle.cardStack}>
+            <div className={wdStyle.section}>
+              <h2 className={wdStyle.sectionHeading}>Actions</h2>
+              <div className={wdStyle.cardStack}>
                 {displayed!.actions.map((a) => (
                   <ActionCard
                     key={a.id}
@@ -644,46 +641,42 @@ const WealthDigest = () => {
                     onToggleDone={handleToggleActionDone}
                   />
                 ))}
-              </Box>
-            </Box>
+              </div>
+            </div>
           )}
 
           {hasWatchItems && (
-            <Box className={wdStyle.section}>
-              <Typography className={wdStyle.sectionHeading} component="h2">
-                Keep an eye on
-              </Typography>
-              <Box className={wdStyle.cardStack}>
+            <div className={wdStyle.section}>
+              <h2 className={wdStyle.sectionHeading}>Keep an eye on</h2>
+              <div className={wdStyle.cardStack}>
                 {displayed!.watch_items.map((w) => (
                   <WatchItemCard key={w.id} item={w} />
                 ))}
-              </Box>
-            </Box>
+              </div>
+            </div>
           )}
 
           {hasNews && (
-            <Box className={wdStyle.section}>
-              <Typography className={wdStyle.sectionHeading} component="h2">
-                Market context
-              </Typography>
-              <Box className={wdStyle.cardStack}>
+            <div className={wdStyle.section}>
+              <h2 className={wdStyle.sectionHeading}>Market context</h2>
+              <div className={wdStyle.cardStack}>
                 {displayed!.news.map((n) => (
                   <NewsCard key={n.id} item={n} />
                 ))}
-              </Box>
-            </Box>
+              </div>
+            </div>
           )}
 
           {hasNarrative && <NarrativeSection text={displayed!.text} />}
-        </Box>
+        </div>
 
-        <Box className={wdStyle.insightsColumnSlot}>
+        <div className={wdStyle.insightsColumnSlot}>
           <InsightsColumn
             allocationSlices={allocationSlices}
             totalCurrentValue={totals.currentValue}
           />
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Archive modal */}
       <DigestArchiveModal
@@ -693,28 +686,16 @@ const WealthDigest = () => {
       />
 
       {snackbarMessage && (
-        <Box
+        <div
           role="status"
           aria-live="polite"
           onClick={() => setSnackbarMessage(null)}
-          sx={{
-            position: "fixed",
-            bottom: 16,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(0, 0, 0, 0.85)",
-            color: "#FAFAFA",
-            padding: "8px 16px",
-            borderRadius: 4,
-            fontSize: 13,
-            zIndex: 2000,
-            cursor: "pointer",
-          }}
+          className={wdStyle.snackbar}
         >
           {snackbarMessage}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 

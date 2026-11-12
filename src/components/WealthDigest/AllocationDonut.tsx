@@ -1,142 +1,139 @@
 import React from "react";
-import { Box, Typography } from "@mui/material";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-} from "recharts";
-import BasicCard from "../BasicCard";
-import { formatCompact } from "./formatters";
+import {formatCompact} from "./formatters";
 import style from "./WealthDigest.module.scss";
 
 interface AllocationSlice {
-  key: string;
-  label: string;
-  value: number;
-  pct: number;
+    key: string;
+    label: string;
+    value: number;
+    pct: number;
 }
 
 interface AllocationDonutProps {
-  slices: AllocationSlice[];
-  totalCurrentValue: number;
+    slices: AllocationSlice[];
+    totalCurrentValue: number;
 }
 
-// Reuse the app-wide allocation palette from GlobalSummary so the donut and
-// GlobalSummary's allocation bar always match. Fixed hue order per the
-// dataviz skill's categorical rule (assign in order, never cycled).
-const ALLOCATION_COLORS: Record<string, string> = {
-  stocks: "#4a9eff",
-  mf: "#9c27b0",
-  nps: "#ff9800",
-  epf: "#4caf50",
-  ppf: "#00bcd4",
-  gold: "#ffd700",
+/**
+ * FE-6 (ak-jhy8) Nocturne-native allocation donut. Replaces the pre-FE-6
+ * recharts PieChart with a hand-drawn SVG that uses Nocturne ramp tokens
+ * (matching FE-3's `ASSET_COLOR` map on InvestmentsLanding), so both
+ * surfaces stay color-coordinated. BasicCard / MUI Box+Typography dropped
+ * — plain divs with Nocturne tokens.
+ */
+const ASSET_COLOR: Record<string, string> = {
+    stocks: "var(--color-accent-500)",
+    mf: "var(--color-accent-700)",
+    nps: "var(--color-accent-300)",
+    epf: "var(--color-neutral-400)",
+    ppf: "var(--color-neutral-600)",
+    gold: "var(--color-accent-2-500)",
 };
 
-/**
- * Allocation-by-asset-type donut. Reuses the existing MSNContext-derived
- * allocation slices (WealthDigest.tsx passes them in) so the donut and the
- * page's own tile derivations never disagree.
- *
- * Rendering rules from the dataviz skill:
- * - Categorical palette (identity across 6 asset types), fixed hue order
- * - Legend + direct-label capable: we render a compact legend row below
- *   the ring since ≥2 series are on screen
- * - No inner label (the hero number lives in the tile row above)
- * - Slice gap of 2px surface color between slices — WebKit's default pie
- *   rendering handles this via `paddingAngle`
- */
-const AllocationDonut: React.FC<AllocationDonutProps> = ({
-  slices,
-  totalCurrentValue,
-}) => {
-  const hasData = slices.length > 0 && totalCurrentValue > 0;
+const SIZE = 180;
+const R_OUTER = 78;
+const R_INNER = 50;
+const PAD_ANGLE_RAD = (2 * Math.PI) / 360; // 1°
 
-  return (
-    <BasicCard className={style.widgetCard}>
-      <Box className={style.widgetHeader}>
-        <Typography className={style.widgetTitle} component="h3">
-          Allocation
-        </Typography>
-        <Typography className={style.widgetSubtitle} component="span">
-          By asset type
-        </Typography>
-      </Box>
-      <Box className={style.widgetBody}>
-        {!hasData ? (
-          <Box className={style.widgetPlaceholder}>
-            Load some holdings on the Investments page to see allocation.
-          </Box>
-        ) : (
-          <>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={slices}
-                  dataKey="value"
-                  nameKey="label"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={78}
-                  paddingAngle={2}
-                  stroke="none"
-                >
-                  {slices.map((s) => (
-                    <Cell
-                      key={s.key}
-                      fill={ALLOCATION_COLORS[s.key] || "#7a7d85"}
-                    />
-                  ))}
-                </Pie>
-                <RechartsTooltip
-                  contentStyle={{
-                    background: "#1a2530",
-                    border: "1px solid #29384D",
-                    color: "#FAFAFA",
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number, _n, entry) => [
-                    `₹${formatCompact(v)} · ${(
-                      (entry.payload as AllocationSlice).pct
-                    ).toFixed(1)}%`,
-                    (entry.payload as AllocationSlice).label,
-                  ]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <Box className={style.donutLegend}>
-              {slices.map((s) => (
-                <Box key={s.key} className={style.donutLegendRow}>
-                  <Box
-                    className={style.donutLegendSwatch}
-                    sx={{
-                      backgroundColor: ALLOCATION_COLORS[s.key] || "#7a7d85",
-                    }}
-                    aria-hidden
-                  />
-                  <Typography
-                    className={style.donutLegendLabel}
-                    component="span"
-                  >
-                    {s.label}
-                  </Typography>
-                  <Typography
-                    className={style.donutLegendValue}
-                    component="span"
-                  >
-                    {s.pct.toFixed(1)}%
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          </>
-        )}
-      </Box>
-    </BasicCard>
-  );
+/**
+ * Build a donut-slice SVG path (sector between innerR and outerR from
+ * startAngle to endAngle, radians measured clockwise from -π/2).
+ */
+function arcPath(cx: number, cy: number, r0: number, r1: number, a0: number, a1: number): string {
+    const toXY = (r: number, a: number) => ({
+        x: cx + r * Math.cos(a),
+        y: cy + r * Math.sin(a),
+    });
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    const p0 = toXY(r1, a0);
+    const p1 = toXY(r1, a1);
+    const p2 = toXY(r0, a1);
+    const p3 = toXY(r0, a0);
+    return [
+        `M${p0.x.toFixed(2)},${p0.y.toFixed(2)}`,
+        `A${r1},${r1} 0 ${large} 1 ${p1.x.toFixed(2)},${p1.y.toFixed(2)}`,
+        `L${p2.x.toFixed(2)},${p2.y.toFixed(2)}`,
+        `A${r0},${r0} 0 ${large} 0 ${p3.x.toFixed(2)},${p3.y.toFixed(2)}`,
+        "Z",
+    ].join(" ");
+}
+
+const AllocationDonut: React.FC<AllocationDonutProps> = ({slices, totalCurrentValue}) => {
+    const hasData = slices.length > 0 && totalCurrentValue > 0;
+    const total = slices.reduce((s, x) => s + x.value, 0);
+
+    const cx = SIZE / 2;
+    const cy = SIZE / 2;
+
+    // Compute arc segments. Angles start at -π/2 (12 o'clock) and advance
+    // clockwise. Each slice gets a PAD_ANGLE gap taken from its own share so
+    // the total still sums to 2π.
+    const startAngle = -Math.PI / 2;
+    let cursor = startAngle;
+    const arcs = slices.map((s) => {
+        const sweep = total > 0 ? (s.value / total) * 2 * Math.PI : 0;
+        const padded = Math.max(0, sweep - PAD_ANGLE_RAD);
+        const a0 = cursor;
+        const a1 = cursor + padded;
+        cursor += sweep;
+        return {
+            slice: s,
+            d: arcPath(cx, cy, R_INNER, R_OUTER, a0, a1),
+            color: ASSET_COLOR[s.key] || "var(--color-neutral-500)",
+        };
+    });
+
+    return (
+        <div className={style.widgetCard}>
+            <div className={style.widgetHeader}>
+                <h3 className={style.widgetTitle}>Allocation</h3>
+                <span className={style.widgetSubtitle}>By asset type</span>
+            </div>
+            <div className={style.widgetBody}>
+                {!hasData ? (
+                    <div className={style.widgetPlaceholder}>
+                        Load some holdings on the Investments page to see allocation.
+                    </div>
+                ) : (
+                    <>
+                        <svg
+                            viewBox={`0 0 ${SIZE} ${SIZE}`}
+                            width="100%"
+                            height={SIZE}
+                            role="img"
+                            aria-label="Allocation donut"
+                        >
+                            {arcs.map(({slice, d, color}) => (
+                                <path
+                                    key={slice.key}
+                                    d={d}
+                                    fill={color}
+                                    aria-label={`${slice.label} ${slice.pct.toFixed(1)}%`}
+                                >
+                                    <title>
+                                        {slice.label}: ₹{formatCompact(slice.value)} · {slice.pct.toFixed(1)}%
+                                    </title>
+                                </path>
+                            ))}
+                        </svg>
+                        <div className={style.donutLegend}>
+                            {slices.map((s) => (
+                                <div key={s.key} className={style.donutLegendRow}>
+                                    <span
+                                        className={style.donutLegendSwatch}
+                                        style={{background: ASSET_COLOR[s.key] || "var(--color-neutral-500)"}}
+                                        aria-hidden
+                                    />
+                                    <span className={style.donutLegendLabel}>{s.label}</span>
+                                    <span className={style.donutLegendValue}>{s.pct.toFixed(1)}%</span>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default AllocationDonut;

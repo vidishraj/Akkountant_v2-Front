@@ -1,82 +1,54 @@
 import React from "react";
-import { Alert, AlertTitle, Box, Button, Typography } from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { DigestWatchItem } from "../../services/wealthDigestService";
+import {useNavigate} from "react-router-dom";
+import {DigestWatchItem} from "../../services/wealthDigestService";
 import style from "./WealthDigest.module.scss";
 
 interface WatchItemCardProps {
-  item: DigestWatchItem;
+    item: DigestWatchItem;
 }
 
-const SEVERITY_META: Record<
-  DigestWatchItem["severity"],
-  {
-    muiSeverity: "info" | "warning" | "error";
-    icon: React.ReactNode;
-  }
-> = {
-  info: {
-    muiSeverity: "info",
-    icon: <InfoOutlinedIcon fontSize="small" />,
-  },
-  warning: {
-    muiSeverity: "warning",
-    icon: <WarningAmberIcon fontSize="small" />,
-  },
-  critical: {
-    muiSeverity: "error",
-    icon: <ErrorOutlineIcon fontSize="small" />,
-  },
+const SEVERITY_META: Record<DigestWatchItem["severity"], {icon: string; className: string}> = {
+    info: {icon: "ph-info", className: "stateBanner_info"},
+    warning: {icon: "ph-warning-circle", className: "stateBanner_warning"},
+    critical: {icon: "ph-x-circle", className: "stateBanner_error"},
 };
 
 /**
- * A "keep an eye on" pointer from the digest — an alert-styled card with
- * severity icon + optional deep-jump to the relevant category page.
- *
- * The MUI Alert's built-in severity tinting handles the color scheme; we
- * lean on those tokens rather than defining new ones so the treatment stays
- * consistent with app-wide error/warning/info affordances (NotificationBanner
- * uses the same primitives).
+ * FE-6 (ak-jhy8) Nocturne-skinned watch-item card. MUI Alert dropped; uses
+ * the shared `.stateBanner` surface so watch items visually align with the
+ * page's 5 state banners.
  */
-const WatchItemCard: React.FC<WatchItemCardProps> = ({ item }) => {
-  const navigate = useNavigate();
-  const meta = SEVERITY_META[item.severity];
+const WatchItemCard: React.FC<WatchItemCardProps> = ({item}) => {
+    const navigate = useNavigate();
+    const meta = SEVERITY_META[item.severity];
 
-  return (
-    <Alert
-      severity={meta.muiSeverity}
-      icon={meta.icon}
-      className={style.watchAlert}
-      action={
-        item.investigate_target ? (
-          <Button
-            onClick={() => navigate(`/investments/${item.investigate_target}`)}
-            size="small"
-            className={style.watchInvestigateBtn}
-            endIcon={<ArrowForwardIcon fontSize="small" />}
-          >
-            Investigate
-          </Button>
-        ) : null
-      }
-    >
-      <AlertTitle className={style.watchAlertTitle}>{item.title}</AlertTitle>
-      {item.detail && (
-        <Typography className={style.watchAlertBody} component="div">
-          {item.detail}
-        </Typography>
-      )}
-      {item.investigate_target && (
-        <Box className={style.watchAlertTarget} component="span">
-          Related: {item.investigate_target.toUpperCase()}
-        </Box>
-      )}
-    </Alert>
-  );
+    return (
+        <div
+            role="note"
+            className={`${style.stateBanner} ${style[meta.className as "stateBanner_info"]} ${style.watchAlert}`}
+        >
+            <i className={`ph-fill ${meta.icon}`} aria-hidden/>
+            <div className={style.stateBannerBody}>
+                <div className={style.watchAlertTitle}>{item.title}</div>
+                {item.detail && <div className={style.watchAlertBody}>{item.detail}</div>}
+                {item.investigate_target && (
+                    <span className={style.watchAlertTarget}>
+                        Related: {item.investigate_target.toUpperCase()}
+                    </span>
+                )}
+            </div>
+            {item.investigate_target && (
+                <button
+                    type="button"
+                    className={`btn btn-ghost ${style.watchInvestigateBtn}`}
+                    onClick={() => navigate(`/investments/${item.investigate_target}`)}
+                >
+                    <span>Investigate</span>
+                    <i className="ph ph-arrow-right"/>
+                </button>
+            )}
+        </div>
+    );
 };
 
 export default WatchItemCard;

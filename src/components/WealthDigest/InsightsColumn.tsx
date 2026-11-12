@@ -1,40 +1,37 @@
 import React from "react";
-import { Box } from "@mui/material";
 import PortfolioTrendChart from "./PortfolioTrendChart";
 import AllocationDonut from "./AllocationDonut";
 import style from "./WealthDigest.module.scss";
 
 interface AllocationSlice {
-  key: string;
-  label: string;
-  value: number;
-  pct: number;
+    key: string;
+    label: string;
+    value: number;
+    pct: number;
 }
 
 interface InsightsColumnProps {
-  allocationSlices: AllocationSlice[];
-  totalCurrentValue: number;
+    allocationSlices: AllocationSlice[];
+    totalCurrentValue: number;
 }
 
 /**
- * Right-side widget column that fills the dead space Overseer flagged in
- * Wave 2. Contains the two data widgets — trend chart on top, allocation
- * donut below. At tablet-and-narrower widths, the page shell drops this
- * column beneath the digest column via SCSS grid rearrangement.
+ * FE-6 (ak-jhy8) Right-side widget column — trend chart + allocation donut.
+ * MUI Box dropped; plain div with Nocturne tokens.
  */
 const InsightsColumn: React.FC<InsightsColumnProps> = ({
-  allocationSlices,
-  totalCurrentValue,
+    allocationSlices,
+    totalCurrentValue,
 }) => {
-  return (
-    <Box className={style.insightsColumn}>
-      <PortfolioTrendChart days={90} />
-      <AllocationDonut
-        slices={allocationSlices}
-        totalCurrentValue={totalCurrentValue}
-      />
-    </Box>
-  );
+    return (
+        <div className={style.insightsColumn}>
+            <PortfolioTrendChart days={90}/>
+            <AllocationDonut
+                slices={allocationSlices}
+                totalCurrentValue={totalCurrentValue}
+            />
+        </div>
+    );
 };
 
 export default InsightsColumn;
