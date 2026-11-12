@@ -1,0 +1,535 @@
+/* FE-3 (ak-ff9r) Investments landing styles. Ports
+ * design/Akkountant Redesign.dc.html lines 67-217 to Nocturne tokens.
+ * Every color / space / radius / shadow via var(--...).
+ * Breakpoints per shared scope §36 (1280 / 880 / 720 / 480).
+ */
+
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 34px;
+    width: 100%;
+    padding: 28px 32px 36px;
+    box-sizing: border-box;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+
+    @media (max-width: 880px) {
+        padding: 18px 16px 28px;
+        gap: 24px;
+    }
+}
+
+.spacer {
+    flex: 1;
+}
+
+/* ── hero row ─────────────────────────────────────────────────────────── */
+
+.heroRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+    gap: 36px;
+    align-items: end;
+}
+
+.heroCol {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+}
+
+.heroHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.heroKicker {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+}
+
+.heroDate {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.refreshBtn {
+    font-size: 12px !important;
+    color: var(--color-neutral-400) !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+}
+
+.heroAmount {
+    display: flex;
+    align-items: baseline;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    flex-wrap: wrap;
+    font-family: var(--font-heading);
+    font-weight: 500;
+}
+
+.heroWhole {
+    font-size: clamp(40px, 6vw, 76px);
+}
+
+.heroDecimal {
+    font-size: clamp(20px, 2.6vw, 34px);
+    color: var(--color-neutral-500);
+}
+
+.heroMetrics {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+}
+
+.heroMetric {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.heroMetricLabel {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.heroMetricValue {
+    font-size: 17px;
+}
+
+.heroMetricPct {
+    font-size: 13px;
+}
+
+/* ── trend chart ──────────────────────────────────────────────────────── */
+
+.trendCol {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.trendHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.trendTitle {
+    font-size: 13px;
+}
+
+.trendRange {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.trendRangeToggle {
+    display: flex;
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 0 0 1px var(--color-divider);
+    overflow: hidden;
+}
+
+.trendRangeOpt {
+    all: unset;
+    cursor: pointer;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--color-neutral-400);
+    border-radius: var(--radius-md);
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-text) 4%, transparent);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+    }
+}
+
+.trendRangeOptActive {
+    color: var(--color-accent-200);
+    box-shadow: inset 0 0 0 1px var(--color-accent-700);
+}
+
+.trendSvg {
+    width: 100%;
+    height: 150px;
+    display: block;
+    overflow: visible;
+}
+
+.trendFooter {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--color-neutral-500);
+    flex-wrap: wrap;
+}
+
+.trendFooterCenter {
+    text-align: center;
+}
+
+.trendCold {
+    height: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 18px;
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 0 0 1px var(--color-neutral-900);
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0 37px,
+        color-mix(in srgb, var(--color-text) 4%, transparent) 37px 38px
+    );
+}
+
+.trendColdTitle {
+    font-size: 14px;
+}
+
+.trendColdSub {
+    font-size: 12.5px;
+    color: var(--color-neutral-500);
+    max-width: 46ch;
+}
+
+/* ── allocation bar ───────────────────────────────────────────────────── */
+
+.allocation {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.allocationBar {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+}
+
+.allocationSeg {
+    border-radius: 2px;
+    min-width: 3px;
+}
+
+.allocationLegend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+}
+
+.allocationLegendItem {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+}
+
+.allocationLegendSwatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.allocationLegendPct {
+    color: var(--color-neutral-400);
+}
+
+.allocationLegendValue {
+    color: var(--color-neutral-500);
+}
+
+/* ── status strip ─────────────────────────────────────────────────────── */
+
+.statusStrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 10px;
+}
+
+.statusTile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.statusTileButton {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-align: left;
+
+    &:hover {
+        box-shadow: inset 0 0 0 1px var(--color-neutral-700);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+    }
+}
+
+.statusKicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-neutral-400);
+}
+
+.statusValue {
+    font-size: 16px;
+}
+
+.statusHint {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.statusFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    > span {
+        font-size: 12px;
+        color: var(--color-neutral-500);
+    }
+}
+
+.statusBtn {
+    font-size: 12.5px !important;
+    padding: 4px 10px !important;
+}
+
+.statusLine {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.statusLineCount {
+    color: var(--color-neutral-500);
+    font-size: 12px;
+}
+
+.sampleChip {
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0 5px;
+    border-radius: 4px;
+    color: var(--color-neutral-400);
+    border: 1px dashed var(--color-neutral-600);
+}
+
+/* ── asset card sections ──────────────────────────────────────────────── */
+
+.cardsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sectionTitle {
+    margin: 0;
+    font-size: 18px;
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+}
+
+.sectionSub {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.cardsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+    gap: 12px;
+}
+
+.assetCard {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    transition: filter 120ms ease;
+
+    &:hover {
+        filter: brightness(1.06);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+    }
+}
+
+.assetCardEpg {
+    background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+    box-shadow: inset 0 0 0 1px var(--color-neutral-900);
+}
+
+.assetCardHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.assetCardSwatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.assetCardName {
+    font-size: 15px;
+    font-weight: 500;
+    margin-left: 2px;
+    font-family: var(--font-heading);
+}
+
+.assetCardCount {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+    margin-left: auto;
+}
+
+.assetCardValue {
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    font-family: var(--font-heading);
+    text-align: left;
+}
+
+.assetCardGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.assetCardCell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.assetCardCellLabel {
+    font-size: 11px;
+    color: var(--color-neutral-500);
+}
+
+.assetCardCellValue {
+    font-size: 13.5px;
+}
+
+.assetCardFooter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: 10px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+        color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px),
+        transparent
+    ) no-repeat top / 100% 1px;
+}
+
+.assetCardOpen {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 12.5px;
+    color: var(--color-neutral-400);
+}
+
+/* EPG variants */
+
+.assetCardEpgBody {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.assetCardEpgPct {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 18px;
+}
+
+.assetCardEpgPctLabel {
+    font-size: 11px;
+    color: var(--color-neutral-500);
+}
+
+.assetCardEpgBar {
+    display: flex;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--color-neutral-900);
+}
+
+.assetCardEpgBarFill {
+    background: var(--color-neutral-700);
+}
+
+.assetCardEpgMeta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+}
