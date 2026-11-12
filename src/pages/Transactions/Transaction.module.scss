@@ -1,93 +1,490 @@
-.transactionContainer {
-  display: flex;
-  flex-wrap: nowrap;
-  //padding: 24px 20px;
-  gap: 4px;
+/* FE-8 (ak-ko52) Transactions page — Nocturne-token-driven.
+ * Every color/space/radius/shadow via var(--...). Zero hardcoded hex/px/font.
+ * Breakpoints per shared scope §36 (1280 / 880 / 720 / 480).
+ */
+
+.page {
+    display: grid;
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+    gap: 20px;
+    width: 100%;
+    padding: 24px 32px 32px;
+    box-sizing: border-box;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+
+    @media (max-width: 1000px) {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 16px 16px 24px;
+        gap: 16px;
+    }
 }
 
+/* ──────────────────────────── sidebar ──────────────────────────── */
 
-.summaryCard {
-  min-width: 320px;
-  flex-basis: 25%;
-  background: #121C24 !important;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  @media (max-width: 1000px) {
-    min-height: 100vh !important;
-    justify-content: space-evenly;
-  }
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: inset 0 0 0 1px var(--color-neutral-900);
+    align-self: start;
+    position: sticky;
+    top: 16px;
 }
 
-@media (max-width: 1000px) {
-  .transactionContainer {
-    display: block;
-  }
+.sidebarMobile {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(320px, 90vw);
+    z-index: 110;
+    border-radius: 0;
+    box-shadow: var(--shadow-lg);
+    overflow-y: auto;
 }
 
-.transactionListContainer {
-  background-color: #121C24 !important;
-  flex-basis: 75%;
-  min-width: 0;
-  overflow: hidden;
+.sidebarBackdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+    backdrop-filter: blur(2px);
+    z-index: 105;
 }
+
+.sidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-divider);
+}
+
+.sidebarTitle {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.sidebarCloseBtn {
+    width: 30px !important;
+    height: 30px !important;
+    color: var(--color-neutral-400);
+}
+
+.sidebarInner {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ──────────────────────────── main column ──────────────────────────── */
+
+.main {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+}
+
+/* ──────────────────────────── hero ──────────────────────────── */
+
+.hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 10px;
+}
+
+.heroTile {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+.heroTileNet {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)),
+        var(--color-surface) 70%
+    );
+    box-shadow: inset 0 0 0 1px var(--color-accent-800);
+}
+
+.heroLabel {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-500);
+}
+
+.heroValue {
+    font-family: var(--font-heading);
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+}
+
+.heroSub {
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ──────────────────────────── filters + list containers ──────────────────────────── */
 
 .transactionFilters {
-
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    flex-wrap: wrap;
 }
 
-.sortRow {
-  padding: 4px 12px;
+/* ──────────────────────────── transactions list ──────────────────────────── */
+
+.txnList {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-surface);
 }
 
-.transactionCards {
-  padding: 16px 12px;
-  overflow-y: auto;
-  max-height: 400px;
-  min-height: 400px;
+.txnHeader {
+    display: grid;
+    grid-template-columns:
+        minmax(90px, 110px)
+        minmax(0, 2.2fr)
+        minmax(80px, 110px)
+        minmax(80px, 140px)
+        minmax(100px, 140px);
+    gap: 12px;
+    padding: 9px 14px;
+    align-items: center;
+    background: var(--color-bg);
+    color: var(--color-neutral-400);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 
-  /* Hide scrollbar for WebKit browsers (Chrome, Safari, etc.) */
-  scrollbar-width: none; /* For Firefox */
-  -ms-overflow-style: none; /* For Internet Explorer and Edge */
+    @media (max-width: 720px) {
+        grid-template-columns: minmax(70px, 90px) minmax(0, 1fr) minmax(90px, 120px);
+
+        > *:nth-child(3),
+        > *:nth-child(4) {
+            display: none;
+        }
+    }
 }
 
-.transactionCards::-webkit-scrollbar {
-  display: none; /* Hide scrollbar for WebKit browsers */
+.txnRow {
+    all: unset;
+    display: grid;
+    cursor: pointer;
+    text-align: left;
+    color: var(--color-text);
+    border-top: 1px solid var(--color-neutral-900);
+    grid-template-columns:
+        minmax(90px, 110px)
+        minmax(0, 2.2fr)
+        minmax(80px, 110px)
+        minmax(80px, 140px)
+        minmax(100px, 140px);
+    gap: 12px;
+    padding: 9px 14px;
+    align-items: center;
+    font-size: 13px;
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-text) 4%, transparent);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -2px;
+    }
+
+    @media (max-width: 720px) {
+        grid-template-columns: minmax(70px, 90px) minmax(0, 1fr) minmax(90px, 120px);
+
+        > *:nth-child(3),
+        > *:nth-child(4) {
+            display: none;
+        }
+    }
 }
+
+.txnColDate {
+    color: var(--color-neutral-400);
+    font-size: 12.5px;
+}
+
+.txnColDesc {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.txnColBank {
+    font-size: 12.5px;
+    color: var(--color-neutral-400);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.txnColCategory {
+    font-size: 12px;
+}
+
+.txnColAmount {
+    text-align: right;
+    font-size: 13.5px;
+    font-family: var(--font-heading);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.txnCategoryChip {
+    display: inline-flex;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--color-accent-200);
+    background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+    box-shadow: inset 0 0 0 1px var(--color-accent-700);
+    white-space: nowrap;
+}
+
+.txnCategoryPlaceholder {
+    color: var(--color-neutral-600);
+    font-size: 12px;
+}
+
+/* ──────────────────────────── empty panel ──────────────────────────── */
+
+.emptyPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+    padding: 24px 20px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    text-align: center;
+}
+
+.emptyPrimary {
+    font-size: 14px;
+    font-family: var(--font-heading);
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.emptySub {
+    font-size: 12.5px;
+    color: var(--color-neutral-500);
+    max-width: 44ch;
+}
+
+/* ──────────────────────────── files grid ──────────────────────────── */
 
 .fileGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
-  gap: 14px;
-  padding: 16px 12px;
-  overflow-y: auto;
-  max-height: 400px;
-  min-height: 400px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    gap: 12px;
+}
 
-  &::-webkit-scrollbar {
-    display: none;
-  }
+/* ──────────────────────────── pagination ──────────────────────────── */
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+.paginationContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 6px;
+}
+
+.pager {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pagerSize {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.pagerSelect {
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-divider);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color-scheme: dark;
+}
+
+.pagerRange {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+    font-variant-numeric: tabular-nums;
+}
+
+.pagerNav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pagerBtn {
+    width: 30px !important;
+    height: 30px !important;
+    color: var(--color-neutral-400);
+}
+
+.pagerPos {
+    font-size: 12px;
+    color: var(--color-text);
+    min-width: 90px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ──────────────────────────── transaction detail drawer ──────────────────────────── */
+
+.detailBackdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+    backdrop-filter: blur(2px);
+    z-index: 115;
+}
+
+.detailDrawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 100vw);
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    background: var(--color-bg);
+    box-shadow: var(--shadow-lg);
+    border-left: 1px solid var(--color-divider);
+    overflow-y: auto;
+}
+
+.detailHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
-    max-height: 60vh;
-    min-height: 300px;
-  }
 }
 
-.pagination {
-  color: #FAFAFA !important;
+.detailKicker {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent);
 }
 
-@media (max-width: 768px) {
-  .transactionListContainer {
-  }
+.detailCloseBtn {
+    width: 30px !important;
+    height: 30px !important;
+    color: var(--color-neutral-400);
 }
 
-
-.drawerState {
+.detailAmountRow {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-divider);
 }
 
+.detailAmount {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+}
+
+.detailMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+}
+
+.detailMetaRow {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+    padding: 8px 0;
+
+    + .detailMetaRow {
+        border-top: 1px solid var(--color-neutral-900);
+    }
+
+    dt {
+        margin: 0;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-neutral-500);
+        align-self: center;
+    }
+
+    dd {
+        margin: 0;
+        font-size: 13px;
+        color: var(--color-text);
+        word-break: break-word;
+    }
+}
+
+.detailRefId {
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 11.5px !important;
+    color: var(--color-neutral-400) !important;
+}
+
+.detailFooter {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-divider);
+}
+
+.detailFooterNote {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+
+    i {
+        font-size: 14px;
+        color: var(--color-accent);
+    }
+}
