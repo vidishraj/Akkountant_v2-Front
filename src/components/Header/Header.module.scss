@@ -1,96 +1,431 @@
-.icon {
-  font-size: 24px !important;
-  @media (max-width: 768px) {
-    font-size: 20px !important;
-  }
-  @media (max-width: 520px) {
-    font-size: 18px !important;
-  }
+/* FE-1 (ak-1myo) Global shell header. Ports Home.dc.html lines 19-61 to
+ * Nocturne tokens — every color/space/radius/shadow consumed via var(--...).
+ *
+ * Breakpoints match the shared scope §36:
+ *   1280 / 880 / 720 / 480
+ * Here only 720 is load-bearing: below it, the full primary nav collapses
+ * into a ph-list button that opens a dropdown of every link.
+ */
+
+.header {
+    /* Take the full width of the legacy `.header` wrapper in main.tsx — its
+     * `justify-content: center` would otherwise shrink us to content width and
+     * collapse the right-side spacer. The legacy wrapper is retired in a
+     * later FE bead; this guard keeps FE-1 self-contained. */
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 18px;
+    height: 54px;
+    flex: none;
+    position: relative;
+    z-index: 20;
+    box-sizing: border-box;
+    /* Fade-at-ends bottom rule — Nocturne signature per readme.md "— rules —".
+     * 48px ramp per side, from the divider token. */
+    background:
+        linear-gradient(
+            to right,
+            transparent,
+            var(--color-divider) 48px,
+            var(--color-divider) calc(100% - 48px),
+            transparent
+        ) no-repeat bottom / 100% 1px;
 }
 
-.linkContainer {
-  display: flex;
-  align-items: center;
-  overflow: hidden;
+/* ──────────────────────────── Brand ──────────────────────────── */
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    text-decoration: none;
+    color: var(--color-text);
+    flex: none;
 }
 
-.links {
-  font-size: 15px !important;
-  white-space: nowrap;
-  min-width: fit-content;
+.brandChip {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    box-shadow: inset 0 0 0 1.5px var(--color-accent);
+    background: var(--color-accent-900);
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-accent-200);
+    letter-spacing: -0.02em;
+}
 
-  @media (max-width: 960px) {
-    font-size: 14px !important;
-    margin: 0 4px !important;
-  }
+.brandWord {
+    font-family: var(--font-heading);
+    font-size: 16.5px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+}
 
-  @media (max-width: 768px) {
+/* ──────────────────────────── Primary nav ──────────────────────────── */
+
+.navFull {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+    margin-left: 8px;
+
+    @media (max-width: 720px) {
+        display: none;
+    }
+}
+
+.navLink,
+.navLinkSecondary {
+    padding: 6px 10px;
+    font-size: 13.5px;
+    white-space: nowrap;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: var(--color-neutral-300);
+    /* Hover tint from accent ramp per Nocturne interaction states. */
+    transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.navLinkSecondary {
+    padding: 6px 8px;
+    font-size: 12.5px;
+}
+
+.navLink:hover,
+.navLinkSecondary:hover {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    color: var(--color-text);
+}
+
+.navLinkActive {
+    color: var(--color-accent-200) !important;
+    box-shadow: inset 0 0 0 1px var(--color-accent-800);
+}
+
+.navDivider {
+    width: 1px;
+    height: 16px;
+    background: var(--color-neutral-800);
+    margin: 0 6px;
+}
+
+.navDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    display: inline-block;
+}
+
+/* Mobile menu button — hidden by default, shown below 720px. */
+.menuBtn {
     display: none !important;
-  }
+    font-size: 13px;
+    padding: 5px 10px;
+
+    @media (max-width: 720px) {
+        display: inline-flex !important;
+    }
 }
+
+/* ──────────────────────────── Spacer + right-side cluster ──────────────────────────── */
+
+.spacer {
+    flex: 1;
+}
+
+/* Host for AgentHeaderInput so its legacy sizing adapts to the header row. */
+.agentInputHost {
+    flex: 0 1 280px;
+    max-width: 100%;
+    min-width: 0;
+
+    @media (max-width: 880px) {
+        /* On narrow tablets, let the input shrink to a reasonable minimum. */
+        flex: 0 1 180px;
+    }
+    @media (max-width: 720px) {
+        /* Below the primary-nav collapse, hide the per-page input entirely —
+         * the mobile menu dropdown lets the user route to the page where the
+         * in-page omni / agent surface takes over. Prevents the header from
+         * overflowing on small widths. */
+        display: none;
+    }
+}
+
+.iconBtn {
+    width: 34px !important;
+    height: 34px !important;
+    position: relative;
+    color: var(--color-neutral-300);
+    flex: none;
+
+    i {
+        font-size: 17px;
+    }
+
+    &:hover {
+        color: var(--color-text);
+    }
+}
+
+.badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: var(--color-accent);
+    color: var(--color-bg);
+    font-size: 10px;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    font-family: var(--font-body);
+}
+
+.avatar {
+    all: unset;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(
+        135deg,
+        var(--color-accent-700),
+        var(--color-accent-900)
+    );
+    box-shadow: inset 0 0 0 1px var(--color-accent-600);
+    color: var(--color-accent-100);
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    flex: none;
+    font-family: var(--font-heading);
+}
+
+.avatar:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.loginBtn {
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+/* ──────────────────────────── Popovers ──────────────────────────── */
+
+/* Common popover surface — Nocturne .card analog at shadow-md elevation. */
+%popover {
+    position: absolute;
+    top: 52px;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-md);
+    z-index: 30;
+}
+
+.popoverMenu {
+    @extend %popover;
+    left: 12px;
+    min-width: 220px;
+}
+
+.popoverLink {
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    }
+}
+
+.popoverLinkActive {
+    color: var(--color-accent-200);
+    box-shadow: inset 0 0 0 1px var(--color-accent-800);
+}
+
+.popoverInbox {
+    @extend %popover;
+    right: 52px;
+    width: min(360px, calc(100vw - 24px));
+}
+
+.popoverKicker {
+    padding: 8px 10px 6px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-500);
+}
+
+.popoverEmpty {
+    padding: 8px 10px 12px;
+    font-size: 13px;
+    color: var(--color-neutral-500);
+}
+
+.popoverInboxItem {
+    display: flex;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--color-text);
+
+    i {
+        font-size: 17px;
+        margin-top: 1px;
+    }
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    }
+}
+
+.popoverInboxBody {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.popoverInboxTitle {
+    font-size: 13.5px;
+}
+
+.popoverInboxSub {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.popoverAvatar {
+    @extend %popover;
+    right: 12px;
+    width: 230px;
+}
+
+.popoverAvatarIdentity {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+}
+
+.popoverAvatarName {
+    font-size: 13.5px;
+}
+
+.popoverAvatarMeta {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.popoverAvatarSignOut {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+
+    i {
+        font-size: 15px;
+    }
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    }
+}
+
+/* ──────────────────────────── AgentHeaderInput host styles (legacy class names) ──────────────────────────── */
+
+/* AgentHeaderInput still imports these class names from Header.module.scss.
+ * Re-themed in Nocturne tokens so the autocomplete input matches the chrome. */
 
 .headerInput {
-  position: relative;
-  flex: 0 1 280px;
-  margin: 0 12px;
-  max-width: 100%;
-  box-sizing: border-box;
-
-  @media (max-width: 960px) {
-    flex: 1;
-    margin: 0;
-  }
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .headerInputField {
-  width: 100%;
-  background-color: #29384D;
-  color: #FAFAFA;
-  border: 1px solid rgba(250, 250, 250, 0.15);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.85rem;
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
+    width: 100%;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-md);
+    padding: 7px 12px;
+    font-size: 13.5px;
+    font-family: var(--font-body);
+    outline: none;
+    box-sizing: border-box;
 
-  &:focus {
-    border-color: #607AFB;
-  }
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+        border-color: transparent;
+    }
 
-  &::placeholder {
-    color: rgba(250, 250, 250, 0.4);
-  }
+    &::placeholder {
+        color: var(--color-neutral-500);
+    }
 }
 
 .dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background-color: #1a2634;
-  border: 1px solid rgba(250, 250, 250, 0.15);
-  border-radius: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-md);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 9999;
+    box-shadow: var(--shadow-md);
 }
 
 .dropdownItem {
-  padding: 10px 12px;
-  color: #FAFAFA;
-  font-size: 0.85rem;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    padding: 10px 12px;
+    color: var(--color-text);
+    font-size: 13.5px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
-  &:hover {
-    background-color: rgba(96, 122, 251, 0.2);
-  }
+    &:hover {
+        background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    }
 
-  & + & {
-    border-top: 1px solid rgba(250, 250, 250, 0.08);
-  }
+    & + & {
+        border-top: 1px solid var(--color-divider);
+    }
 }

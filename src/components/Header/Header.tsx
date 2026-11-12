@@ -1,428 +1,337 @@
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Button,
-  Box,
-  IconButton,
-  Avatar,
-  MenuItem,
-  Divider,
-  List,
-  ListItem,
-  Drawer,
-  ListItemText,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import {useEffect, useMemo, useRef, useState} from "react";
+import {Link, useLocation, useNavigate} from "react-router-dom";
+import {getAuth} from "firebase/auth";
+import {useAuth} from "../../contexts/AuthContext";
+import {useMessage} from "../../contexts/MessageContext";
+import {useWealthDigest} from "../../contexts/WealthDigestContext";
 import AgentHeaderInput from "./AgentHeaderInput";
-import { AgentType } from "../../services/agentService";
+import {AgentType} from "../../services/agentService";
 import styles from "./Header.module.scss";
-import Menu from "@mui/material/Menu";
-import { useEffect, useState } from "react";
-import { getAuth } from "firebase/auth";
-import { useAuth } from "../../contexts/AuthContext";
-import SettingsIcon from "@mui/icons-material/Settings";
-import LockResetIcon from "@mui/icons-material/LockReset";
-import ChangepasswordDialog from "../ChangePasswordDialog/ChangepasswordDialog.tsx";
-import { useMessage } from "../../contexts/MessageContext.tsx";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import WorkIcon from "@mui/icons-material/Work";
-import PublicIcon from "@mui/icons-material/Public";
-import MenuIcon from "@mui/icons-material/Menu";
-import ObjectDetailsDialog from "../MSNHome/ObjectDetailsDialog.tsx";
-import { getFileTimeStamps } from "../../services/investmentService.ts";
-import JobsDialog from "../JobsDialogComponent/JobsDialogComponent.tsx";
-import PortfolioVisitorsModal from "../PortfolioVisitorsModal/PortfolioVisitorsModal.tsx";
-import InsightsIcon from "@mui/icons-material/Insights";
-import Badge from "@mui/material/Badge";
-import { useWealthDigest } from "../../contexts/WealthDigestContext.tsx";
+
+/**
+ * FE-1 (ak-1myo) Global shell header. Ports the design's Home.dc.html
+ * header (lines 19-61) to React + Nocturne tokens. The same instance
+ * mounts on every authenticated page via main.tsx's layout.
+ *
+ * Structure matches the design verbatim:
+ *   [Ak chip + Akkountant wordmark] [primary nav … | · | secondary nav]
+ *   <flex spacer> [per-page Ask input?] [bell + badge] [avatar]
+ *
+ * Mobile collapse: below 720px the primary nav collapses into a ph-list
+ * button that opens a dropdown of every link.
+ *
+ * Out-of-scope per the bead (deferred to later FE beads):
+ * - Omni Ask bar (lives on Home, FE-2)
+ * - Real inbox data (stub: empty list → badge hidden)
+ * - Settings/Jobs/File-Timestamps/Visitors surfaces (the pre-FE-1 Settings
+ *   drawer entry — the design does not surface these). Those dialog
+ *   components still exist and can be re-wired via a dedicated /settings
+ *   route in a later bead. Flagged in the handoff.
+ */
+
+interface InboxItem {
+    id: string;
+    icon: string;      // phosphor class after `ph `
+    color: string;     // hex or var(--...)
+    title: string;
+    sub: string;
+    href: string;
+}
+
+// FE-1 stub: empty list hides the badge + popover showing "no items".
+// FE-2 wires this to the real alerts strip.
+const STUB_INBOX: InboxItem[] = [];
+
+interface NavItem {
+    label: string;
+    href: string;
+    group: "primary" | "secondary";
+    unread?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+    {label: "Home", href: "/home", group: "primary"},
+    {label: "Transactions", href: "/transactions", group: "primary"},
+    {label: "Investments", href: "/investments", group: "primary"},
+    {label: "Freelance", href: "/freelance", group: "primary"},
+    {label: "Files", href: "/files", group: "primary"},
+    // Wealth Digest sits in the secondary group per the design. It carries
+    // its own unread-dot (consumed from WealthDigestContext.hasUnread) —
+    // distinct from the top-right inbox badge.
+    {label: "Wealth Digest", href: "/wealth-digest", group: "secondary"},
+];
 
 const Header = () => {
-  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  const [isDrawerOpen, setDrawerOpen] = useState(false);
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [fileStamps, setFileStamps] = useState<any>({});
-  const { setPayload } = useMessage();
-  const { currentUser, loading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const {currentUser, loading} = useAuth();
+    const {setPayload} = useMessage();
+    const {hasUnread: hasUnreadDigest} = useWealthDigest();
 
-  const activeAgentType: AgentType | null = (() => {
-    const p = location.pathname;
-    if (p.startsWith("/transactions")) return "transaction";
-    if (p.startsWith("/investments")) return "investment";
-    if (p.startsWith("/freelance")) return "freelance";
-    return null;
-  })();
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [inboxOpen, setInboxOpen] = useState(false);
+    const [avatarOpen, setAvatarOpen] = useState(false);
+    const headerRef = useRef<HTMLElement | null>(null);
 
-  const [isTimeStampDialogOpen, setTimeStampsDialog] = useState<boolean>(false);
-  const [jobsDialogOpen, setJobsDialogOpen] = useState<boolean>(false);
-  const [visitorsModalOpen, setVisitorsModalOpen] = useState<boolean>(false);
-  const { hasUnread: hasUnreadDigest } = useWealthDigest();
-  useEffect(() => {
-    if (currentUser) {
-      getFileTimeStamps()
-        .then((res) => {
-          setFileStamps(res);
-        })
-        .catch(() =>
-          setPayload({
-            type: "error",
-            message: "Failed to fetch file stamps. Please try again!",
-          })
-        );
-    }
-  }, [currentUser]);
+    // Per-page agent input — same gating as before: null on Home (omni lives
+    // in-page), rendered inline on content pages that have a scoped agent.
+    const activeAgentType: AgentType | null = useMemo(() => {
+        const p = location.pathname;
+        if (p.startsWith("/transactions")) return "transaction";
+        if (p.startsWith("/investments")) return "investment";
+        if (p.startsWith("/freelance")) return "freelance";
+        return null;
+    }, [location.pathname]);
 
-  return (
-    <>
-      <AppBar
-        position="static"
-        sx={{ backgroundColor: "inherit", borderBottom: "0.7px solid white", zIndex: 1100, overflow: "visible" }}
-      >
-        <Toolbar sx={{ justifyContent: "space-between", overflow: "visible" }}>
-          <Box className={styles.linkContainer}>
-            <Typography sx={{ fontWeight: "bold" }} className={styles.icon}>
-              <Link style={{ color: "#FAFAFA", fontWeight: "700" }} to={"/"}>
-                Akkountant
-              </Link>
-            </Typography>
-            {!loading && currentUser && !isMobile && (
-              <>
-                <Button
-                  sx={{ mx: 1 }}
-                  onClick={() => {
-                    navigate("/transactions");
-                  }}
-                  className={styles.links}
-                >
-                  <Link style={{ color: "#FAFAFA" }} to={"/transactions"}>
-                    Transactions
-                  </Link>
-                </Button>
-                <Button
-                  sx={{ mx: 1 }}
-                  onClick={() => {
-                    navigate("/investments");
-                  }}
-                  className={styles.links}
-                >
-                  <Link style={{ color: "#FAFAFA" }} to={"/investments"}>
-                    Investments
-                  </Link>
-                </Button>
-                <Button
-                  sx={{ mx: 1 }}
-                  onClick={() => {
-                    navigate("/freelance");
-                  }}
-                  className={styles.links}
-                >
-                  <Link style={{ color: "#FAFAFA" }} to={"/freelance"}>
-                    Freelance
-                  </Link>
-                </Button>
-                <Button
-                  sx={{ mx: 1 }}
-                  onClick={() => {
-                    navigate("/files");
-                  }}
-                  className={styles.links}
-                >
-                  <Link style={{ color: "#FAFAFA" }} to={"/files"}>
-                    Files
-                  </Link>
-                </Button>
-                <Button
-                  sx={{ mx: 1 }}
-                  onClick={() => {
-                    navigate("/wealth-digest");
-                  }}
-                  className={styles.links}
-                >
-                  <Badge
-                    color="error"
-                    variant="dot"
-                    invisible={!hasUnreadDigest}
-                    overlap="rectangular"
-                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
-                    sx={{ "& .MuiBadge-dot": { transform: "translate(6px, -4px)" } }}
-                  >
-                    <Link style={{ color: "#FAFAFA" }} to={"/wealth-digest"}>
-                      Wealth Digest
-                    </Link>
-                  </Badge>
-                </Button>
-              </>
+    // Close popovers on route change (user navigated into the thing).
+    useEffect(() => {
+        setMobileMenuOpen(false);
+        setInboxOpen(false);
+        setAvatarOpen(false);
+    }, [location.pathname]);
+
+    // Click-outside: any click outside the <header> closes every popover.
+    useEffect(() => {
+        if (!mobileMenuOpen && !inboxOpen && !avatarOpen) return;
+        const onDocClick = (e: MouseEvent) => {
+            if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+                setMobileMenuOpen(false);
+                setInboxOpen(false);
+                setAvatarOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", onDocClick);
+        return () => document.removeEventListener("mousedown", onDocClick);
+    }, [mobileMenuOpen, inboxOpen, avatarOpen]);
+
+    // Only exactly one popover open at a time — opening one closes the others.
+    const openInbox = () => {
+        setInboxOpen((v) => !v);
+        setAvatarOpen(false);
+        setMobileMenuOpen(false);
+    };
+    const openAvatar = () => {
+        setAvatarOpen((v) => !v);
+        setInboxOpen(false);
+        setMobileMenuOpen(false);
+    };
+    const openMenu = () => {
+        setMobileMenuOpen((v) => !v);
+        setInboxOpen(false);
+        setAvatarOpen(false);
+    };
+
+    const isActive = (href: string) => {
+        if (href === "/home") return location.pathname === "/home";
+        return location.pathname.startsWith(href);
+    };
+
+    // Initials derive from displayName (preferred) → email (fallback) → "U".
+    // Keeps the design's "VR" shape without leaking the raw email.
+    const initials = useMemo(() => {
+        const name = currentUser?.displayName?.trim();
+        if (name) {
+            const parts = name.split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        }
+        const email = currentUser?.email;
+        if (email) return email.slice(0, 2).toUpperCase();
+        return "U";
+    }, [currentUser]);
+
+    const signOut = () => {
+        setAvatarOpen(false);
+        getAuth()
+            .signOut()
+            .then(() => navigate("/"))
+            .catch(() =>
+                setPayload({type: "error", message: "Error logging out."}),
+            );
+    };
+
+    const unreadInboxCount = STUB_INBOX.length;
+    // Active nav link style — rendered via module class toggle so :focus-visible,
+    // hover, etc. all come from the stylesheet rather than inline styles.
+    const linkClass = (href: string, group: NavItem["group"]) =>
+        [
+            group === "primary" ? styles.navLink : styles.navLinkSecondary,
+            isActive(href) ? styles.navLinkActive : "",
+        ]
+            .filter(Boolean)
+            .join(" ");
+
+    // While auth resolves we still render the header chrome (logo + divider)
+    // so there's no pop-in, but hide the nav + user-affordances.
+    const authReady = !loading && currentUser != null;
+
+    return (
+        <header className={styles.header} ref={headerRef}>
+            <Link to="/" className={styles.brand}>
+                <span className={styles.brandChip} aria-hidden="true">Ak</span>
+                <span className={styles.brandWord}>Akkountant</span>
+            </Link>
+
+            {authReady && (
+                <>
+                    {/* Full-width primary nav — hidden under 720px via SCSS. */}
+                    <nav className={styles.navFull} aria-label="Primary">
+                        {NAV_ITEMS.filter((n) => n.group === "primary").map((n) => (
+                            <Link
+                                key={n.href}
+                                to={n.href}
+                                className={linkClass(n.href, "primary")}
+                            >
+                                {n.label}
+                            </Link>
+                        ))}
+                        <span className={styles.navDivider} aria-hidden="true"/>
+                        {NAV_ITEMS.filter((n) => n.group === "secondary").map((n) => (
+                            <Link
+                                key={n.href}
+                                to={n.href}
+                                className={linkClass(n.href, "secondary")}
+                            >
+                                {n.label}
+                                {n.href === "/wealth-digest" && hasUnreadDigest && (
+                                    <span className={styles.navDot} aria-label="unread"/>
+                                )}
+                            </Link>
+                        ))}
+                    </nav>
+
+                    {/* Compact menu button — shown under 720px via SCSS. */}
+                    <button
+                        type="button"
+                        onClick={openMenu}
+                        className={`btn btn-secondary ${styles.menuBtn}`}
+                        aria-label="Open navigation"
+                        aria-expanded={mobileMenuOpen}
+                    >
+                        <i className="ph ph-list"/>
+                        <span>Menu</span>
+                    </button>
+                </>
             )}
-          </Box>
-          {!loading && currentUser && !isMobile && activeAgentType && (
-            <AgentHeaderInput agentType={activeAgentType} />
-          )}
-          <Box display="flex" alignItems="center">
-            {!loading && currentUser && isMobile && (
-              <IconButton
-                onClick={() => setMobileMenuOpen(true)}
-                sx={{ color: "#FAFAFA", mr: 1 }}
-              >
-                <MenuIcon />
-              </IconButton>
-            )}
-            {loading ? (
-              // Show nothing or a loading indicator during auth check
-              <Box sx={{ width: 40, height: 40 }} />
-            ) : currentUser ? (
-              <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)}>
-                <Avatar sx={{ bgcolor: "#5B5B7B" }}>
-                  {currentUser?.email?.[0] || ""}
-                </Avatar>
-              </IconButton>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={() => navigate("/login")}
-                sx={{
-                  backgroundColor: "#4A90E2",
-                  "&:hover": { backgroundColor: "#357ABD" },
-                }}
-              >
-                Login
-              </Button>
-            )}
-          </Box>
-        </Toolbar>
-        <Menu
-          sx={{ mt: "45px" }}
-          MenuListProps={{ sx: { py: 0 } }}
-          anchorOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-          id="menu-appbar"
-          anchorEl={anchorElUser}
-          open={Boolean(anchorElUser)}
-          onClose={() => setAnchorElUser(null)}
-        >
-          {["Logout", "Settings"].map((setting) => (
-            <MenuItem
-              key={setting}
-              style={{ backgroundColor: "#121C24", color: "#FAFAFA" }}
-              onClick={
-                setting === "Settings"
-                  ? () => {
-                      setDrawerOpen(true);
-                      setAnchorElUser(null);
-                    }
-                  : () => {
-                      setAnchorElUser(null);
-                      getAuth()
-                        .signOut()
-                        .then(() => navigate("/"))
-                        .catch(() =>
-                          setPayload({
-                            type: "error",
-                            message: "Error logging out.",
-                          })
-                        );
-                    }
-              }
-            >
-              <Typography sx={{ textAlign: "center" }}>{setting}</Typography>
-            </MenuItem>
-          ))}
-        </Menu>
-      </AppBar>
 
-      {/* Mobile Navigation Menu */}
-      <Drawer
-        anchor="left"
-        open={isMobileMenuOpen}
-        onClose={() => setMobileMenuOpen(false)}
-      >
-        <Box
-          sx={{
-            width: 250,
-            backgroundColor: "#121C24",
-            height: "100%",
-            color: "#FAFAFA",
-            p: 2,
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-            Navigation
-          </Typography>
-          <Divider sx={{ backgroundColor: "#FAFAFA", mb: 2 }} />
-          <List>
-            <ListItem
-              onClick={() => {
-                navigate("/transactions");
-                setMobileMenuOpen(false);
-              }}
-              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
-            >
-              <ListItemText primary="Transactions" sx={{ color: "white" }} />
-            </ListItem>
-            <ListItem
-              onClick={() => {
-                navigate("/investments");
-                setMobileMenuOpen(false);
-              }}
-              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
-            >
-              <ListItemText primary="Investments" sx={{ color: "white" }} />
-            </ListItem>
-            <ListItem
-              onClick={() => {
-                navigate("/freelance");
-                setMobileMenuOpen(false);
-              }}
-              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
-            >
-              <ListItemText primary="Freelance" sx={{ color: "white" }} />
-            </ListItem>
-            <ListItem
-              onClick={() => {
-                navigate("/files");
-                setMobileMenuOpen(false);
-              }}
-              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
-            >
-              <ListItemText primary="Files" sx={{ color: "white" }} />
-            </ListItem>
-            <ListItem
-              onClick={() => {
-                navigate("/wealth-digest");
-                setMobileMenuOpen(false);
-              }}
-              sx={{ cursor: "pointer", "&:hover": { backgroundColor: "rgb(50, 62, 74)" } }}
-            >
-              <Badge
-                color="error"
-                variant="dot"
-                invisible={!hasUnreadDigest}
-                sx={{ "& .MuiBadge-dot": { transform: "translate(4px, 4px)" } }}
-              >
-                <InsightsIcon fontSize="small" sx={{ mr: 1, color: "white" }} />
-              </Badge>
-              <ListItemText primary="Wealth Digest" sx={{ color: "white" }} />
-            </ListItem>
-          </List>
-          {activeAgentType && (
-            <>
-              <Divider sx={{ backgroundColor: "#FAFAFA", my: 2 }} />
-              <Typography variant="body2" sx={{ color: "#7a7d85", mb: 1 }}>
-                Ask AI Assistant
-              </Typography>
-              <AgentHeaderInput agentType={activeAgentType} />
-            </>
-          )}
-        </Box>
-      </Drawer>
+            <span className={styles.spacer}/>
 
-      {/* Settings Drawer */}
-      <Drawer
-        anchor="right"
-        open={isDrawerOpen}
-        onClose={() => setDrawerOpen(false)}
-      >
-        <Box
-          sx={{
-            width: 250,
-            backgroundColor: "#121C24",
-            height: "100%",
-            color: "#FAFAFA",
-            p: 2,
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-            <SettingsIcon style={{ verticalAlign: "middle" }} /> Settings
-          </Typography>
-          <Divider />
-          <List>
-            <ListItem
-              onClick={() => setChangePasswordOpen(true)}
-              sx={{ cursor: "pointer" }}
-            >
-              <LockResetIcon style={{ marginRight: "0.5rem" }} />
-              <Typography>Change Password</Typography>
-            </ListItem>
-            <ListItem
-              sx={{
-                cursor: "pointer",
-                "&:hover": {
-                  backgroundColor: "rgb(50, 62, 74)",
-                },
-              }}
-              onClick={() => setTimeStampsDialog(true)}
-            >
-              <AccessTimeIcon style={{ marginRight: "0.5rem" }} />
-              <ListItemText
-                primary="File Timestamps"
-                sx={{ color: "white", cursor: "pointer" }}
-              />
-            </ListItem>
-            <ListItem
-              sx={{
-                cursor: "pointer",
-                "&:hover": {
-                  backgroundColor: "rgb(50, 62, 74)",
-                },
-              }}
-              onClick={() => setJobsDialogOpen(true)}
-            >
-              <WorkIcon style={{ marginRight: "0.5rem" }} />
-              <ListItemText
-                primary="Jobs"
-                sx={{ color: "white", cursor: "pointer" }}
-              />
-            </ListItem>
-            <ListItem
-              sx={{
-                cursor: "pointer",
-                "&:hover": {
-                  backgroundColor: "rgb(50, 62, 74)",
-                },
-              }}
-              onClick={() => setVisitorsModalOpen(true)}
-            >
-              <PublicIcon style={{ marginRight: "0.5rem" }} />
-              <ListItemText
-                primary="Visitors"
-                sx={{ color: "white", cursor: "pointer" }}
-              />
-            </ListItem>
-            <ChangepasswordDialog
-              open={isChangePasswordOpen}
-              onClose={() => setChangePasswordOpen(false)}
-            />
-            <ObjectDetailsDialog
-              open={isTimeStampDialogOpen}
-              onClose={() => setTimeStampsDialog(false)}
-              title="File Timestamps"
-              data={fileStamps}
-            />
-            <JobsDialog
-              open={jobsDialogOpen}
-              onClose={() => setJobsDialogOpen(false)}
-            />
-            <PortfolioVisitorsModal
-              open={visitorsModalOpen}
-              onClose={() => setVisitorsModalOpen(false)}
-            />
-          </List>
-        </Box>
-      </Drawer>
-    </>
-  );
+            {/* Per-page agent Ask input — content pages with a scoped agent. */}
+            {authReady && activeAgentType && (
+                <div className={styles.agentInputHost}>
+                    <AgentHeaderInput agentType={activeAgentType}/>
+                </div>
+            )}
+
+            {authReady && (
+                <>
+                    <button
+                        type="button"
+                        onClick={openInbox}
+                        className={`btn btn-icon ${styles.iconBtn}`}
+                        title="Things Akkountant wants to tell you"
+                        aria-label="Inbox"
+                        aria-expanded={inboxOpen}
+                    >
+                        <i className="ph ph-bell"/>
+                        {unreadInboxCount > 0 && (
+                            <span className={styles.badge}>{unreadInboxCount}</span>
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={openAvatar}
+                        className={styles.avatar}
+                        title="Signed in"
+                        aria-label="Account"
+                        aria-expanded={avatarOpen}
+                    >
+                        {initials}
+                    </button>
+                </>
+            )}
+
+            {!authReady && !loading && (
+                <button
+                    type="button"
+                    onClick={() => navigate("/login")}
+                    className={`btn btn-primary ${styles.loginBtn}`}
+                >
+                    Sign in
+                </button>
+            )}
+
+            {/* Mobile-collapsed menu */}
+            {mobileMenuOpen && authReady && (
+                <div
+                    className={styles.popoverMenu}
+                    role="menu"
+                    aria-label="Navigation"
+                >
+                    {NAV_ITEMS.map((n) => (
+                        <Link
+                            key={n.href}
+                            to={n.href}
+                            className={`${styles.popoverLink} ${isActive(n.href) ? styles.popoverLinkActive : ""}`}
+                            role="menuitem"
+                        >
+                            {n.label}
+                            {n.href === "/wealth-digest" && hasUnreadDigest && (
+                                <span className={styles.navDot} aria-label="unread"/>
+                            )}
+                        </Link>
+                    ))}
+                </div>
+            )}
+
+            {/* Inbox popover */}
+            {inboxOpen && authReady && (
+                <div className={styles.popoverInbox} role="dialog" aria-label="Inbox">
+                    <span className={styles.popoverKicker}>Needs attention</span>
+                    {STUB_INBOX.length === 0 ? (
+                        <span className={styles.popoverEmpty}>You're caught up.</span>
+                    ) : (
+                        STUB_INBOX.map((item) => (
+                            <Link
+                                key={item.id}
+                                to={item.href}
+                                className={styles.popoverInboxItem}
+                            >
+                                <i className={`ph ${item.icon}`} style={{color: item.color}}/>
+                                <span className={styles.popoverInboxBody}>
+                                    <span className={styles.popoverInboxTitle}>{item.title}</span>
+                                    <span className={styles.popoverInboxSub}>{item.sub}</span>
+                                </span>
+                            </Link>
+                        ))
+                    )}
+                </div>
+            )}
+
+            {/* Avatar popover */}
+            {avatarOpen && authReady && (
+                <div className={styles.popoverAvatar} role="menu" aria-label="Account">
+                    <div className={styles.popoverAvatarIdentity}>
+                        <span className={styles.popoverAvatarName}>
+                            {currentUser?.displayName || "Signed in"}
+                        </span>
+                        <span className={styles.popoverAvatarMeta}>
+                            Signed in with Google
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={signOut}
+                        className={styles.popoverAvatarSignOut}
+                        role="menuitem"
+                    >
+                        <i className="ph ph-sign-out"/>
+                        <span>Sign out</span>
+                    </button>
+                </div>
+            )}
+        </header>
+    );
 };
 
 export default Header;
