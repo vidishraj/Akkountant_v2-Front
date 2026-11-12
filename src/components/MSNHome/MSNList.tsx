@@ -21,6 +21,7 @@ import {
     getRowUnrealizedPnL,
     getT1Quantity,
     getTotalQuantity,
+    isDayChangeKnown,
     type CostBasisDivergence,
     type DayChange,
     type PledgeInfo,
@@ -53,6 +54,13 @@ interface ComputedStock {
     /** Settled + pending, i.e. the committed position we display as the quantity. */
     totalQuant: number;
     dayChange: DayChange | null;
+    /**
+     * False iff BE explicitly reported `day_change_known: false` (ak-4o41).
+     * Distinct from "dayChange === null" (no displayable signal from any
+     * source): known=false means BE's broker-side computation couldn't
+     * run, and rendering ₹0 would conflate unknown with flat.
+     */
+    dayChangeKnown: boolean;
     pledge: PledgeInfo | null;
     costBasisDivergence: CostBasisDivergence | null;
 }
@@ -112,13 +120,14 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
             const pendingValue = getPendingValue(stock, lastPrice);
             const totalQuant = getTotalQuantity(stock);
             const dayChange = getDayChange(stock, pChange);
+            const dayChangeKnown = isDayChangeKnown(stock);
             const pledge = getPledgeInfo(stock);
             const costBasisDivergence = getCostBasisDivergence(stock);
 
             return {
                 stock, buyCode, lastPrice, buyQuant, buyPrice, pChange, profit, profitPercentage,
                 currentValue, priceUnavailable, pendingQuant, pendingValue, totalQuant,
-                dayChange, pledge, costBasisDivergence,
+                dayChange, dayChangeKnown, pledge, costBasisDivergence,
             };
         });
     }, [list, state.selectedCard]);
@@ -193,7 +202,7 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     const {
                         stock, buyCode, lastPrice, buyQuant, buyPrice,
                         pChange, profit, profitPercentage, priceUnavailable,
-                        pendingQuant, totalQuant, dayChange, pledge, costBasisDivergence
+                        pendingQuant, totalQuant, dayChange, dayChangeKnown, pledge, costBasisDivergence
                     } = item;
                     const profitString = profit.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
@@ -224,11 +233,17 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     const percentLabel = dayChange
                         ? `${dayChange.changePercent >= 0 ? '+' : ''}${dayChange.changePercent.toFixed(2)}%`
                         : `${isPositiveChange ? '+' : ''}${pChange}%`;
-                    // Absolute ₹ change only when the source actually provides one
-                    // (MF / NPS feeds give a percentage only).
-                    const dayChangeLabel = dayChange && dayChange.change !== null
-                        ? `${dayChange.change >= 0 ? '+' : '-'}₹${formatCurrency(Math.abs(dayChange.change))} (${percentLabel})`
-                        : percentLabel;
+                    // Day-change label (ak-quts):
+                    // - BE explicit `day_change_known: false` → "—" (overrides any
+                    //   pChange fallback; ambiguity with "flat today" is exactly
+                    //   what the flag was added to distinguish)
+                    // - Else broker-provided absolute ₹ + % when available; the
+                    //   live-feed % when MF/NPS feeds give only a percentage.
+                    const dayChangeLabel = !dayChangeKnown
+                        ? '—'
+                        : dayChange && dayChange.change !== null
+                            ? `${dayChange.change >= 0 ? '+' : '-'}₹${formatCurrency(Math.abs(dayChange.change))} (${percentLabel})`
+                            : percentLabel;
 
                     return (
                         <Card
@@ -257,15 +272,18 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                                             <Typography variant="body1" className={style.currentValue}>
                                                 &#8377;{formattedLastPrice}
                                             </Typography>
-                                            {/* Day change: broker-provided ₹ + % when available, live-feed % otherwise. */}
+                                            {/* Day change: broker-provided ₹ + % when available, live-feed %
+                                                otherwise. Neutral styling when BE explicitly flagged
+                                                day_change_known: false (ak-quts) — the "—" label mustn't
+                                                carry green/red that would read as a direction. */}
                                             <Typography
                                                 variant="body2"
                                                 className={
-                                                    displayPercent === 0
+                                                    !dayChangeKnown || displayPercent === 0
                                                         ? style.previousValue
                                                         : isPositiveChange ? style.positiveChange : style.negativeChange
                                                 }
-                                                sx={dayChange?.source === 'broker' ? { fontSize: '12px' } : undefined}
+                                                sx={dayChangeKnown && dayChange?.source === 'broker' ? { fontSize: '12px' } : undefined}
                                             >
                                                 {dayChangeLabel}
                                             </Typography>

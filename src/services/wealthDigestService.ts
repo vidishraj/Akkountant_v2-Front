@@ -276,10 +276,10 @@ export async function markDigestRead(date: string): Promise<WealthDigest> {
 }
 
 /**
- * A single day's portfolio-value data-point, returned by the trend endpoint.
- * The endpoint doesn't exist on the backend yet (P3 follow-up bead) — until
- * it does, fetchPortfolioTrend below returns an empty array and the chart
- * component renders its "no trend data yet" placeholder.
+ * A single day's portfolio-value data-point, returned by the trend endpoint
+ * (ak-4o41 — `/investment-snapshot/history`). FE-internal field name is
+ * `value`; BE wire field name is `portfolio_value`. Normalized here so
+ * downstream renderers see a single shape.
  */
 export interface PortfolioTrendPoint {
   date: string;   // YYYY-MM-DD (IST)
@@ -287,16 +287,22 @@ export interface PortfolioTrendPoint {
 }
 
 /**
- * Fetches the last N days of portfolio-value snapshots. Contract:
- *   GET /investment-snapshot/history?days=30 → {points: [{date, value}, …]}
+ * Fetches the last N days of portfolio-value snapshots. Contract (ak-4o41):
+ *   GET /investment-snapshot/history?days=<N>
+ *   → [{date: "YYYY-MM-DD", portfolio_value: number}, …]
  *
- * Not-yet-implemented on the backend (P3 follow-up). Returns an empty array
- * on 404 so the trend-chart widget can render its placeholder rather than a
- * transient-error state. Any OTHER failure re-throws so genuine 5xx surfaces
- * to the UI's error banner.
+ * **Constant-composition**: BE only emits dates where EVERY currently-held
+ * token has a candle (phantom-dip omission), so the array can be shorter
+ * than N in cold-start / recently-bought scenarios. `[]` is a valid
+ * non-error outcome — caller renders the chart's empty-state placeholder.
+ *
+ * 404 → [] (safe no-op); any other non-2xx → `WealthDigestError` so the
+ * caller can surface a transient banner. Legacy wrapped `{points: [...]}`
+ * shape is still tolerated: during the brief window where BE might ship
+ * before FE or vice-versa, this adapter normalizes either response shape.
  */
 export async function fetchPortfolioTrend(
-  days = 30
+  days = 90
 ): Promise<PortfolioTrendPoint[]> {
   const res = await authedFetch(
     `investment-snapshot/history?days=${encodeURIComponent(String(days))}`
@@ -312,14 +318,31 @@ export async function fetchPortfolioTrend(
     );
   }
   const body = await res.json();
-  const points = Array.isArray(body?.points) ? body.points : [];
-  return points
+  // Accept both the new bare-list shape (ak-4o41) and the old wrapped
+  // `{points: [...]}` shape for a brief ship-order-agnostic window.
+  const raw: unknown[] = Array.isArray(body)
+    ? body
+    : Array.isArray(body?.points)
+      ? body.points
+      : [];
+  return raw
     .filter(
-      (p: unknown): p is PortfolioTrendPoint =>
-        typeof p === "object" &&
-        p !== null &&
-        typeof (p as PortfolioTrendPoint).date === "string" &&
-        typeof (p as PortfolioTrendPoint).value === "number"
+      (p): p is Record<string, unknown> => typeof p === "object" && p !== null
     )
+    .map((p): PortfolioTrendPoint | null => {
+      const date = typeof p.date === "string" ? p.date : "";
+      // Prefer the new field name; fall through to the legacy one.
+      const v = p.portfolio_value;
+      const legacy = p.value;
+      const value =
+        typeof v === "number" && Number.isFinite(v)
+          ? v
+          : typeof legacy === "number" && Number.isFinite(legacy)
+            ? legacy
+            : NaN;
+      if (!date || !Number.isFinite(value)) return null;
+      return { date, value };
+    })
+    .filter((p): p is PortfolioTrendPoint => p !== null)
     .slice(-days);
 }

@@ -149,12 +149,34 @@ export const getRowUnrealizedPnL = (row: MSNListResponse, lastPrice: number): nu
 };
 
 /**
+ * Whether the broker explicitly reported a KNOWN day-change for this row.
+ * ak-4o41 BE contract: `day_change_known: false` is emitted when neither
+ * today_open (preferred source) nor close_price (fallback) was available,
+ * in which case `day_change_amount` / `day_change` are 0 by convention but
+ * that 0 MEANS "unknown", NOT "flat today". Renderers must check this
+ * flag before displaying a ₹0 — the two states look identical in the raw
+ * numbers but mean opposite things to a reader.
+ *
+ * Absent field → legacy row (pre ak-4o41); assume known for backward-compat
+ * (the existing all-zero-falls-back-to-market-feed heuristic in
+ * `getDayChange` already covers the pre-flag ambiguity).
+ */
+export const isDayChangeKnown = (row: MSNListResponse): boolean =>
+    row?.day_change_known !== false;
+
+/**
  * Row-level absolute day P&L — BE-emitted `day_change_amount` (folded,
  * `total_qty × (last_price − close_price)`) for Kite-enriched stock rows;
  * null for rows without the field (MF/NPS render day change as a
  * percentage-only via `getDayChange` — no absolute number to fall back to).
+ *
+ * Returns null when BE explicitly reports `day_change_known: false` even
+ * if `day_change_amount` is present — the number is a convention-zero,
+ * not a real measurement, and rendering it as "₹0" conflates unknown with
+ * flat. Caller shows "—" instead.
  */
 export const getRowDayChangeAmount = (row: MSNListResponse): number | null => {
+    if (!isDayChangeKnown(row)) return null;
     if (typeof row?.day_change_amount === "number" && Number.isFinite(row.day_change_amount)) {
         return row.day_change_amount;
     }
@@ -177,9 +199,16 @@ export interface DayChange {
 /**
  * Day change for a row, preferring the broker-provided values and falling back to the
  * live market feed we already render prices from. Returns null when neither is usable
- * (e.g. the price feed errored) so the caller can render a neutral placeholder.
+ * (e.g. the price feed errored, OR BE explicitly reported `day_change_known: false`)
+ * so the caller can render a neutral placeholder.
+ *
+ * The explicit-unknown gate (ak-4o41 flag) overrides the market-feed fallback: if BE
+ * declares the broker-side signal unknown, we prefer "—" over manufacturing a number
+ * from the live NSE feed — they're different data sources and conflating them
+ * invites the "flat today vs. unknown" ambiguity this flag exists to kill.
  */
 export const getDayChange = (row: MSNListResponse, fallbackPercent?: number): DayChange | null => {
+    if (!isDayChangeKnown(row)) return null;
     const hasBrokerChange = row?.day_change !== undefined && Number.isFinite(Number(row.day_change));
     const hasBrokerPercent =
         row?.day_change_percentage !== undefined && Number.isFinite(Number(row.day_change_percentage));

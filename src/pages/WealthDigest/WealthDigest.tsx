@@ -9,6 +9,7 @@ import {
   markDigestRead,
 } from "../../services/wealthDigestService.ts";
 import { MSNListResponse } from "../../utils/interfaces.ts";
+import { getRowDayChangeAmount } from "../../utils/holdings.ts";
 import StatTileRow from "../../components/WealthDigest/StatTileRow.tsx";
 import StatTile from "../../components/WealthDigest/StatTile.tsx";
 import DigestHeader from "../../components/WealthDigest/DigestHeader.tsx";
@@ -164,10 +165,20 @@ function deriveMovers(lists: Record<string, MSNListResponse[]>): {
     const list = lists[k];
     if (!list || list.length === 0) return;
     list.forEach((item) => {
-      const change = Number(item.info?.change) || 0;
-      const quant = Number(item.buyQuant) || 0;
-      const rupees = change * quant;
-      if (change !== 0) {
+      // ak-quts: CONSUME BE-authoritative per-row day-change (gated on
+      // `day_change_known` inside getRowDayChangeAmount). Prior version
+      // re-derived from `info.change × buyQuant` on the live NSE feed,
+      // which (a) conflated unknown with flat and (b) diverged from BE's
+      // own day-P&L aggregate by paise under rounding. Consume, don't
+      // recompute (rig-std #11).
+      //
+      // null → unknown or not-emitted (legacy row / MF/NPS without BE
+      // fold): exclude from BOTH totalDayChange AND movers. A row the
+      // broker can't speak for doesn't become a mover and doesn't
+      // contribute a pretend-0 to the aggregate.
+      const rupees = getRowDayChangeAmount(item);
+      if (rupees === null) return;
+      if (rupees !== 0) {
         hasData = true;
         totalDayChange += rupees;
         const name =
@@ -176,13 +187,24 @@ function deriveMovers(lists: Record<string, MSNListResponse[]>): {
           (item as { name?: string }).name ??
           (item as { schemeName?: string }).schemeName ??
           "—";
+        // Per-share percentage — prefer BE `day_change_percentage` when
+        // present, fall back to a derivation from the live feed only when
+        // absent (so the mover chip still reads coherently on legacy rows).
+        const bePct = Number(item.day_change_percentage);
         const pct =
-          Number(item.info?.previousClose) > 0
-            ? (change / Number(item.info.previousClose)) * 100
-            : 0;
+          Number.isFinite(bePct) && bePct !== 0
+            ? bePct
+            : Number(item.info?.previousClose) > 0
+              ? ((Number(item.info?.change) || 0) / Number(item.info.previousClose)) * 100
+              : 0;
         const entry: Mover = { name, category: k, delta: rupees, deltaPct: pct };
         if (!top || rupees > top.delta) top = entry;
         if (!worst || rupees < worst.delta) worst = entry;
+      } else {
+        // rupees === 0 with a KNOWN flag: genuinely flat today. Counts as
+        // "data" so the tile renders "₹0 (0.00%)" instead of "—", but not
+        // as a mover (nothing to surface).
+        hasData = true;
       }
     });
   });

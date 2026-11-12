@@ -17,6 +17,7 @@ import {
     getSettledQuantity,
     getT1Quantity,
     getTotalQuantity,
+    isDayChangeKnown,
 } from "./holdings.ts";
 import {MSNListResponse, MSNRateResponse} from "./interfaces.ts";
 
@@ -162,6 +163,62 @@ check("statement fallback: getRowDayChangeAmount = null (no absolute source)",
 // Fallback price-unavailable safety
 check("statement fallback: zero price yields zero current value",
     getRowCurrentValue(statementOnlyRow, 0), 0);
+
+// --- ak-quts day_change_known gate (ak-4o41 BE flag) --------------------------
+// BE emits `day_change_known: false` when neither today_open nor close_price
+// was available; day_change / day_change_amount are 0 by convention in that
+// case but that 0 MEANS "unknown", NOT "flat today". Renderers must show
+// "—", not "₹0". Asserting both branches of the gate — the explicit-unknown
+// override AND the legacy (field-absent) backward-compat.
+//
+// Discriminator: these assertions FAIL on a hypothetical FE that treats
+// day_change_known-less rows as always-known (legacy heuristic alone) OR on
+// a hypothetical FE that ignores the flag entirely (would return 0 not
+// null). Only an FE that reads day_change_known AS the gate passes both.
+
+// isDayChangeKnown — flag presence / absence
+check("isDayChangeKnown: absent field → assume known (legacy compat)",
+    isDayChangeKnown(row()), true);
+check("isDayChangeKnown: explicit true → known",
+    isDayChangeKnown(row({day_change_known: true})), true);
+check("isDayChangeKnown: explicit false → NOT known",
+    isDayChangeKnown(row({day_change_known: false})), false);
+
+// getRowDayChangeAmount — unknown gate overrides numeric presence
+check("day_change_known: false masks day_change_amount → null",
+    getRowDayChangeAmount(row({day_change_amount: 9020, day_change_known: false})), null);
+check("day_change_known: true + day_change_amount=0 → 0 (genuinely flat)",
+    getRowDayChangeAmount(row({day_change_amount: 0, day_change_known: true})), 0);
+check("day_change_known: true + day_change_amount=9020 → 9020",
+    getRowDayChangeAmount(row({day_change_amount: 9020, day_change_known: true})), 9020);
+// Legacy row (no flag): existing behavior preserved
+check("day_change_known absent + day_change_amount=9020 → 9020 (legacy)",
+    getRowDayChangeAmount(row({day_change_amount: 9020})), 9020);
+
+// getDayChange — unknown gate overrides broker/market fallback
+check("day_change_known: false → getDayChange returns null (no market fallback)",
+    getDayChange(row({day_change: 10, day_change_percentage: 0.5, day_change_known: false}), 0.33),
+    null,
+);
+// day_change_known: true + 0/0 broker values — the gate passes, then the
+// existing all-zero-broker heuristic (b8cb2c2) falls through to the market
+// feed. baseInfo has change=8.1/pChange=0.33, so we get a market-source
+// DayChange. Documents the compositional behavior: known=true doesn't
+// FORCE the broker path, it only unblocks the dispatch; the dispatch's
+// own fallback logic still runs.
+check("day_change_known: true + 0/0 broker → falls through to market feed",
+    getDayChange(row({day_change: 0, day_change_percentage: 0, day_change_known: true}), 0.33),
+    {change: 8.1, changePercent: 0.33, source: "market"},
+);
+// Mutation discriminator: toggling day_change_known from true to false on
+// the SAME broker-populated row changes the return from a DayChange to null.
+// Proves the gate is actually consulted (not bypassed). An FE that forgot
+// to read day_change_known would return the same value for both.
+check("day_change_known discriminator: toggling flag changes output shape",
+    getDayChange(row({day_change: 10, day_change_percentage: 0.5, day_change_known: true}), 0.33) !== null &&
+    getDayChange(row({day_change: 10, day_change_percentage: 0.5, day_change_known: false}), 0.33) === null,
+    true,
+);
 
 // --- day change ---------------------------------------------------------------
 check(

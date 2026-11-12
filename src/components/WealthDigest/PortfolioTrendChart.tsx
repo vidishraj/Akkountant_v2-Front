@@ -22,10 +22,13 @@ interface PortfolioTrendChartProps {
 }
 
 /**
- * 30-day rolling portfolio-value line chart — Wave 3 deferred item from
- * Overseer's Q3 decision. Data source is a new backend endpoint that
- * doesn't exist yet (P3 follow-up bead recommended); the fetcher returns
- * [] on 404 so we render a placeholder rather than an error state.
+ * 90-day rolling portfolio-value line chart. Data source is the
+ * `/investment-snapshot/history` endpoint (ak-4o41). BE uses constant-
+ * composition semantics — only emits dates where every currently-held
+ * token has a candle — so the array may be shorter than `days` in
+ * cold-start / recently-bought scenarios. Empty response renders the
+ * placeholder; the component does NOT attempt to interpolate missing
+ * dates (that'd fabricate movement).
  *
  * Chart specs follow the dataviz skill's mark conventions:
  * - Single-series line (single hue, no legend needed — title carries identity)
@@ -37,7 +40,7 @@ interface PortfolioTrendChartProps {
  * - Tooltip on hover — the crosshair+tooltip pattern the skill calls out
  *   for time-series
  */
-const PortfolioTrendChart: React.FC<PortfolioTrendChartProps> = ({ days = 30 }) => {
+const PortfolioTrendChart: React.FC<PortfolioTrendChartProps> = ({ days = 90 }) => {
   const [points, setPoints] = useState<PortfolioTrendPoint[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -81,7 +84,7 @@ const PortfolioTrendChart: React.FC<PortfolioTrendChartProps> = ({ days = 30 }) 
               component="span"
               className={style.widgetPlaceholderHint}
             >
-              (backend snapshot-history endpoint pending)
+              (daily snapshots accumulate as the scheduler runs)
             </Typography>
           </Box>
         ) : (

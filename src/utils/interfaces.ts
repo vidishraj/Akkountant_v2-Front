@@ -200,6 +200,14 @@ export interface MSNListResponse {
     authorised_quantity?: number;    // quantity authorised for sale
     day_change?: number;             // absolute per-share day change (₹), broker-computed
     day_change_percentage?: number;  // day change (%), broker-computed
+    // Explicit known/unknown discriminator from BE OHLC enrichment (ak-4o41).
+    // BE sets this true when today_open (preferred) or close_price (fallback)
+    // was available to compute day change; false when neither was — in which
+    // case `day_change_amount`/`day_change` are 0 by convention but that 0
+    // MEANS "unknown", NOT "flat today". Renderers must check this flag
+    // before displaying a ₹0 day change. Absent field → legacy row (pre
+    // ak-4o41), assume known for backward-compat.
+    day_change_known?: boolean;
     close_price?: number;            // previous close, broker-provided
     // Broker-computed cost basis. **NOW AUTHORITATIVE for the Kite-view P&L
     // math** (2026-09-11 ak-yz9c fold-in, per 2026-09-04 flatten-on-sync
