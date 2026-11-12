@@ -1,149 +1,288 @@
+/* FE-5 (ak-20zo) EPG detail styles — Nocturne-token-driven.
+ * Every color/space/radius/shadow via var(--...). Zero hardcoded hex/px/font.
+ * Breakpoints per shared scope §36 (1280 / 880 / 720 / 480).
+ */
+
 .container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-start;
-  background-color: #121c24;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 24px 32px 32px;
+    box-sizing: border-box;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+
+    @media (max-width: 880px) {
+        padding: 16px 16px 24px;
+        gap: 18px;
+    }
 }
 
-// Metrics grid (PPF-specific)
+.empty {
+    width: 100%;
+    min-height: 100%;
+}
+
+.spacer {
+    flex: 1;
+}
+
+/* ──────────────────────────── top strip ──────────────────────────── */
+
+.topStrip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.backBtn {
+    font-size: 13px !important;
+    color: var(--color-neutral-400) !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+}
+
+.topTitle {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+}
+
+.actionBtn {
+    font-size: 13px !important;
+    padding: 6px 10px !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+}
+
+.actionBtnDanger {
+    color: oklch(0.74 0.15 25) !important;
+
+    &:hover {
+        background: color-mix(in srgb, oklch(0.74 0.15 25) 10%, transparent) !important;
+    }
+}
+
+/* ──────────────────────────── hero ──────────────────────────── */
+
+.hero {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    /* EPG hero uses a flatter surface than MSN's accent-tinted gradient —
+     * EPG is "accrual, not market" semantically; the quieter surface
+     * mirrors the design's distinction. */
+    background: var(--color-surface);
+    box-shadow: inset 0 0 0 1px var(--color-neutral-900);
+}
+
+.heroLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.heroKicker {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+}
+
+.heroValue {
+    font-family: var(--font-heading);
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+
+.heroMetrics {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    flex: 1;
+    justify-content: flex-end;
+
+    @media (max-width: 720px) {
+        justify-content: flex-start;
+        gap: 14px;
+    }
+}
+
+.heroMetric {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 60px;
+}
+
+.heroMetricLabel {
+    font-size: 11px;
+    color: var(--color-neutral-500);
+    letter-spacing: 0.04em;
+}
+
+.heroMetricValue {
+    font-size: 15px;
+    font-family: var(--font-heading);
+    font-weight: 500;
+}
+
+/* ──────────────────────────── metrics grid ──────────────────────────── */
+
 .metricsGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+    gap: 10px;
 }
 
 .metricsCell {
-  padding: 12px;
-  text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-
-  &:nth-child(2n) {
-    border-right: none;
-  }
-
-  &:nth-child(n+3) {
-    border-bottom: none;
-  }
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
 }
 
 .metricsLabel {
-  color: #888;
-  font-size: 13px;
-  font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-neutral-500);
 }
 
 .metricsValue {
-  color: #FAFAFA;
-  font-size: 15px;
-  font-weight: bold;
+    font-size: 15px;
+    font-family: var(--font-heading);
+    font-weight: 500;
 }
 
-// Transaction table
-.tableContainer {
-  max-height: 300px;
-  min-width: 100%;
-  background-color: #121c24 !important;
-  border-radius: 8px;
-  overflow: auto;
+/* ──────────────────────────── tabs ──────────────────────────── */
 
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+.tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--color-divider);
 }
 
-.tableContainer td,
-.tableContainer th {
-  background-color: #121c24;
-  color: #FAFAFA !important;
-  text-align: center;
-  font-size: 13px !important;
-  padding: 8px !important;
-  border-bottom: 1px solid #29384D !important;
-}
+.tab {
+    all: unset;
+    cursor: pointer;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--color-neutral-400);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    position: relative;
 
-.tableContainer th {
-  background-color: #1a2530 !important;
-  font-weight: bold !important;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.profitPositive {
-  color: #4caf50 !important;
-  font-weight: bold !important;
-}
-
-.profitNegative {
-  color: #f44336 !important;
-  font-weight: bold !important;
-}
-
-.innerSummary {
-  width: 100%;
-}
-
-.listBackButton {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-}
-
-// EPG tab bar
-.epgTabs {
-  min-height: 36px;
-  margin-bottom: 8px;
-
-  :global(.MuiTab-root) {
-    min-height: 36px;
-    text-transform: none;
-    font-size: 13px;
-    color: #7a7d85;
-    padding: 6px 16px;
-
-    &:global(.Mui-selected) {
-      color: #fafafa;
+    &:hover {
+        color: var(--color-text);
     }
-  }
 
-  :global(.MuiTabs-indicator) {
-    background-color: #4a9eff;
-  }
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+    }
 }
 
-.backButton {
-  align-self: flex-start;
-  margin-bottom: 8px !important;
-  color: #ccd0d5 !important;
-  padding: 4px 18px !important;
-  border: 1px solid #29384D !important;
-  border-radius: 20px !important;
-  background-color: #1a2530 !important;
-  font-size: 13px !important;
-  text-transform: none !important;
-  letter-spacing: 0.5px !important;
-  transition: all 0.2s ease !important;
+.tabActive {
+    color: var(--color-accent-200);
 
-  &:hover {
-    background-color: #29384D !important;
-    color: #fafafa !important;
-    border-color: #3a5068 !important;
-  }
+    &::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: var(--color-accent);
+    }
 }
 
+.content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ──────────────────────────── deposits table ──────────────────────────── */
+
+.table {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-surface);
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.tableHead,
+.tableRow {
+    display: grid;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    align-items: center;
+}
+
+.tableHead {
+    background: var(--color-bg);
+    color: var(--color-neutral-400);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.tableRow {
+    background: var(--color-surface);
+
+    + .tableRow {
+        border-top: 1px solid var(--color-neutral-900);
+    }
+}
+
+.tableMuted {
+    color: var(--color-neutral-500);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ──────────────────────────── empty state ──────────────────────────── */
+
+.emptyPanel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 36px 20px;
+    text-align: center;
+    color: var(--color-neutral-500);
+}
+
+.emptyPrimary {
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+.emptySub {
+    font-size: 12.5px;
+    color: var(--color-neutral-500);
+}

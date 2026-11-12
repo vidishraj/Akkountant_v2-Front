@@ -1,101 +1,96 @@
-import React from "react";
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-} from "@mui/material";
+import React, {useEffect} from "react";
 import {formatDateString} from "../utils/util.tsx";
+import {formatCurrency} from "./WealthDigest/formatters.ts";
+import style from "./DepositsComponent.module.scss";
 
 interface ModalProps {
     open: boolean;
     onClose: () => void;
     title: string;
-    data: { date: string; description: string; amount: number }[];
+    data: {date: string; description: string; amount: number}[];
 }
 
-const formatINR = (val: number | string) =>
-    Number(val).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
+/**
+ * FE-5 (ak-20zo) Nocturne-native deposits/purchases listing dialog.
+ * Called from the PPF EPG page's top-strip Deposits button (PPF only).
+ *
+ * Prop shape (`{open, onClose, title, data}`) preserved so the legacy
+ * MSNSummary.tsx importer keeps TS-compiling until it's formally
+ * retired in the post-chain P3 orphan-cleanup bead.
+ */
 const DepositModal: React.FC<ModalProps> = ({open, onClose, title, data}) => {
     const total = data.reduce((sum, item) => sum + Number(item.amount), 0);
     const isGold = title.toLowerCase() === "gold";
 
+    // Esc-to-close — keeps the dialog honest on keyboards.
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [open, onClose]);
+
+    if (!open) return null;
+
     return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            fullWidth
-            maxWidth="sm"
-            PaperProps={{
-                sx: {
-                    width: "100%",
-                    maxWidth: 440,
-                    margin: "0 auto",
-                    color: "#FAFAFA",
-                    backgroundColor: "#121C24",
-                },
-            }}
-        >
-            <DialogTitle sx={{textAlign: "center", fontWeight: "bold", pb: 1}}>
-                {title.toUpperCase()} {isGold ? "Purchases" : "Deposits"}
-            </DialogTitle>
-            <DialogContent dividers sx={{p: 0, borderColor: '#29384D'}}>
-                <TableContainer sx={{maxHeight: 350}}>
-                    <Table stickyHeader size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{backgroundColor: '#1a2530 !important', color: '#7a7d85 !important', fontWeight: 'bold', borderBottom: '1px solid #29384D !important', fontSize: '12px !important'}}>
-                                    Date
-                                </TableCell>
-                                <TableCell sx={{backgroundColor: '#1a2530 !important', color: '#7a7d85 !important', fontWeight: 'bold', borderBottom: '1px solid #29384D !important', fontSize: '12px !important'}}>
-                                    Description
-                                </TableCell>
-                                <TableCell align="right" sx={{backgroundColor: '#1a2530 !important', color: '#7a7d85 !important', fontWeight: 'bold', borderBottom: '1px solid #29384D !important', fontSize: '12px !important'}}>
-                                    Amount
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {data.map((item, index) => (
-                                <TableRow key={index} sx={{'&:last-child td': {borderBottom: 'none'}}}>
-                                    <TableCell sx={{color: '#FAFAFA', borderBottom: '1px solid #29384D', fontSize: '13px', py: 1}}>
-                                        {formatDateString(item.date)}
-                                    </TableCell>
-                                    <TableCell sx={{color: '#aaa', borderBottom: '1px solid #29384D', fontSize: '13px', py: 1}}>
-                                        {item.description}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{color: '#4a9eff', fontWeight: 'bold', borderBottom: '1px solid #29384D', fontSize: '13px', py: 1}}>
-                                        ₹{formatINR(item.amount)}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {/* Total row */}
-                            <TableRow>
-                                <TableCell colSpan={2} sx={{color: '#7a7d85', fontWeight: 'bold', borderBottom: 'none', fontSize: '13px', pt: 1.5}}>
-                                    Total ({data.length} {isGold ? "purchases" : "deposits"})
-                                </TableCell>
-                                <TableCell align="right" sx={{color: '#4caf50', fontWeight: 'bold', borderBottom: 'none', fontSize: '14px', pt: 1.5}}>
-                                    ₹{formatINR(total)}
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </DialogContent>
-            <DialogActions sx={{borderTop: '1px solid #29384D', p: 1.5}}>
-                <Button variant="contained" color="primary" onClick={onClose} fullWidth size="small">
-                    Close
-                </Button>
-            </DialogActions>
-        </Dialog>
+        <div className={style.backdrop} onMouseDown={onClose} role="presentation">
+            <div
+                className={style.panel}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${title.toUpperCase()} ${isGold ? "purchases" : "deposits"}`}
+                onMouseDown={(e) => e.stopPropagation()}
+            >
+                <div className={style.header}>
+                    <span className={style.title}>
+                        {title.toUpperCase()} {isGold ? "Purchases" : "Deposits"}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className={`btn btn-icon ${style.closeBtn}`}
+                        aria-label="Close"
+                    >
+                        <i className="ph ph-x"/>
+                    </button>
+                </div>
+
+                <div className={style.body}>
+                    <div className={style.table}>
+                        <div className={style.tableHead}>
+                            <span>Date</span>
+                            <span>Description</span>
+                            <span className={style.alignRight}>Amount</span>
+                        </div>
+                        {data.map((item, index) => (
+                            <div key={index} className={style.tableRow}>
+                                <span>{formatDateString(item.date)}</span>
+                                <span className={style.rowMuted}>{item.description || "—"}</span>
+                                <span className={`${style.alignRight} ${style.rowAmount}`}>
+                                    ₹{formatCurrency(Number(item.amount))}
+                                </span>
+                            </div>
+                        ))}
+                        <div className={style.tableTotal}>
+                            <span>
+                                Total ({data.length} {isGold ? "purchases" : "deposits"})
+                            </span>
+                            <span className={style.alignRight} style={{color: "oklch(0.80 0.13 155)"}}>
+                                ₹{formatCurrency(total)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className={style.footer}>
+                    <button type="button" onClick={onClose} className={`btn btn-primary ${style.closeAction}`}>
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 };
 

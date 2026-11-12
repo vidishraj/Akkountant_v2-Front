@@ -1,17 +1,6 @@
-import React from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-} from '@mui/material';
+import React, {useEffect} from "react";
+import {formatCurrency} from "./WealthDigest/formatters.ts";
+import style from "./RatesModal.module.scss";
 
 interface ModalProps {
     open: boolean;
@@ -20,94 +9,94 @@ interface ModalProps {
     data: any;
 }
 
-const formatINR = (val: number | string) =>
-    Number(val).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
-const headerSx = {
-    backgroundColor: '#1a2530 !important',
-    color: '#7a7d85 !important',
-    fontWeight: 'bold',
-    borderBottom: '1px solid #29384D !important',
-    fontSize: '12px !important',
-};
-
-const cellSx = {
-    color: '#FAFAFA',
-    borderBottom: '1px solid #29384D',
-    fontSize: '13px',
-    py: 1,
-};
-
+/**
+ * FE-5 (ak-20zo) Nocturne-native rates history dialog.
+ *
+ * Accepts two BE shapes:
+ * - Object (key→value map): Gold's per-carat price map
+ * - Array of {Year, "Interest Rate"}: EPF/PPF per-year rate history
+ *
+ * Prop shape (`{open, onClose, title, data}`) preserved so the legacy
+ * MSNSummary.tsx importer keeps TS-compiling until it's formally retired
+ * in the post-chain P3 orphan-cleanup bead.
+ */
 const ResponsiveDataModal: React.FC<ModalProps> = ({open, onClose, title, data}) => {
-    const isObjectData = typeof data === 'object' && !Array.isArray(data);
-    const isGold = title.toLowerCase() === 'gold';
+    const isObjectData = data && typeof data === "object" && !Array.isArray(data);
+    const isGold = title.toLowerCase() === "gold";
+
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [open, onClose]);
+
+    if (!open) return null;
 
     return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            fullWidth
-            maxWidth="sm"
-            PaperProps={{
-                sx: {
-                    width: '100%',
-                    maxWidth: 440,
-                    margin: '0 auto',
-                    color: "#FAFAFA",
-                    backgroundColor: "#121C24",
-                },
-            }}
-        >
-            <DialogTitle sx={{textAlign: 'center', fontWeight: 'bold', pb: 1}}>
-                {title.toUpperCase()} Rates
-            </DialogTitle>
-            <DialogContent dividers sx={{p: 0, borderColor: '#29384D'}}>
-                <TableContainer sx={{maxHeight: 350}}>
-                    <Table stickyHeader size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={headerSx}>
-                                    {isGold ? 'Carat' : 'Period'}
-                                </TableCell>
-                                <TableCell align="right" sx={headerSx}>
-                                    {isGold ? 'Price (per 10g)' : 'Interest Rate'}
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {isObjectData ? (
-                                Object.entries(data).map(([key, value], index) => (
-                                    <TableRow key={index} sx={{'&:last-child td': {borderBottom: 'none'}}}>
-                                        <TableCell sx={cellSx}>
-                                            {key}
-                                        </TableCell>
-                                        <TableCell align="right" sx={{...cellSx, color: '#4a9eff', fontWeight: 'bold'}}>
-                                            ₹{value ? formatINR(value as number) : '0.00'}
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                data.map((item: { 'Interest Rate': number; Year: string }, index: number) => (
-                                    <TableRow key={index} sx={{'&:last-child td': {borderBottom: 'none'}}}>
-                                        <TableCell sx={cellSx}>
-                                            {item.Year}
-                                        </TableCell>
-                                        <TableCell align="right" sx={{...cellSx, color: '#4a9eff', fontWeight: 'bold'}}>
-                                            {Number(item['Interest Rate']).toFixed(2)}%
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </DialogContent>
-            <DialogActions sx={{borderTop: '1px solid #29384D', p: 1.5}}>
-                <Button variant="contained" color="primary" onClick={onClose} fullWidth size="small">
-                    Close
-                </Button>
-            </DialogActions>
-        </Dialog>
+        <div className={style.backdrop} onMouseDown={onClose} role="presentation">
+            <div
+                className={style.panel}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${title.toUpperCase()} rates`}
+                onMouseDown={(e) => e.stopPropagation()}
+            >
+                <div className={style.header}>
+                    <span className={style.title}>{title.toUpperCase()} Rates</span>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className={`btn btn-icon ${style.closeBtn}`}
+                        aria-label="Close"
+                    >
+                        <i className="ph ph-x"/>
+                    </button>
+                </div>
+
+                <div className={style.body}>
+                    <div className={style.table}>
+                        <div className={style.tableHead}>
+                            <span>{isGold ? "Carat" : "Period"}</span>
+                            <span className={style.alignRight}>
+                                {isGold ? "Price (per 10g)" : "Interest Rate"}
+                            </span>
+                        </div>
+                        {isObjectData
+                            ? Object.entries(data as Record<string, unknown>).map(([key, value], index) => (
+                                  <div key={index} className={style.tableRow}>
+                                      <span>{key}</span>
+                                      <span className={`${style.alignRight} ${style.rowAccent}`}>
+                                          ₹{value != null ? formatCurrency(Number(value)) : "0.00"}
+                                      </span>
+                                  </div>
+                              ))
+                            : Array.isArray(data)
+                                ? data.map((item: {"Interest Rate": number; Year: string}, index: number) => (
+                                      <div key={index} className={style.tableRow}>
+                                          <span>{item.Year}</span>
+                                          <span className={`${style.alignRight} ${style.rowAccent}`}>
+                                              {Number(item["Interest Rate"]).toFixed(2)}%
+                                          </span>
+                                      </div>
+                                  ))
+                                : null}
+                    </div>
+                </div>
+
+                <div className={style.footer}>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className={`btn btn-primary ${style.closeAction}`}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 };
 
