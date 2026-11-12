@@ -1,55 +1,676 @@
-.homeContainer {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  min-height: 100%;
-  width: 100%;
-  margin: 0;
-  gap: 24px;
-  padding: 24px;
-  box-sizing: border-box;
+/* FE-2 (ak-7mru) Home status dashboard. Ports design/Home.dc.html lines
+ * 65-174 to Nocturne tokens. Every color/space/radius/shadow from
+ * var(--...). Breakpoints match the shared scope §36 (1280/880/720/480).
+ */
 
-  @media (max-width: 900px) {
+.page {
+    display: flex;
+    width: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
+    /* Radial accent glow in the top-left mirrors the design artifact
+     * (line 17 of the reference). Low-chroma; still reads against the
+     * neutral dark ground. */
+    background:
+        radial-gradient(
+            1200px 520px at 15% -10%,
+            color-mix(in srgb, var(--color-accent) 9%, transparent),
+            transparent 70%
+        ),
+        var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    width: 100%;
+    padding: 28px 32px 36px;
+    box-sizing: border-box;
+
+    @media (max-width: 880px) {
+        padding: 18px 16px 28px;
+        gap: 22px;
+    }
+}
+
+.spacer {
+    flex: 1;
+}
+
+/* ──────────────────────────── headline strip ──────────────────────────── */
+
+.headline {
+    display: flex;
+    align-items: flex-end;
     gap: 16px;
-    padding: 16px;
-  }
+    flex-wrap: wrap;
 }
 
-.investmentsContainer,
-.transactionsContainer,
-.freelanceContainer,
-.jobScannerContainer,
-.filesContainer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 220px;
-  height: 220px;
-  border: 1px solid white;
-  border-radius: 8px;
-  box-sizing: border-box;
-  flex-direction: column;
-  cursor: pointer;
-  transition: border-color 0.2s, transform 0.2s;
-
-  &:hover {
-    border-color: #7b68ee;
-    transform: scale(1.05);
-  }
-
-  @media (max-width: 900px) {
-    width: 160px;
-    height: 160px;
-  }
+.headlineText {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.investmentsTag,
-.transactionsTag,
-.freelanceTag,
-.jobScannerTag,
-.filesTag {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-top: 8px;
+.headlineKicker {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+}
+
+.headlineTitle {
+    margin: 0;
+    font-size: 30px;
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    letter-spacing: -0.015em;
+
+    @media (max-width: 720px) {
+        font-size: 24px;
+    }
+}
+
+.hideToggle {
+    font-size: 12.5px;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ──────────────────────────── omni ask section ──────────────────────────── */
+
+.omniSection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.omni {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 6px 6px 14px;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow:
+        inset 0 0 0 1px var(--color-accent-700),
+        0 0 0 4px color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.omniSparkle {
+    font-size: 18px;
+    color: var(--color-accent);
+    flex: none;
+}
+
+.omniInput {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    outline: none;
+    color: var(--color-text);
+    font: inherit;
+    font-size: 15px;
+    padding: 8px 0;
+    font-family: var(--font-body);
+
+    &::placeholder {
+        color: var(--color-neutral-500);
+    }
+
+    &:focus-visible {
+        outline: none;
+    }
+}
+
+.omniRoute {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--color-accent-200);
+    background: var(--color-accent-900);
+    flex: none;
+
+    @media (max-width: 480px) {
+        display: none;
+    }
+}
+
+.omniSend {
+    width: 36px !important;
+    height: 36px !important;
+    flex: none;
+}
+
+.omniPrompts {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding-left: 4px;
+}
+
+.omniPrompt {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--color-accent-300);
+    box-shadow: inset 0 0 0 1px var(--color-accent-800);
+    transition: background-color 120ms ease;
+
+    i {
+        font-size: 12px;
+    }
+
+    &:hover {
+        background: var(--color-accent-900);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+    }
+}
+
+/* ──────────────────────────── alerts strip ──────────────────────────── */
+
+.alerts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 10px;
+}
+
+.alertCard {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    background: var(--color-surface);
+    transition: filter 120ms ease;
+
+    &:hover {
+        filter: brightness(1.08);
+    }
+}
+
+.alertIcon {
+    font-size: 18px;
+    flex: none;
+    margin-top: 1px;
+}
+
+.alertBody {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.alertTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.alertSub {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.alertCta {
+    font-size: 12px;
+    color: var(--color-accent);
+    white-space: nowrap;
+    margin-top: 2px;
+}
+
+.sampleChip {
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0 5px;
+    border-radius: 4px;
+    color: var(--color-neutral-400);
+    border: 1px dashed var(--color-neutral-600);
+}
+
+/* ──────────────────────────── KPI grid ──────────────────────────── */
+
+.kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 10px;
+}
+
+.kpiTile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    background: var(--color-surface);
+    transition: filter 120ms ease;
+
+    &:hover {
+        filter: brightness(1.06);
+    }
+}
+
+.kpiHero {
+    grid-column: span 2;
+    gap: 10px;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-accent) 14%, var(--color-surface)),
+        var(--color-surface) 70%
+    );
+    box-shadow: inset 0 0 0 1px var(--color-accent-800);
+
+    @media (max-width: 620px) {
+        grid-column: span 1;
+    }
+}
+
+.kpiKicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-neutral-400);
+}
+
+.kpiValue {
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    font-family: var(--font-heading);
+}
+
+.kpiSub {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+.kpiHeroBody {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.kpiHeroMoney {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.kpiHeroValue {
+    font-size: 46px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-family: var(--font-heading);
+
+    @media (max-width: 720px) {
+        font-size: 36px;
+    }
+}
+
+.kpiHeroSub {
+    font-size: 13px;
+    color: var(--color-neutral-400);
+}
+
+.kpiUnknown {
+    color: var(--color-neutral-500);
+    cursor: help;
+}
+
+.kpiSpark {
+    flex: 1 1 160px;
+    max-width: 260px;
+    height: 50px;
+    display: block;
+}
+
+/* ──────────────────────────── split row (digest + rail) ──────────────────────────── */
+
+.splitRow {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.mainColumn {
+    flex: 999 1 520px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+
+    &:first-child {
+        padding-top: 0;
+    }
+}
+
+.sectionTitle {
+    margin: 0;
+    font-size: 18px;
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+}
+
+.sectionSub {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+}
+
+/* ──────────────────────────── digest panel ──────────────────────────── */
+
+.digestPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+.digestPulse {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.7;
+    max-width: 64ch;
+    text-wrap: pretty;
+}
+
+.digestPulseEmpty {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--color-neutral-400);
+}
+
+.digestPulseLabel {
+    font-weight: 500;
+}
+
+.digestCardsRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 10px;
+}
+
+.digestCard {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+}
+
+.digestCardKicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-500);
+}
+
+.digestCardTitle {
+    font-size: 14px;
+}
+
+.digestCardDetail {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--color-neutral-400);
+}
+
+.digestCta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.digestCtaSummary {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+    align-self: center;
+}
+
+/* ──────────────────────────── activity feed ──────────────────────────── */
+
+.activityList {
+    display: flex;
+    flex-direction: column;
+}
+
+.activityRow {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 6px;
+    text-decoration: none;
+    color: var(--color-text);
+    /* Fade-at-ends bottom rule per Nocturne signature. */
+    background:
+        linear-gradient(
+            to right,
+            transparent,
+            color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+            color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px),
+            transparent
+        ) no-repeat bottom / 100% 1px;
+
+    &:hover {
+        background:
+            color-mix(in srgb, var(--color-text) 3%, transparent)
+                linear-gradient(
+                    to right,
+                    transparent,
+                    color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+                    color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px),
+                    transparent
+                )
+                no-repeat bottom / 100% 1px;
+    }
+}
+
+.activityIcon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: var(--color-neutral-900);
+    color: var(--color-neutral-300);
+}
+
+.activityBody {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.activityTitle {
+    font-size: 13.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.activitySub {
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+}
+
+.activityMeta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.activityAmt {
+    font-size: 13.5px;
+}
+
+.activityBadge {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.activityEmpty {
+    padding: 14px 6px;
+    font-size: 13px;
+    color: var(--color-neutral-500);
+}
+
+/* ──────────────────────────── right rail ──────────────────────────── */
+
+.rightRail {
+    flex: 1 1 300px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    @media (max-width: 720px) {
+        /* Under 720 the rail stacks under the digest column — the flex-wrap
+         * on `.splitRow` already pushes it below naturally; this keeps the
+         * widths playing nicely with the parent grid. */
+        flex-basis: 100%;
+    }
+}
+
+.railKicker {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-500);
+}
+
+.railKickerSpaced {
+    padding-top: 10px;
+}
+
+.quickGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.quickTile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+    transition: background-color 120ms ease;
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-text) 4%, transparent);
+    }
+}
+
+.quickIcon {
+    font-size: 20px;
+    color: var(--color-accent);
+}
+
+.quickLabel {
+    font-size: 13.5px;
+}
+
+.quickSub {
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+}
+
+.areasList {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.areaRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    transition: background-color 120ms ease;
+
+    > i:last-child {
+        color: var(--color-neutral-600);
+    }
+
+    &:hover {
+        background: var(--color-surface);
+    }
+}
+
+.areaIcon {
+    font-size: 18px;
+    color: var(--color-neutral-400);
+}
+
+.areaBody {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.areaLabel {
+    font-size: 14px;
+}
+
+.areaSub {
+    font-size: 12px;
 }
