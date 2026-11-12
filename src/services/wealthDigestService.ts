@@ -276,20 +276,26 @@ export async function markDigestRead(date: string): Promise<WealthDigest> {
 }
 
 /**
- * A single day's portfolio-value data-point, returned by the trend endpoint
- * (ak-4o41 — `/investment-snapshot/history`). FE-internal field name is
- * `value`; BE wire field name is `portfolio_value`. Normalized here so
- * downstream renderers see a single shape.
+ * Re-export of the pure PortfolioTrendPoint shape — see
+ * `wealthDigestNormalizers.ts`. The normalizer lives in its own
+ * Firebase-free module so holdings.check.ts can assert against it without
+ * pulling the auth bootstrap.
+ *
+ * Wire-name history (ak-uqjz):
+ *   BE wire field is `total_value` (authoritative — see
+ *   portfolio_history_aggregator.py). `portfolio_value` / `value` are
+ *   retained as defensive legacy aliases inside the normalizer.
  */
-export interface PortfolioTrendPoint {
-  date: string;   // YYYY-MM-DD (IST)
-  value: number;  // portfolio total in ₹ at end-of-day
-}
+export type { PortfolioTrendPoint } from "./wealthDigestNormalizers";
+import {
+  normalizePortfolioTrendPoints,
+  type PortfolioTrendPoint,
+} from "./wealthDigestNormalizers";
 
 /**
  * Fetches the last N days of portfolio-value snapshots. Contract (ak-4o41):
  *   GET /investment-snapshot/history?days=<N>
- *   → [{date: "YYYY-MM-DD", portfolio_value: number}, …]
+ *   → [{date: "YYYY-MM-DD", total_value: number}, …]
  *
  * **Constant-composition**: BE only emits dates where EVERY currently-held
  * token has a candle (phantom-dip omission), so the array can be shorter
@@ -297,9 +303,8 @@ export interface PortfolioTrendPoint {
  * non-error outcome — caller renders the chart's empty-state placeholder.
  *
  * 404 → [] (safe no-op); any other non-2xx → `WealthDigestError` so the
- * caller can surface a transient banner. Legacy wrapped `{points: [...]}`
- * shape is still tolerated: during the brief window where BE might ship
- * before FE or vice-versa, this adapter normalizes either response shape.
+ * caller can surface a transient banner. Per-point field-name handling and
+ * legacy-shape tolerance live in `normalizePortfolioTrendPoints`.
  */
 export async function fetchPortfolioTrend(
   days = 90
@@ -318,31 +323,5 @@ export async function fetchPortfolioTrend(
     );
   }
   const body = await res.json();
-  // Accept both the new bare-list shape (ak-4o41) and the old wrapped
-  // `{points: [...]}` shape for a brief ship-order-agnostic window.
-  const raw: unknown[] = Array.isArray(body)
-    ? body
-    : Array.isArray(body?.points)
-      ? body.points
-      : [];
-  return raw
-    .filter(
-      (p): p is Record<string, unknown> => typeof p === "object" && p !== null
-    )
-    .map((p): PortfolioTrendPoint | null => {
-      const date = typeof p.date === "string" ? p.date : "";
-      // Prefer the new field name; fall through to the legacy one.
-      const v = p.portfolio_value;
-      const legacy = p.value;
-      const value =
-        typeof v === "number" && Number.isFinite(v)
-          ? v
-          : typeof legacy === "number" && Number.isFinite(legacy)
-            ? legacy
-            : NaN;
-      if (!date || !Number.isFinite(value)) return null;
-      return { date, value };
-    })
-    .filter((p): p is PortfolioTrendPoint => p !== null)
-    .slice(-days);
+  return normalizePortfolioTrendPoints(body, days);
 }

@@ -23,12 +23,13 @@ interface PortfolioTrendChartProps {
 
 /**
  * 90-day rolling portfolio-value line chart. Data source is the
- * `/investment-snapshot/history` endpoint (ak-4o41). BE uses constant-
- * composition semantics — only emits dates where every currently-held
- * token has a candle — so the array may be shorter than `days` in
- * cold-start / recently-bought scenarios. Empty response renders the
- * placeholder; the component does NOT attempt to interpolate missing
- * dates (that'd fabricate movement).
+ * `/investment-snapshot/history` endpoint (ak-4o41); per-point wire field
+ * is `total_value` (ak-uqjz — authoritative, normalized in
+ * `wealthDigestNormalizers.ts`). BE uses constant-composition semantics —
+ * only emits dates where every currently-held token has a candle — so the
+ * array may be shorter than `days` in cold-start / recently-bought
+ * scenarios. Empty response renders the placeholder; the component does
+ * NOT attempt to interpolate missing dates (that'd fabricate movement).
  *
  * Chart specs follow the dataviz skill's mark conventions:
  * - Single-series line (single hue, no legend needed — title carries identity)

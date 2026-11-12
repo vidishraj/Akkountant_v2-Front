@@ -20,6 +20,7 @@ import {
     isDayChangeKnown,
 } from "./holdings.ts";
 import {MSNListResponse, MSNRateResponse} from "./interfaces.ts";
+import {normalizePortfolioTrendPoints} from "../services/wealthDigestNormalizers.ts";
 
 let failures = 0;
 
@@ -299,6 +300,92 @@ check("zero cost basis -> no hint", getCostBasisDivergence(row({buyPrice: 0, ave
 // --- formatting ---------------------------------------------------------------
 check("whole quantities render without decimals", formatQuantity(150), "150");
 check("fractional quantities render with 2 decimals", formatQuantity(12.345), "12.35");
+
+// --- portfolio-trend normalizer (ak-uqjz) ------------------------------------
+// BE emits `total_value`; pre-ak-uqjz reader looked at `portfolio_value` which
+// was never on the wire → every point filtered to NaN → chart silently empty.
+// These assertions pin the authoritative field name and prove shape+legacy
+// tolerance survives. The `total_value` assertion is the pre-fix RED
+// discriminator: on e9f2742 it would read `undefined`, drop the point, and
+// return `[]`, failing the non-empty + value check below.
+check(
+    "ak-uqjz: bare-list total_value is the authoritative field",
+    normalizePortfolioTrendPoints(
+        [{date: "2026-11-01", total_value: 12345.67}],
+        90,
+    ),
+    [{date: "2026-11-01", value: 12345.67}],
+);
+check(
+    "ak-uqjz: portfolio_value retained as legacy alias",
+    normalizePortfolioTrendPoints(
+        [{date: "2026-11-02", portfolio_value: 2222.22}],
+        90,
+    ),
+    [{date: "2026-11-02", value: 2222.22}],
+);
+check(
+    "ak-uqjz: legacy `value` alias still accepted",
+    normalizePortfolioTrendPoints(
+        [{date: "2026-11-03", value: 333.33}],
+        90,
+    ),
+    [{date: "2026-11-03", value: 333.33}],
+);
+check(
+    "ak-uqjz: wrapped {points: [...]} legacy shape still accepted",
+    normalizePortfolioTrendPoints(
+        {points: [{date: "2026-11-04", total_value: 44}]},
+        90,
+    ),
+    [{date: "2026-11-04", value: 44}],
+);
+check(
+    "ak-uqjz: total_value wins over legacy aliases on a mixed-field row",
+    normalizePortfolioTrendPoints(
+        [{date: "2026-11-05", total_value: 100, portfolio_value: 999, value: 1}],
+        90,
+    ),
+    [{date: "2026-11-05", value: 100}],
+);
+check(
+    "ak-uqjz: rows missing a date are dropped",
+    normalizePortfolioTrendPoints(
+        [{total_value: 50}, {date: "2026-11-06", total_value: 60}],
+        90,
+    ),
+    [{date: "2026-11-06", value: 60}],
+);
+check(
+    "ak-uqjz: rows missing ALL value aliases are dropped (non-finite guard)",
+    normalizePortfolioTrendPoints(
+        [{date: "2026-11-07"}, {date: "2026-11-08", total_value: 80}],
+        90,
+    ),
+    [{date: "2026-11-08", value: 80}],
+);
+check(
+    "ak-uqjz: slice-to-tail enforces days window",
+    normalizePortfolioTrendPoints(
+        [
+            {date: "d1", total_value: 1},
+            {date: "d2", total_value: 2},
+            {date: "d3", total_value: 3},
+        ],
+        2,
+    ),
+    [{date: "d2", value: 2}, {date: "d3", value: 3}],
+);
+check(
+    "ak-uqjz: non-array non-wrapped body → []",
+    normalizePortfolioTrendPoints({foo: "bar"}, 90),
+    [],
+);
+check(
+    "ak-uqjz: empty bare list → []",
+    normalizePortfolioTrendPoints([], 90),
+    [],
+);
 
 if (failures > 0) {
     console.log(`\n${failures} holdings check(s) FAILED`);
