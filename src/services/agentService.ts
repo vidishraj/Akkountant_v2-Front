@@ -38,6 +38,13 @@ export interface SSEEvent {
   size_bytes?: number;
   mime_type?: string;
   uuid?: string;
+  // ak-oa9g: BE-authoritative destructiveness classification on confirm events.
+  // Values from ak-npdf: "destructive" (hard delete / wipe), "mutation" (soft
+  // state change — insert/update/sync), "read" (read-only, no gate needed —
+  // never surfaces here in practice but kept in the union for completeness).
+  // Absent on pre-ak-npdf BE payloads; AgentChat falls back to the legacy
+  // startsWith("delete") name heuristic in that case.
+  destructiveness?: "destructive" | "mutation" | "read";
 }
 
 /**
@@ -155,7 +162,12 @@ export interface StreamedFileAttachment {
 interface StreamCallbacks {
   onText: (content: string) => void;
   onToolExec: (tool: string, input: Record<string, unknown>) => void;
-  onConfirm: (tool: string, input: Record<string, unknown>, message: string) => void;
+  onConfirm: (
+    tool: string,
+    input: Record<string, unknown>,
+    message: string,
+    destructiveness?: "destructive" | "mutation" | "read",
+  ) => void;
   onDone: (mutations: string[]) => void;
   onError: (message: string) => void;
   onPartialAssistant?: (content: object[]) => void;
@@ -369,7 +381,8 @@ export async function streamAgentChat(
             callbacks.onConfirm(
               event.tool || "",
               event.input || {},
-              event.message || ""
+              event.message || "",
+              event.destructiveness,
             );
             break;
           case "partial_assistant":

@@ -117,6 +117,11 @@ interface ConfirmState {
   tool: string;
   input: Record<string, unknown>;
   message: string;
+  // ak-oa9g: BE-authoritative destructiveness classification from the
+  // confirm SSE event (ak-npdf). Optional for backward-compat with
+  // pre-ak-npdf payloads; when absent, the render falls back to the
+  // legacy startsWith("delete") name heuristic at the compute site.
+  destructiveness?: "destructive" | "mutation" | "read";
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -677,9 +682,9 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
           onToolExec: (tool) => {
             setActiveTool(tool);
           },
-          onConfirm: (tool, input, message) => {
+          onConfirm: (tool, input, message, destructiveness) => {
             setActiveTool(null);
-            setConfirmDialog({ tool, input, message });
+            setConfirmDialog({ tool, input, message, destructiveness });
           },
           onPartialAssistant: (content) => {
             partialAssistantRef.current = content;
@@ -1043,9 +1048,20 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
               // insert-after-web-fetch requires a visible confirm that reads
               // differently from the destructive-delete confirm — same
               // affordance pattern, different tone.
-              //   - delete_* tools      → destructive variant (error tint)
+              //   - destructive tools   → destructive variant (error tint)
               //   - everything else     → accent variant (mutation)
-              const isDestructive = confirmDialog.tool.startsWith("delete");
+              //
+              // ak-oa9g: consume BE-authoritative `destructiveness` (ak-npdf)
+              // instead of the pre-ak-oa9g brittle `startsWith("delete")`
+              // name-prefix heuristic — future-proofs against new destructive
+              // naming (`purge_*`, `remove_*`, `wipe_*`, `clear_history_*`).
+              // When the field is absent (pre-ak-npdf BE payload), fall back
+              // to the legacy name heuristic so already-known destructive
+              // tools keep rendering with destructive tone during BE rollout.
+              const isDestructive =
+                confirmDialog.destructiveness === "destructive" ||
+                (confirmDialog.destructiveness === undefined &&
+                  confirmDialog.tool.startsWith("delete"));
               const variantClass = isDestructive
                 ? styles.confirmDialogDestructive
                 : styles.confirmDialogMutation;
