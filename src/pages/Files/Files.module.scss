@@ -993,13 +993,30 @@
   }
 }
 
-/* ── Undo toast (soft-delete window) ── */
+/* ── Undo toast stack (soft-delete window) ──
+ * ak-zl3o MINOR 1+2: the stack wrapper owns fixed positioning so N
+ * concurrent in-flight deletes layer vertically instead of stacking on
+ * top of each other at the same bottom-center anchor. Each `.undoToast`
+ * is a flex-column child, position-free. */
 
-.undoToast {
+.undoToastStack {
   position: fixed;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 190;
+  max-width: calc(100vw - 32px);
+  pointer-events: none; /* lets clicks pass between stacked toasts */
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.undoToast {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1009,8 +1026,6 @@
   box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--fv-border);
   color: var(--fv-text);
   font-size: 13px;
-  z-index: 190;
-  max-width: calc(100vw - 32px);
 
   > i {
     font-size: 16px;

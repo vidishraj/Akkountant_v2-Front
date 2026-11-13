@@ -189,14 +189,36 @@ const Files = () => {
     // if the user doesn't click undo within 5s, call the real delete API.
     // Dialog state for the Nocturne confirm-gate (replaces window.confirm).
     const [deleteConfirmFile, setDeleteConfirmFile] = useState<UserFileData | null>(null);
-    const [pendingDelete, setPendingDelete] = useState<{
+    // ─── ak-zl3o MINOR 1: pendingDeletes is a Map keyed by file.id so
+    // concurrent soft-deletes each keep their own undo window. Mirrors the
+    // existing `revealTimersRef: Map<string, number>` pattern. The prior
+    // single-slot shape silently dropped the first file's undo affordance
+    // whenever a second delete was confirmed inside the 5s window.
+    const [pendingDeletes, setPendingDeletes] = useState<Map<string, {
         file: UserFileData;
         timerId: number;
-    } | null>(null);
+    }>>(new Map());
     const deleteDialogRef = useRef<HTMLDivElement>(null);
     useModalA11y({
         open: deleteConfirmFile !== null,
         panelRef: deleteDialogRef as React.RefObject<HTMLElement>,
+    });
+
+    // ─── ak-zl3o MINOR 2: folder delete now routes through the same
+    // Nocturne destructive-variant gate as file delete (replaces the
+    // native window.confirm path). Soft-delete semantics mirror file
+    // delete: 5s undo window before the BE call fires. Files inside the
+    // folder are relocated to the parent by the BE on `deleteFolder`;
+    // the undo window gives the user a chance to abort before that.
+    const [deleteConfirmFolder, setDeleteConfirmFolder] = useState<UserFolderData | null>(null);
+    const [pendingFolderDeletes, setPendingFolderDeletes] = useState<Map<string, {
+        folder: UserFolderData;
+        timerId: number;
+    }>>(new Map());
+    const deleteFolderDialogRef = useRef<HTMLDivElement>(null);
+    useModalA11y({
+        open: deleteConfirmFolder !== null,
+        panelRef: deleteFolderDialogRef as React.RefObject<HTMLElement>,
     });
 
     const loadFiles = useCallback(async (folderId: string | null = currentFolderId, clearCache = false) => {
@@ -317,7 +339,14 @@ const Files = () => {
         setFiles((prev) => prev.filter((f) => f.id !== file.id));
 
         const timerId = window.setTimeout(async () => {
-            setPendingDelete((p) => (p?.file.id === file.id ? null : p));
+            // Clear this file's entry from the Map so its undo toast
+            // disappears; other in-flight deletes are unaffected.
+            setPendingDeletes((prev) => {
+                if (!prev.has(file.id)) return prev;
+                const next = new Map(prev);
+                next.delete(file.id);
+                return next;
+            });
             try {
                 await deleteVaultFile(file.id);
                 setPayload({type: 'success', message: 'File deleted'});
@@ -329,16 +358,25 @@ const Files = () => {
             }
         }, 5000);
 
-        setPendingDelete({file, timerId});
+        setPendingDeletes((prev) => {
+            const next = new Map(prev);
+            next.set(file.id, {file, timerId});
+            return next;
+        });
     };
 
-    const undoDelete = () => {
-        if (!pendingDelete) return;
-        window.clearTimeout(pendingDelete.timerId);
+    const undoDelete = (fileId: string) => {
+        const entry = pendingDeletes.get(fileId);
+        if (!entry) return;
+        window.clearTimeout(entry.timerId);
         // Restore the file into the local list; its position may shift
         // but the user's mental model is "the card came back" — accurate.
-        setFiles((prev) => [pendingDelete.file, ...prev]);
-        setPendingDelete(null);
+        setFiles((prev) => [entry.file, ...prev]);
+        setPendingDeletes((prev) => {
+            const next = new Map(prev);
+            next.delete(fileId);
+            return next;
+        });
         setPayload({type: 'success', message: 'Delete undone'});
     };
 
@@ -403,16 +441,61 @@ const Files = () => {
         }
     };
 
-    // Delete folder
-    const handleDeleteFolder = async (folder: UserFolderData) => {
-        if (!confirm(`Delete folder "${folder.name}"? Files inside will be moved to the parent folder.`)) return;
-        try {
-            await deleteFolder(folder.id);
-            setPayload({type: 'success', message: 'Folder deleted'});
-            await loadFiles(currentFolderId, true);
-        } catch {
-            setPayload({type: 'error', message: 'Failed to delete folder'});
-        }
+    // Delete folder (ak-zl3o MINOR 2): replaces the native window.confirm
+    // path with the Nocturne destructive-variant gate (role="alertdialog"
+    // + ph-warning + useModalA11y focus-trap + 5s soft-delete undo window).
+    // Mirrors the file-delete pattern exactly — see handleDelete /
+    // confirmDelete / undoDelete above.
+    const handleDeleteFolder = (folder: UserFolderData) => {
+        setDeleteConfirmFolder(folder);
+    };
+
+    const confirmDeleteFolder = () => {
+        const folder = deleteConfirmFolder;
+        setDeleteConfirmFolder(null);
+        if (!folder) return;
+
+        // Local soft-hide: remove the folder from the visible list
+        // optimistically. On undo we re-insert; otherwise the BE call
+        // fires at timer-expiry and loadFiles refreshes.
+        setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+
+        const timerId = window.setTimeout(async () => {
+            setPendingFolderDeletes((prev) => {
+                if (!prev.has(folder.id)) return prev;
+                const next = new Map(prev);
+                next.delete(folder.id);
+                return next;
+            });
+            try {
+                await deleteFolder(folder.id);
+                setPayload({type: 'success', message: 'Folder deleted'});
+                await loadFiles(currentFolderId, true);
+            } catch {
+                setPayload({type: 'error', message: 'Failed to delete folder'});
+                // Restore — the BE never actually deleted it.
+                await loadFiles(currentFolderId, true);
+            }
+        }, 5000);
+
+        setPendingFolderDeletes((prev) => {
+            const next = new Map(prev);
+            next.set(folder.id, {folder, timerId});
+            return next;
+        });
+    };
+
+    const undoDeleteFolder = (folderId: string) => {
+        const entry = pendingFolderDeletes.get(folderId);
+        if (!entry) return;
+        window.clearTimeout(entry.timerId);
+        setFolders((prev) => [entry.folder, ...prev]);
+        setPendingFolderDeletes((prev) => {
+            const next = new Map(prev);
+            next.delete(folderId);
+            return next;
+        });
+        setPayload({type: 'success', message: 'Delete undone'});
     };
 
     // Move file
@@ -804,20 +887,94 @@ const Files = () => {
                 </>
             )}
 
-            {/* FE-10 soft-delete undo toast (5-second window) */}
-            {pendingDelete && (
-                <div className={style.undoToast} role="status" aria-live="polite">
-                    <i className="ph ph-trash" aria-hidden/>
-                    <span className={style.undoToastText}>
-                        "{pendingDelete.file.original_filename}" will be deleted in 5s
-                    </span>
-                    <button
-                        type="button"
-                        onClick={undoDelete}
-                        className={`btn btn-primary ${style.undoToastBtn}`}
+            {/* ak-zl3o MINOR 2: folder-delete destructive gate (replaces
+                the native window.confirm path). Same shape as the file
+                dialog above — role="alertdialog", ph-warning kicker,
+                useModalA11y focus-trap, Nocturne destructive variant. */}
+            {deleteConfirmFolder && (
+                <>
+                    <div
+                        className={style.dialogBackdrop}
+                        onClick={() => setDeleteConfirmFolder(null)}
+                        role="presentation"
+                    />
+                    <div
+                        ref={deleteFolderDialogRef}
+                        className={style.confirmDialog}
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-label="Confirm delete folder"
+                        tabIndex={-1}
                     >
-                        Undo
-                    </button>
+                        <div className={style.confirmKicker}>
+                            <i className="ph ph-warning" aria-hidden/>
+                            <span>Destructive action</span>
+                        </div>
+                        <div className={style.confirmTitle}>
+                            Delete folder "{deleteConfirmFolder.name}"?
+                        </div>
+                        <div className={style.confirmBody}>
+                            Files inside this folder will be moved to the parent folder.
+                            You'll get a 5-second window to undo before the folder is
+                            permanently removed.
+                        </div>
+                        <div className={style.confirmActions}>
+                            <button
+                                type="button"
+                                className={`btn btn-secondary ${style.confirmNo}`}
+                                onClick={() => setDeleteConfirmFolder(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={`${style.confirmYesDestructive}`}
+                                onClick={confirmDeleteFolder}
+                            >
+                                Confirm delete
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* ak-zl3o MINOR 1+2: soft-delete undo stack — one toast per
+                in-flight file / folder delete. Each keeps its own 5s undo
+                affordance; the prior single-slot design dropped any first
+                file's undo button whenever a second delete landed inside
+                the window. Files render above folders for stable order. */}
+            {(pendingDeletes.size > 0 || pendingFolderDeletes.size > 0) && (
+                <div className={style.undoToastStack} role="status" aria-live="polite">
+                    {Array.from(pendingDeletes.values()).map(({file}) => (
+                        <div key={`file:${file.id}`} className={style.undoToast}>
+                            <i className="ph ph-trash" aria-hidden/>
+                            <span className={style.undoToastText}>
+                                "{file.original_filename}" will be deleted in 5s
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => undoDelete(file.id)}
+                                className={`btn btn-primary ${style.undoToastBtn}`}
+                            >
+                                Undo
+                            </button>
+                        </div>
+                    ))}
+                    {Array.from(pendingFolderDeletes.values()).map(({folder}) => (
+                        <div key={`folder:${folder.id}`} className={style.undoToast}>
+                            <i className="ph ph-folder-minus" aria-hidden/>
+                            <span className={style.undoToastText}>
+                                Folder "{folder.name}" will be deleted in 5s
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => undoDeleteFolder(folder.id)}
+                                className={`btn btn-primary ${style.undoToastBtn}`}
+                            >
+                                Undo
+                            </button>
+                        </div>
+                    ))}
                 </div>
             )}
 
