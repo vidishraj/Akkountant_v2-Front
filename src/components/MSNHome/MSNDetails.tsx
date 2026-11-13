@@ -72,8 +72,16 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.selectedCard]);
 
-    const activePrice =
+    // ak-c2sy: coerce non-finite price to 0 so the current-value / PnL
+    // helpers go through their existing `price <= 0 → 0` branch instead
+    // of multiplying NaN through to "₹NaN" on screen. getRowCurrentValue
+    // / getRowUnrealizedPnL guard with `price <= 0`, which does NOT catch
+    // non-finite (NaN <= 0 is false), so we normalize here. Newly
+    // reachable with FE-4's unconditional-hero display for NPS; low-
+    // probability (NPS rows always carry nav in practice) but free.
+    const rawActivePrice =
         state.selectedCard.nps ? Number(details.info.nav) : Number(details.info.lastPrice);
+    const activePrice = Number.isFinite(rawActivePrice) ? rawActivePrice : 0;
     const invested = getRowInvested(details);
     const currentValue = priceUnavailable ? 0 : getRowCurrentValue(details, activePrice);
     const pnl = priceUnavailable ? 0 : getRowUnrealizedPnL(details, activePrice);

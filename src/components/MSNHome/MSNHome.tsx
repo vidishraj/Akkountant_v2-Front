@@ -246,7 +246,12 @@ const MSNHome = () => {
                     <ReactSearchAutocomplete
                         styling={{
                             backgroundColor: "var(--color-surface)",
-                            color: "#FAFAFA !important",
+                            // ak-c2sy: retire the last stray hex in the MSN
+                            // folder — the var/hex posture of this whole
+                            // styling block is now 100% token-driven. The
+                            // !important is preserved: ReactSearchAutocomplete
+                            // sets a default input color that otherwise wins.
+                            color: "var(--color-text) !important",
                             border: "1px solid var(--color-divider)",
                             iconColor: "var(--color-neutral-400)",
                             borderRadius: "var(--radius-md)",
