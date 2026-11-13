@@ -298,7 +298,29 @@ const InvestmentsLanding = () => {
 
     const trendSlice = useMemo(() => {
         const pts = trend || [];
-        return pts.slice(Math.max(0, pts.length - rangeDays));
+        // ak-txsw: calendar-day cutoff rather than point-count slice.
+        // Pre-ak-txsw: `pts.slice(-rangeDays)` sliced by array entries,
+        // not calendar days. Because the /investment-snapshot/history
+        // series is sparse (weekends, holidays, feed outages — the same
+        // reason buildTrendPaths has gap-segmentation), the last N
+        // POINTS can span ~N+2 to ~N+5 calendar days, so "7D" could
+        // show ~9-11 days of trading history. No wrong money / no
+        // phantom shape; purely a label-accuracy boundary issue.
+        //
+        // Fix: filter by `Date.parse(p.date) >= Date.now() - rangeDays*86400000`
+        // so "7D" means last 7 calendar days regardless of sparsity. Cold
+        // ranges (zero points in-window) still fall through to the
+        // existing `trendCold` branch via the `< 2` length check below.
+        //
+        // `.date` is `YYYY-MM-DD` IST per `PortfolioTrendPoint` in
+        // `services/wealthDigestNormalizers.ts`. Date.parse treats it as
+        // UTC midnight — sub-day TZ skew is harmless at this precision
+        // (7/30/90 day windows).
+        const cutoff = Date.now() - rangeDays * 86400000;
+        return pts.filter((p) => {
+            const t = Date.parse(p.date);
+            return Number.isFinite(t) && t >= cutoff;
+        });
     }, [trend, rangeDays]);
 
     const trendPaths = useMemo(
