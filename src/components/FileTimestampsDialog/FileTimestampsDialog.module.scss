@@ -1,0 +1,163 @@
+/*
+ * ak-2n09 FE-1 settings restore. Shape matches FE-5 (DepositsComponent)
+ * and FE-5 (RatesModal) Nocturne-native dialogs: fixed-position backdrop +
+ * centered panel, Nocturne tokens throughout.
+ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel {
+  width: min(520px, calc(100vw - 32px));
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-bg) 70%, transparent);
+  overflow: hidden;
+  color: var(--color-text);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-divider);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.title {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  i {
+    font-size: 16px;
+    color: var(--color-accent);
+  }
+}
+
+.refreshBtn,
+.closeBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--color-neutral-400);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 120ms ease, background-color 120ms ease;
+
+  &:hover:not(:disabled) {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 18px 14px;
+}
+
+.emptyState {
+  padding: 30px 12px;
+  text-align: center;
+  color: var(--color-neutral-500);
+  font-size: 13px;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+}
+
+.tableHead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 8px 4px;
+  color: var(--color-neutral-500);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 10px 4px;
+  font-size: 13.5px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-divider) 60%, transparent);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.source {
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timestamp {
+  color: var(--color-neutral-300);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.alignRight {
+  text-align: right;
+}
+
+.footer {
+  padding: 12px 18px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-divider);
+}
+
+.closeAction {
+  font-size: 13px !important;
+  padding: 7px 18px !important;
+}

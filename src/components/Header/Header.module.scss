@@ -361,6 +361,20 @@
     &:hover {
         background: color-mix(in srgb, var(--color-text) 6%, transparent);
     }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+    }
+}
+
+/* ak-2n09: thin divider between the admin cluster
+ * (Jobs / File timestamps / Portfolio visitors) and the
+ * Change-password + Sign-out rows in the avatar popover. */
+.popoverAvatarDivider {
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--color-divider);
 }
 
 /* ──────────────────────────── AgentHeaderInput host styles (legacy class names) ──────────────────────────── */

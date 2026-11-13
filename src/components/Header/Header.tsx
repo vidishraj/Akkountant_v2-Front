@@ -7,6 +7,9 @@ import {useWealthDigest} from "../../contexts/WealthDigestContext";
 import AgentHeaderInput from "./AgentHeaderInput";
 import {AgentType} from "../../services/agentService";
 import ChangepasswordDialog from "../ChangePasswordDialog/ChangepasswordDialog";
+import JobsDialog from "../JobsDialogComponent/JobsDialogComponent";
+import PortfolioVisitorsModal from "../PortfolioVisitorsModal/PortfolioVisitorsModal";
+import FileTimestampsDialog from "../FileTimestampsDialog/FileTimestampsDialog";
 import styles from "./Header.module.scss";
 
 /**
@@ -24,10 +27,16 @@ import styles from "./Header.module.scss";
  * Out-of-scope per the bead (deferred to later FE beads):
  * - Omni Ask bar (lives on Home, FE-2)
  * - Real inbox data (stub: empty list → badge hidden)
- * - Settings/Jobs/File-Timestamps/Visitors surfaces (the pre-FE-1 Settings
- *   drawer entry — the design does not surface these). Those dialog
- *   components still exist and can be re-wired via a dedicated /settings
- *   route in a later bead. Flagged in the handoff.
+ *
+ * ak-2n09 settings restore: the pre-FE-1 Settings drawer surfaced three
+ * admin affordances (Jobs / File timestamps / Portfolio visitors) that
+ * FE-1 dropped. The Overseer confirmed these are still-used — this
+ * commit re-wires them into the avatar menu as an admin cluster sitting
+ * above the Change-password + Sign-out rows. The two pre-existing
+ * dialogs (JobsDialog, PortfolioVisitorsModal) remain MUI-rendered for
+ * now; a Nocturne rewrite of those large (~1,320 LOC combined) surfaces
+ * is flagged for follow-up beads. The new FileTimestampsDialog is
+ * Nocturne-native from day 1 (no pre-existing wrapper to inherit).
  */
 
 interface InboxItem {
@@ -77,6 +86,11 @@ const Header = () => {
     // drawer. The dialog manages its own MUI backdrop + submit flow; this
     // state only gates its mount/visibility.
     const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+    // ak-2n09: three admin surfaces re-wired into the avatar menu.
+    // Each state gates the mount/visibility of its own dialog component.
+    const [jobsOpen, setJobsOpen] = useState(false);
+    const [timestampsOpen, setTimestampsOpen] = useState(false);
+    const [visitorsOpen, setVisitorsOpen] = useState(false);
     const headerRef = useRef<HTMLElement | null>(null);
 
     // Per-page agent input — same gating as before: null on Home (omni lives
@@ -325,6 +339,47 @@ const Header = () => {
                             Signed in with Google
                         </span>
                     </div>
+                    {/* ak-2n09: admin cluster (Jobs / File timestamps /
+                        Portfolio visitors). Re-wires the three surfaces
+                        that FE-1 dropped. Close-popover-then-open-dialog
+                        matches the Change-password pattern below. */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setAvatarOpen(false);
+                            setJobsOpen(true);
+                        }}
+                        className={styles.popoverAvatarSignOut}
+                        role="menuitem"
+                    >
+                        <i className="ph ph-briefcase"/>
+                        <span>Jobs</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setAvatarOpen(false);
+                            setTimestampsOpen(true);
+                        }}
+                        className={styles.popoverAvatarSignOut}
+                        role="menuitem"
+                    >
+                        <i className="ph ph-clock"/>
+                        <span>File timestamps</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setAvatarOpen(false);
+                            setVisitorsOpen(true);
+                        }}
+                        className={styles.popoverAvatarSignOut}
+                        role="menuitem"
+                    >
+                        <i className="ph ph-globe"/>
+                        <span>Portfolio visitors</span>
+                    </button>
+                    <div className={styles.popoverAvatarDivider} aria-hidden/>
                     {/* ak-3w6f: 'Change password' preserved from the retired
                         Settings drawer so the auth-rule capability survives.
                         Close-popover-then-open-dialog matches the sign-out
@@ -362,6 +417,27 @@ const Header = () => {
             <ChangepasswordDialog
                 open={changePasswordOpen}
                 onClose={() => setChangePasswordOpen(false)}
+            />
+
+            {/* ak-2n09: the three re-wired admin dialogs. JobsDialog and
+                PortfolioVisitorsModal are the pre-existing MUI surfaces
+                mounted byte-for-byte as they were on SideBar.tsx
+                (pre-FE-1); Nocturne rewrites of those two are flagged
+                for follow-up beads. FileTimestampsDialog is new and
+                Nocturne-native. All three mount outside headerRef so
+                their portals don't interact with the avatar-popover
+                click-outside listener. */}
+            <JobsDialog
+                open={jobsOpen}
+                onClose={() => setJobsOpen(false)}
+            />
+            <FileTimestampsDialog
+                open={timestampsOpen}
+                onClose={() => setTimestampsOpen(false)}
+            />
+            <PortfolioVisitorsModal
+                open={visitorsOpen}
+                onClose={() => setVisitorsOpen(false)}
             />
         </header>
     );
