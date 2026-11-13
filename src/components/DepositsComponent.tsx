@@ -1,6 +1,7 @@
-import React, {useEffect} from "react";
+import React, {useEffect, useRef} from "react";
 import {formatDateString} from "../utils/util.tsx";
 import {formatCurrency} from "./WealthDigest/formatters.ts";
+import useModalA11y from "../hooks/useModalA11y.ts";
 import style from "./DepositsComponent.module.scss";
 
 interface ModalProps {
@@ -17,10 +18,18 @@ interface ModalProps {
  * Prop shape (`{open, onClose, title, data}`) preserved so the legacy
  * MSNSummary.tsx importer keeps TS-compiling until it's formally
  * retired in the post-chain P3 orphan-cleanup bead.
+ *
+ * a11y: ak-cqfn applies FE-7's shared useModalA11y hook here (focus-
+ * on-open to the close button, focus-restore to the opening trigger,
+ * tab-trap). Esc-to-close stays inline — see hook docstring for the
+ * deliberate "no-Esc" contract.
  */
 const DepositModal: React.FC<ModalProps> = ({open, onClose, title, data}) => {
     const total = data.reduce((sum, item) => sum + Number(item.amount), 0);
     const isGold = title.toLowerCase() === "gold";
+
+    const panelRef = useRef<HTMLDivElement>(null);
+    useModalA11y({open, panelRef: panelRef as React.RefObject<HTMLElement>});
 
     // Esc-to-close — keeps the dialog honest on keyboards.
     useEffect(() => {
@@ -37,10 +46,12 @@ const DepositModal: React.FC<ModalProps> = ({open, onClose, title, data}) => {
     return (
         <div className={style.backdrop} onMouseDown={onClose} role="presentation">
             <div
+                ref={panelRef}
                 className={style.panel}
                 role="dialog"
                 aria-modal="true"
                 aria-label={`${title.toUpperCase()} ${isGold ? "purchases" : "deposits"}`}
+                tabIndex={-1}
                 onMouseDown={(e) => e.stopPropagation()}
             >
                 <div className={style.header}>

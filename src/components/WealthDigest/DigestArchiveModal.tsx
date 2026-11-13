@@ -1,9 +1,10 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {
     WealthDigest,
     WealthDigestError,
     fetchDigestByDate,
 } from "../../services/wealthDigestService";
+import useModalA11y from "../../hooks/useModalA11y.ts";
 import style from "./WealthDigest.module.scss";
 
 interface DigestArchiveModalProps {
@@ -29,6 +30,11 @@ function buildDateOptions(): string[] {
  * FE-6 (ak-jhy8) Nocturne-skinned digest archive modal. MUI Dialog/List/
  * TextField/Button dropped; Nocturne backdrop + panel (same shape as
  * DepositsComponent / RatesModal from FE-5) with Esc + click-outside.
+ *
+ * a11y: ak-cqfn applies FE-7's shared useModalA11y hook here (focus-
+ * on-open to the close button, focus-restore to the opening trigger,
+ * tab-trap). Esc-to-close stays inline — see hook docstring for the
+ * deliberate "no-Esc" contract.
  */
 const DigestArchiveModal: React.FC<DigestArchiveModalProps> = ({
     open,
@@ -40,6 +46,9 @@ const DigestArchiveModal: React.FC<DigestArchiveModalProps> = ({
     const [notFound, setNotFound] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [dateOptions, setDateOptions] = useState<string[]>([]);
+
+    const panelRef = useRef<HTMLDivElement>(null);
+    useModalA11y({open, panelRef: panelRef as React.RefObject<HTMLElement>});
 
     useEffect(() => {
         if (open) {
@@ -84,10 +93,12 @@ const DigestArchiveModal: React.FC<DigestArchiveModalProps> = ({
     return (
         <div className={style.archiveBackdrop} onMouseDown={onClose} role="presentation">
             <div
+                ref={panelRef}
                 className={style.archivePanel}
                 role="dialog"
                 aria-modal="true"
                 aria-label="Past digests"
+                tabIndex={-1}
                 onMouseDown={(e) => e.stopPropagation()}
             >
                 <div className={style.archiveHeader}>

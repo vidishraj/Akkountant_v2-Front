@@ -305,6 +305,25 @@ const Transactions = () => {
         return () => document.removeEventListener("keydown", onKey);
     }, [detailTx]);
 
+    // ak-cqfn: mobile-sidebar a11y. Same shared hook (focus-on-open to the
+    // close button, focus-restore, tab-trap). The pre-ak-cqfn surface had
+    // backdrop click-outside and role/aria presentation but NO focus
+    // management and NO Esc handler. This makes the mobile overlay
+    // keyboard-usable and matches the FE-7 modal contract.
+    const sidebarRef = useRef<HTMLElement | null>(null);
+    useModalA11y({
+        open: sidebarOpen,
+        panelRef: sidebarRef as React.RefObject<HTMLElement>,
+    });
+    useEffect(() => {
+        if (!sidebarOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setSidebarOpen(false);
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [sidebarOpen]);
+
     const renderTransactionMode = () => (
         <>
             <section className={style.hero}>
@@ -547,7 +566,14 @@ const Transactions = () => {
                                 onClick={() => setSidebarOpen(false)}
                                 role="presentation"
                             />
-                            <aside className={`${style.sidebar} ${style.sidebarMobile}`}>
+                            <aside
+                                ref={sidebarRef}
+                                className={`${style.sidebar} ${style.sidebarMobile}`}
+                                role="dialog"
+                                aria-modal="true"
+                                aria-label="Filters and ingestion"
+                                tabIndex={-1}
+                            >
                                 <div className={style.sidebarHeader}>
                                     <span className={style.sidebarTitle}>Filters &amp; ingestion</span>
                                     <button
