@@ -1,7 +1,9 @@
 import {useState, useEffect, useMemo, useCallback} from "react";
 import {
-    AreaChart,
-    Area,
+    // AreaChart/Area dropped ak-wnrr — earnings chart replaced by a hand-
+    // drawn gap-aware SVG (buildEarningsTrendPaths). The remaining recharts
+    // consumers are the Pie (client distribution) and Bar charts which have
+    // no interpolation concern (categorical data).
     XAxis,
     YAxis,
     CartesianGrid,
@@ -50,6 +52,129 @@ const formatMonthLabel = (month: string) => {
     const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${labels[parseInt(m, 10) - 1]} '${y.slice(2)}`;
 };
+
+/**
+ * Convert a "YYYY-MM" month key to an absolute month-index (year*12 + month).
+ * Lets us detect month gaps > 1 between adjacent emitted points with simple
+ * arithmetic — no Date math, no DST / timezone concerns.
+ */
+const monthIndex = (yyyyMm: string): number => {
+    const [y, m] = yyyyMm.split("-").map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m)) return 0;
+    return y * 12 + (m - 1);
+};
+
+interface MonthlyPoint {
+    month: string;
+    earnings: number;
+}
+
+/**
+ * ak-wnrr priority fix (brief 06 §8 + reviewer-flagged phantom-dip risk):
+ *
+ * Pre-ak-wnrr the dashboard used recharts `<AreaChart>` with
+ * `<Area type="monotone">`. That draws a smooth line through whatever
+ * points are in `data`, which silently fabricates two kinds of fiction:
+ *
+ * 1. If BE emits only non-zero months, recharts compresses the x-axis
+ *    and draws a straight line through consecutive x-positions — the
+ *    chart visually implies every month had activity, erasing the zero
+ *    months entirely.
+ * 2. If BE emits zero-filled months, `type="monotone"` smooths the line
+ *    through (month, 0) → (month+1, large) with no visual "gap" marker
+ *    to indicate the zero was a BE-gap, not a real-zero.
+ *
+ * Both failure modes are an accounting-visualization-honesty violation —
+ * same class as InvestmentsLanding's constant-composition rule (§8). Fix
+ * here mirrors the `buildTrendPaths` discipline landed on ak-ff9r and
+ * ak-jhy8: segment the line at month gaps > 1, render those spans as
+ * dashed connectors, never interpolate.
+ *
+ * Returns SVG path strings for the solid line segments, the dashed gap
+ * connectors, and the filled area under solid segments only. Returns
+ * null when fewer than 2 points — caller renders a placeholder.
+ */
+function buildEarningsTrendPaths(points: MonthlyPoint[], w = 600, h = 220): {
+    line: string;
+    gaps: string;
+    area: string;
+    yTicks: {y: number; label: string}[];
+    xLabels: {x: number; label: string}[];
+} | null {
+    if (points.length < 2) return null;
+    const values = points.map((p) => p.earnings);
+    const mx = Math.max(...values, 0);
+    const mn = Math.min(0, Math.min(...values));
+    const spread = mx - mn || 1;
+    const padTop = 14;
+    const padBot = 28;
+    const innerH = h - padTop - padBot;
+    const stepX = w / Math.max(1, points.length - 1);
+    const coords = points.map((p, i) => {
+        const x = i * stepX;
+        const y = padTop + innerH - ((p.earnings - mn) / spread) * innerH;
+        return {x, y, month: p.month};
+    });
+
+    // Segment at month gaps > 1. Solid segments from contiguous month
+    // blocks; dashed connectors across gap spans. Each segment gets its
+    // own area fill path so the gradient fill doesn't bleed across gaps.
+    const lineSegments: string[] = [];
+    const gapSegments: string[] = [];
+    const areaSegments: string[] = [];
+    let curSeg: {x: number; y: number}[] = [coords[0]];
+    const flushSeg = () => {
+        if (curSeg.length < 2) return;
+        lineSegments.push("M" + curSeg.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join("L"));
+        const first = curSeg[0];
+        const last = curSeg[curSeg.length - 1];
+        areaSegments.push(
+            `M${first.x.toFixed(1)},${(padTop + innerH).toFixed(1)}L` +
+            curSeg.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join("L") +
+            `L${last.x.toFixed(1)},${(padTop + innerH).toFixed(1)}Z`,
+        );
+    };
+
+    for (let i = 1; i < coords.length; i++) {
+        const prev = coords[i - 1];
+        const cur = coords[i];
+        const gap = monthIndex(cur.month) - monthIndex(prev.month);
+        if (gap > 1) {
+            flushSeg();
+            gapSegments.push(`M${prev.x.toFixed(1)},${prev.y.toFixed(1)}L${cur.x.toFixed(1)},${cur.y.toFixed(1)}`);
+            curSeg = [cur];
+        } else {
+            curSeg.push(cur);
+        }
+    }
+    flushSeg();
+
+    // Y axis: 4 ticks (0, 1/3, 2/3, max). Compact ₹ formatting.
+    const fmtCompact = (v: number): string => {
+        if (v >= 1_00_00_000) return `₹${(v / 1_00_00_000).toFixed(1)}Cr`;
+        if (v >= 1_00_000) return `₹${(v / 1_00_000).toFixed(1)}L`;
+        if (v >= 1_000) return `₹${(v / 1_000).toFixed(0)}K`;
+        return `₹${v.toFixed(0)}`;
+    };
+    const yTicks = [0, 1, 2, 3].map((i) => {
+        const value = mn + spread * (i / 3);
+        return {y: padTop + innerH - (i / 3) * innerH, label: fmtCompact(value)};
+    });
+
+    // X axis: label every point when < 12, else every other.
+    const xStride = points.length > 12 ? 2 : 1;
+    const xLabels = coords
+        .filter((_, i) => i % xStride === 0)
+        .map((c) => ({x: c.x, label: formatMonthLabel(c.month)}));
+
+    return {
+        line: lineSegments.join(" "),
+        gaps: gapSegments.join(" "),
+        area: areaSegments.join(" "),
+        yTicks,
+        xLabels,
+    };
+}
 
 const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage}: FreelanceDashboardProps = {}) => {
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -405,28 +530,103 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
             <div className={ownStyles.chartGrid}>
                 <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
                     <h3 className={styles.sectionTitle}>Monthly Paid Earnings (INR)</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={filteredMonthlyData}>
-                            <defs>
-                                <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#7B68EE" stopOpacity={0.4} />
-                                    <stop offset="95%" stopColor="#7B68EE" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
-                            <XAxis dataKey="month" stroke="#FAFAFA" fontSize={11} tickFormatter={formatMonthLabel}
-                                   angle={-35} textAnchor="end" height={50} interval={0} />
-                            <YAxis stroke="#FAFAFA" fontSize={11} tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`} />
-                            <Tooltip
-                                contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
-                                labelFormatter={formatMonthLabel}
-                                formatter={(value: number) => [formatBaseCurrency(value), "Paid Earnings"]}
-                            />
-                            <Area type="monotone" dataKey="earnings" stroke="#7B68EE" strokeWidth={2}
-                                  fill="url(#earningsGradient)" dot={{fill: "#7B68EE", strokeWidth: 2, r: 4}}
-                                  activeDot={{r: 6, fill: "#9B8AFF"}} />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                    {/* ak-wnrr: gap-aware SVG replaces recharts AreaChart.
+                        See `buildEarningsTrendPaths` docstring above for the
+                        phantom-dip discipline. Same shape as ak-ff9r
+                        InvestmentsLanding + ak-jhy8 WealthDigest trend chart. */}
+                    {(() => {
+                        const paths = buildEarningsTrendPaths(filteredMonthlyData, 600, 260);
+                        if (!paths) {
+                            return (
+                                <div className={ownStyles.chartPlaceholder}>
+                                    Not enough data to draw a trend — need at least 2 months.
+                                </div>
+                            );
+                        }
+                        return (
+                            <>
+                                <svg
+                                    viewBox="0 0 600 260"
+                                    preserveAspectRatio="none"
+                                    className={ownStyles.chartSvg}
+                                    role="img"
+                                    aria-label="Monthly paid earnings trend"
+                                >
+                                    <defs>
+                                        <linearGradient id="fewnrr-earnings-grad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0" stopColor="var(--color-accent)" stopOpacity="0.32"/>
+                                            <stop offset="1" stopColor="var(--color-accent)" stopOpacity="0"/>
+                                        </linearGradient>
+                                    </defs>
+                                    {/* Horizontal gridlines at each y-tick */}
+                                    {paths.yTicks.map((tick, i) => (
+                                        <line
+                                            key={`grid-${i}`}
+                                            x1="0"
+                                            x2="600"
+                                            y1={tick.y}
+                                            y2={tick.y}
+                                            stroke="var(--color-divider)"
+                                            strokeWidth="1"
+                                            vectorEffect="non-scaling-stroke"
+                                        />
+                                    ))}
+                                    {/* Area fill — per-segment only (no bleed across gaps) */}
+                                    <path d={paths.area} fill="url(#fewnrr-earnings-grad)"/>
+                                    {/* Dashed gap connectors — explicit "omitted months" marker */}
+                                    {paths.gaps && (
+                                        <path
+                                            d={paths.gaps}
+                                            stroke="var(--color-neutral-600)"
+                                            strokeWidth="1.25"
+                                            strokeDasharray="2 3"
+                                            vectorEffect="non-scaling-stroke"
+                                            fill="none"
+                                        />
+                                    )}
+                                    {/* Solid line segments for contiguous month blocks */}
+                                    <path
+                                        d={paths.line}
+                                        fill="none"
+                                        stroke="var(--color-accent)"
+                                        strokeWidth="1.75"
+                                        strokeLinejoin="round"
+                                        strokeLinecap="round"
+                                        vectorEffect="non-scaling-stroke"
+                                    />
+                                    {/* Y-axis tick labels — right-aligned inside the chart edge */}
+                                    {paths.yTicks.map((tick, i) => (
+                                        <text
+                                            key={`yl-${i}`}
+                                            x="6"
+                                            y={tick.y - 3}
+                                            fill="var(--color-neutral-500)"
+                                            fontSize="10"
+                                        >
+                                            {tick.label}
+                                        </text>
+                                    ))}
+                                </svg>
+                                {/* X-axis labels (below the svg so they don't share the viewBox scale) */}
+                                <div className={ownStyles.chartXAxis}>
+                                    {paths.xLabels.map((lbl, i) => (
+                                        <span
+                                            key={`xl-${i}`}
+                                            className={ownStyles.chartXLabel}
+                                            style={{left: `${(lbl.x / 600) * 100}%`}}
+                                        >
+                                            {lbl.label}
+                                        </span>
+                                    ))}
+                                </div>
+                                {paths.gaps && (
+                                    <div className={ownStyles.chartGapNote}>
+                                        Dashed breaks = months with no paid earnings, left as gaps (never interpolated).
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
                 </div>
 
                 <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>

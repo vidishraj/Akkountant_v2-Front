@@ -411,3 +411,52 @@
     border-radius: 0 5px 5px 0;
   }
 }
+
+/* ak-wnrr: gap-aware SVG earnings chart (buildEarningsTrendPaths).
+ * Pre-ak-wnrr used recharts AreaChart type="monotone" which interpolated
+ * across zero-revenue months. The SVG replacement renders those spans as
+ * dashed connectors per §23 rule #8 (constant-composition honesty). */
+
+.chartSvg {
+  width: 100%;
+  height: 260px;
+  display: block;
+  overflow: visible;
+}
+
+.chartPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-neutral-500);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-900);
+}
+
+.chartXAxis {
+  position: relative;
+  height: 20px;
+  margin: 2px 0 0;
+}
+
+.chartXLabel {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.chartGapNote {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--color-accent-300);
+  text-align: center;
+}
