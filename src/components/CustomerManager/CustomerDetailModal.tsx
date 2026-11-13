@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Customer, InvoiceData, CustomerEmailLink } from '../../utils/interfaces';
 import { fetchAllInvoices, fetchCustomerEmails, unlinkEmailFromCustomer } from '../../services/freelanceService';
 import { fetchEmailBody } from '../../services/investmentService';
+import useModalA11y from '../../hooks/useModalA11y';
 import EmailLinkModal from './EmailLinkModal';
 import styles from './CustomerManager.module.scss';
 
@@ -10,9 +11,15 @@ interface CustomerDetailModalProps {
     customer: Customer | null;
     open: boolean;
     onClose: () => void;
+    // ak-c453: Edit + Delete moved off the list row INTO this drawer.
+    // Both callbacks receive the current customer; the parent handles
+    // state (start-edit opens the CustomerDialog; delete opens the
+    // destructive-variant confirm-gate).
+    onEdit?: (customer: Customer) => void;
+    onDelete?: (customer: Customer) => void;
 }
 
-const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, open, onClose }) => {
+const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, open, onClose, onEdit, onDelete }) => {
     const [invoices, setInvoices] = useState<InvoiceData[]>([]);
     const [loading, setLoading] = useState(false);
     const [totalInvoices, setTotalInvoices] = useState(0);
@@ -30,6 +37,26 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, ope
     const [bodyLoading, setBodyLoading] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const emailViewerRef = useRef<HTMLDivElement>(null);
+
+    // ak-c453: shared modal-a11y hook (FE-7 / ak-6lyp). Focus-on-open to
+    // the first focusable inside the drawer, focus-restore on close,
+    // Tab-trap within the drawer panel.
+    useModalA11y({
+        open: open && customer !== null,
+        panelRef: contentRef as React.RefObject<HTMLElement>,
+    });
+
+    // Esc-to-close on the detail drawer. Kept inline per useModalA11y's
+    // deliberate "caller defines Esc policy" contract (the email viewer
+    // below has its own Esc semantics and shouldn't share this handler).
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [open, onClose]);
 
     useEffect(() => {
         if (open && customer) {
@@ -151,8 +178,19 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, ope
         `${currencySymbol[currency] || currency + ' '}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     return createPortal(
-        <div className={styles.detailModal} onClick={handleBackdropClick}>
-            <div className={styles.detailModalContent} ref={contentRef}>
+        <div
+            className={styles.detailModal}
+            onClick={handleBackdropClick}
+            role="presentation"
+        >
+            <div
+                className={styles.detailModalContent}
+                ref={contentRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Customer detail: ${customer.name}`}
+                tabIndex={-1}
+            >
                 {/* Header */}
                 <div className={styles.detailHeader}>
                     <div className={styles.customerAvatar}>{getInitials(customer.name)}</div>
@@ -160,7 +198,40 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, ope
                         <h3>{customer.name}</h3>
                         {customer.company && <div className={styles.detailCompany}>{customer.company}</div>}
                     </div>
-                    <button className={styles.detailCloseBtn} onClick={onClose}>&times;</button>
+                    {/* ak-c453: Edit + Delete moved into the drawer from
+                        the pre-ak-c453 list card. The drawer-open is the
+                        user's explicit identify-the-customer action; both
+                        secondary actions sit in that context. */}
+                    {onEdit && (
+                        <button
+                            type="button"
+                            className={styles.detailEditBtn}
+                            onClick={() => onEdit(customer)}
+                            aria-label="Edit customer"
+                            title="Edit customer"
+                        >
+                            <i className="ph ph-pencil-simple" aria-hidden/>
+                            <span>Edit</span>
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button
+                            type="button"
+                            className={styles.detailDeleteBtn}
+                            onClick={() => onDelete(customer)}
+                            aria-label="Delete customer"
+                            title="Delete customer"
+                        >
+                            <i className="ph ph-trash" aria-hidden/>
+                            <span>Delete</span>
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className={styles.detailCloseBtn}
+                        onClick={onClose}
+                        aria-label="Close detail"
+                    >&times;</button>
                 </div>
 
                 {/* Body */}
