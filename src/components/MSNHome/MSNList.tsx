@@ -10,6 +10,7 @@ import {
     getPendingValue,
     getPledgeInfo,
     getRowCurrentValue,
+    getRowDayChangeAmount,
     getRowInvested,
     getRowUnrealizedPnL,
     getT1Quantity,
@@ -53,6 +54,17 @@ interface ComputedStock {
      * run, and rendering ₹0 would conflate unknown with flat.
      */
     dayChangeKnown: boolean;
+    /**
+     * ak-7lj3: BE-authoritative FOLDED day-change in ₹ for this row
+     * (`total_qty × (last_price − close_price)`). CRITICAL: this is the
+     * only source that carries T+1 impact — `dayChange.change` from
+     * `getDayChange` is PER SHARE, and multiplying by `buyQuant` locally
+     * would silently drop the T+1 sliver (T+1 is settled-but-not-moved
+     * today, not reflected in `buyQuant`). Null when BE didn't emit the
+     * field (MF/NPS rows) OR when `day_change_known: false` — caller
+     * falls through to the per-share display in those cases.
+     */
+    rowDayChangeAmount: number | null;
     pledge: PledgeInfo | null;
     costBasisDivergence: CostBasisDivergence | null;
 }
@@ -130,6 +142,10 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
             const totalQuant = getTotalQuantity(stock);
             const dayChange = getDayChange(stock, pChange);
             const dayChangeKnown = isDayChangeKnown(stock);
+            // ak-7lj3: consume BE-folded day_change_amount. Null → fall
+            // through to per-share display in the renderer. `getRowDay
+            // ChangeAmount` already honors the day_change_known gate.
+            const rowDayChangeAmount = getRowDayChangeAmount(stock);
             const pledge = getPledgeInfo(stock);
             const costBasisDivergence = getCostBasisDivergence(stock);
 
@@ -149,6 +165,7 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                 totalQuant,
                 dayChange,
                 dayChangeKnown,
+                rowDayChangeAmount,
                 pledge,
                 costBasisDivergence,
             };
@@ -243,6 +260,7 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                         totalQuant,
                         dayChange,
                         dayChangeKnown,
+                        rowDayChangeAmount,
                         pledge,
                         costBasisDivergence,
                     } = item;
@@ -266,12 +284,25 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     const percentLabel = dayChange
                         ? `${dayChange.changePercent >= 0 ? "+" : ""}${dayChange.changePercent.toFixed(2)}%`
                         : `${isPositiveChange ? "+" : ""}${pChange}%`;
-                    // Day-change label (ak-quts) — strict poison on unknown rows.
+                    // Day-change label.
+                    // Precedence (ak-7lj3 consume-not-recompute):
+                    //   1. !dayChangeKnown → "—" (ak-quts strict poison — never
+                    //      render ₹0 for an explicitly-unknown row).
+                    //   2. BE-folded rowDayChangeAmount if present → the
+                    //      authoritative ₹ number for this row, carrying T+1
+                    //      impact via `total_qty × (last_price − close_price)`.
+                    //      Previously the rendered rupee was `dayChange.change`
+                    //      PER SHARE — misleading next to the hero aggregate +
+                    //      silently excluded T+1 for stock rows.
+                    //   3. Fall back to per-share display for rows BE didn't
+                    //      emit the folded field for (MF/NPS feeds).
                     const dayChangeLabel = !dayChangeKnown
                         ? "—"
-                        : dayChange && dayChange.change !== null
-                            ? `${dayChange.change >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(dayChange.change))} (${percentLabel})`
-                            : percentLabel;
+                        : rowDayChangeAmount !== null
+                            ? `${rowDayChangeAmount >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(rowDayChangeAmount))} (${percentLabel})`
+                            : dayChange && dayChange.change !== null
+                                ? `${dayChange.change >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(dayChange.change))} (${percentLabel})`
+                                : percentLabel;
 
                     const changeClass =
                         !dayChangeKnown || displayPercent === 0

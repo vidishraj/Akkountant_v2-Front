@@ -6,10 +6,13 @@ import {
     buildT1Tooltip,
     formatCurrency,
     formatQuantity,
+    getDayChange,
     getRowCurrentValue,
+    getRowDayChangeAmount,
     getRowInvested,
     getRowUnrealizedPnL,
     getT1Quantity,
+    isDayChangeKnown,
 } from "../../utils/holdings.ts";
 import style from "./MSNDetails.module.scss";
 
@@ -98,6 +101,60 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
         return {change, pct};
     })();
 
+    // ak-7lj3 consume-not-recompute for the per-row day change display:
+    // CONSUME the BE-folded `day_change_amount` (carries T+1) when present;
+    // fall through to `getDayChange` per-share data for MF/NPS where BE
+    // doesn't emit the folded amount. Pre-ak-7lj3 the hero bypassed both
+    // helpers and rendered `details.info.change` / `.pChange` directly —
+    // per-share from the market feed, no T+1 fold, and no explicit-
+    // unknown gate (an ak-4o41 `day_change_known: false` row rendered
+    // as "+0.00 (+0.00%)" instead of "—").
+    const dayChangeKnown = isDayChangeKnown(details);
+    const pChangeForFallback = state.selectedCard.nps
+        ? (npsChange?.pct ?? 0)
+        : Number(details.info.pChange);
+    const stockDayChange = state.selectedCard.nps
+        ? null
+        : getDayChange(details, pChangeForFallback);
+    const rowDayChangeAmount = getRowDayChangeAmount(details);
+    const dayChangePercent = stockDayChange
+        ? stockDayChange.changePercent
+        : pChangeForFallback;
+    // Day-change body rendered next to the hero price. Precedence mirrors
+    // MSNList so the two surfaces agree byte-for-byte:
+    //   1. !dayChangeKnown  → "—"  (strict poison; stocks only)
+    //   2. NPS              → npsChange (FE-local compute; no helper)
+    //   3. rowDayChangeAmount if present → folded ₹ + helper %
+    //   4. stockDayChange per-share rupee → per-share ₹ + helper %
+    //   5. percent-only fallback (MF rows where BE emits neither signal)
+    const heroDayChange: {rupee: string; percent: string; positive: boolean} | null = (() => {
+        if (state.selectedCard.nps) {
+            if (!npsChange) return null;
+            return {
+                rupee: `${npsChange.change >= 0 ? "+" : ""}${npsChange.change.toFixed(2)}`,
+                percent: `${npsChange.pct.toFixed(2)}%`,
+                positive: npsChange.change >= 0,
+            };
+        }
+        if (!dayChangeKnown) return null;
+        const percentStr = `${dayChangePercent >= 0 ? "+" : ""}${dayChangePercent.toFixed(2)}%`;
+        if (rowDayChangeAmount !== null) {
+            return {
+                rupee: `${rowDayChangeAmount >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(rowDayChangeAmount))}`,
+                percent: percentStr,
+                positive: rowDayChangeAmount >= 0,
+            };
+        }
+        if (stockDayChange && stockDayChange.change !== null) {
+            return {
+                rupee: `${stockDayChange.change >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(stockDayChange.change))}`,
+                percent: percentStr,
+                positive: stockDayChange.change >= 0,
+            };
+        }
+        return null;
+    })();
+
     const technicalRows = (() => {
         if (state.selectedCard.stocks) {
             return [
@@ -173,19 +230,19 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                     <span className={style.heroPrice}>
                                         ₹{formatCurrency(activePrice)}
                                     </span>
-                                    {state.selectedCard.nps && npsChange ? (
+                                    {heroDayChange ? (
                                         <span
                                             className={style.heroPct}
-                                            style={{color: npsChange.change >= 0 ? CLR_GAIN : CLR_LOSS}}
+                                            style={{color: heroDayChange.positive ? CLR_GAIN : CLR_LOSS}}
                                         >
-                                            {npsChange.change >= 0 ? "+" : ""}{npsChange.change.toFixed(2)} ({npsChange.pct.toFixed(2)}%)
+                                            {heroDayChange.rupee} ({heroDayChange.percent})
                                         </span>
                                     ) : (
-                                        <span
-                                            className={style.heroPct}
-                                            style={{color: Number(details.info.pChange) >= 0 ? CLR_GAIN : CLR_LOSS}}
-                                        >
-                                            {Number(details.info.change) >= 0 ? "+" : ""}{Number(details.info.change).toFixed(2)} ({Number(details.info.pChange).toFixed(2)}%)
+                                        /* ak-7lj3: explicit-unknown or no-signal
+                                           branch — strict poison per ak-quts;
+                                           never render ₹0 for an unknown row. */
+                                        <span className={style.heroPct}>
+                                            —
                                         </span>
                                     )}
                                 </>
