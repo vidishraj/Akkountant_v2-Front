@@ -1,22 +1,22 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import TransactionFilters from "../../components/TransactionFilterComponent/TransactionFilters.tsx";
 import {
+    checkGoogleStatus,
     deleteFile,
     downloadFile,
     fetchFileDetails,
     fetchOptedBanks,
     fetchTransactions,
 } from "../../services/transactionService.ts";
+import {makeDriveInitialRequest, makeInitialRequest} from "../../services/GoogleApiUtils.tsx";
 import {useFilterContext} from "../../contexts/FilterContext.tsx";
 import CalendarComponent from "../../components/CalendarComponent/Calendar.tsx";
-import FieldSelector from "../../components/ModeSelectorComponent/FieldSelector.tsx";
 import {useUser} from "../../contexts/GlobalContext.tsx";
 import {useFileFilterContext} from "../../contexts/FileFilterContext.tsx";
 import FileDetailsCard from "../../components/FileDetailsCardComponent/FileDetailsCard.tsx";
 import FileFilterCompact from "../../components/FileFilterComponent/FileFilterCompact.tsx";
 import SortedBy from "../../components/SortComponent.tsx";
 import FileSummary from "../../components/FileSummaryComponent/FileSummary.tsx";
-import GoogleComponent from "../../components/GoogleComponent/GoogleComponent.tsx";
 import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 import useModalA11y from "../../hooks/useModalA11y.ts";
 import {useMessage} from "../../contexts/MessageContext.tsx";
@@ -29,6 +29,9 @@ import React, {useRef} from "react";
 
 /**
  * FE-8 (ak-ko52) Transactions page — Nocturne-native shell.
+ * FE-14 (ak-4qgd) sidebar overhaul: moved LEFT → RIGHT, mode switcher +
+ * GoogleComponent removed from sidebar, three new cards added
+ * (Spend-by-category / Recurring / Ingestion connected-status).
  *
  * Replaces the pre-FE-8 composition (MUI Drawer + TablePagination + MUI
  * TransactionCard). The row rendering is inlined so FE-8 can hit its
@@ -40,17 +43,21 @@ import React, {useRef} from "react";
  * Preserved wiring (no regression):
  * - `refreshTransactions` / `refreshFileDetails` / `handleAgentMutation`
  *   logic byte-identical to pre-FE-8 — only the render surface changes.
- * - Mode switching (transaction vs file ingestion) via FieldSelector.
- * - CalendarComponent / GoogleComponent / FieldSelector / FileDetailsCard
- *   / FileFilterCompact / SortedBy / FileSummary / TransactionFilters
- *   / AgentChat all untouched (FE-8 scope is `src/pages/Transactions/*`
- *   only).
+ * - Mode switching (transaction vs file ingestion) preserved — the toggle
+ *   moved from sidebar FieldSelector to a compact Nocturne segment
+ *   control at the top of the main content (ak-4qgd requirement: mode
+ *   switcher is NOT in the sidebar per design, but file mode must stay
+ *   accessible).
+ * - CalendarComponent / FileDetailsCard / FileFilterCompact / SortedBy /
+ *   FileSummary / TransactionFilters / AgentChat all untouched.
  *
  * §23 rules honored:
  * - §2 CONSUME-not-recompute: Credit/Debit/Net hero reads `credits`/
  *   `debits` directly from `FilterContext.state.transactions` — no FE
  *   re-derivation. Net = credit - debit (same convention as pre-FE-8
- *   `TransactionSummary.tsx`).
+ *   `TransactionSummary.tsx`). The Spend-by-category + Recurring cards
+ *   are SAMPLE data per ak-4qgd (BE not yet enriched) — explicitly
+ *   labeled with "Sample" chips per the FE-3 stub convention.
  * - §4 PII containment: the detail drawer surfaces amount + bank + date
  *   + details string + reference ID only. **Raw email body / receipt
  *   contents are NOT rendered by default.** Any future "View email"
@@ -154,6 +161,214 @@ const NocturnePager: React.FC<NocturnePagerProps> = ({
         </div>
     );
 };
+
+/**
+ * ak-4qgd: Spend-by-category mini bar chart. SAMPLE DATA per bead —
+ * BE enrichment (tagging / category inference over the Transaction
+ * table) is not yet wired. Shows the design's intent + ratio shapes
+ * so a future BE wire can drop in without card-chrome changes.
+ * Labeled with the Nocturne "Sample" chip convention established in
+ * FE-3 (ak-ff9r Investments stub chips).
+ */
+const SAMPLE_CATEGORIES: {label: string; share: number; color: string}[] = [
+    {label: "Food & dining",   share: 28, color: "var(--color-accent-500)"},
+    {label: "Transport",       share: 18, color: "var(--color-accent-700)"},
+    {label: "Bills & rent",    share: 24, color: "var(--color-accent-300)"},
+    {label: "Shopping",        share: 12, color: "var(--color-accent-2-500)"},
+    {label: "Other",           share: 18, color: "var(--color-neutral-500)"},
+];
+
+const SpendByCategoryCard: React.FC = () => (
+    <div className={style.sideCard}>
+        <div className={style.sideCardHeader}>
+            <h5 className={style.sideCardTitle}>Spend by category</h5>
+            <span className={style.sampleChip}>Sample</span>
+        </div>
+        <div className={style.catChart} role="list" aria-label="Spend breakdown by category">
+            {SAMPLE_CATEGORIES.map((c) => (
+                <div key={c.label} className={style.catRow} role="listitem">
+                    <div className={style.catLabel}>
+                        <span className={style.catSwatch} style={{background: c.color}}/>
+                        <span className={style.catLabelText}>{c.label}</span>
+                        <span className={style.catPct}>{c.share}%</span>
+                    </div>
+                    <div className={style.catBar}>
+                        <div
+                            className={style.catBarFill}
+                            style={{width: `${c.share}%`, background: c.color}}
+                        />
+                    </div>
+                </div>
+            ))}
+        </div>
+        <span className={style.sideCardHint}>
+            Last 30 days · BE tagging pending
+        </span>
+    </div>
+);
+
+/**
+ * ak-4qgd: Recurring-tx candidate list. SAMPLE DATA per bead — BE
+ * recurring-detector pass is not yet wired. Three illustrative rows
+ * (vendor / cadence / next billing / amount) so the card shape is
+ * carved out; swap sample array for BE list when the detector lands.
+ */
+const SAMPLE_RECURRING: {vendor: string; cadence: string; nextAt: string; amount: number}[] = [
+    {vendor: "Netflix",          cadence: "Monthly", nextAt: "5 Dec",   amount: 649},
+    {vendor: "Rent · landlord",  cadence: "Monthly", nextAt: "1 Dec",   amount: 42000},
+    {vendor: "AWS",              cadence: "Monthly", nextAt: "12 Dec",  amount: 1820},
+];
+
+const RecurringCard: React.FC = () => (
+    <div className={style.sideCard}>
+        <div className={style.sideCardHeader}>
+            <h5 className={style.sideCardTitle}>Recurring</h5>
+            <span className={style.sampleChip}>Sample</span>
+        </div>
+        <ul className={style.recurList}>
+            {SAMPLE_RECURRING.map((r) => (
+                <li key={r.vendor} className={style.recurItem}>
+                    <div className={style.recurLeft}>
+                        <span className={style.recurVendor}>{r.vendor}</span>
+                        <span className={style.recurMeta}>{r.cadence} · next {r.nextAt}</span>
+                    </div>
+                    <span className={style.recurAmount}>
+                        ₹{formatCurrency(r.amount)}
+                    </span>
+                </li>
+            ))}
+        </ul>
+        <span className={style.sideCardHint}>
+            Candidate recurring debits · BE detector pending
+        </span>
+    </div>
+);
+
+/**
+ * ak-4qgd: Ingestion-sources connected-status card. Reads live state
+ * via `/getGoogleStatus?serviceType={gmail|gdrive}` — the same endpoint
+ * the pre-ak-4qgd GoogleComponent used (so this is a UI rebrand, not a
+ * BE contract change). Disconnected rows expose a "Reconnect" button
+ * that invokes the existing `makeInitialRequest` (gmail) /
+ * `makeDriveInitialRequest` (gdrive) OAuth entrypoints, preserving the
+ * reconnect affordance the removed GoogleComponent used to provide.
+ */
+type IngestionStatus = "success" | "error" | "loading";
+
+const IngestionStatusCard: React.FC = () => {
+    const [gmailStatus, setGmailStatus] = useState<IngestionStatus>("loading");
+    const [gdriveStatus, setGdriveStatus] = useState<IngestionStatus>("loading");
+
+    const check = useCallback(async (which: "gmail" | "gdrive") => {
+        const setter = which === "gmail" ? setGmailStatus : setGdriveStatus;
+        try {
+            const response = await checkGoogleStatus(which);
+            setter(response.Message === "Successful" ? "success" : "error");
+        } catch {
+            setter("error");
+        }
+    }, []);
+
+    useEffect(() => {
+        void check("gmail");
+        void check("gdrive");
+    }, [check]);
+
+    const row = (
+        which: "gmail" | "gdrive",
+        label: string,
+        status: IngestionStatus,
+    ) => {
+        const connected = status === "success";
+        const loading = status === "loading";
+        const chipColor = loading
+            ? "var(--color-neutral-500)"
+            : connected
+                ? "oklch(0.80 0.13 155)"
+                : "oklch(0.74 0.15 25)";
+        const chipText = loading ? "Checking…" : connected ? "Connected" : "Expired";
+        return (
+            <div className={style.ingestRow} key={which}>
+                <div className={style.ingestLabel}>
+                    <i
+                        className={`ph ${which === "gmail" ? "ph-envelope-simple" : "ph-file-text"}`}
+                        aria-hidden="true"
+                    />
+                    <span>{label}</span>
+                </div>
+                <span
+                    className={style.ingestChip}
+                    style={{
+                        color: chipColor,
+                        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${chipColor} 35%, transparent)`,
+                    }}
+                >
+                    {chipText}
+                </span>
+                {!loading && !connected && (
+                    <button
+                        type="button"
+                        onClick={() => (which === "gmail" ? makeInitialRequest() : makeDriveInitialRequest())}
+                        className={`btn btn-ghost ${style.ingestReconnectBtn}`}
+                    >
+                        Reconnect
+                    </button>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div className={style.sideCard}>
+            <div className={style.sideCardHeader}>
+                <h5 className={style.sideCardTitle}>Ingestion sources</h5>
+            </div>
+            <div className={style.ingestList}>
+                {row("gmail", "Gmail inbox", gmailStatus)}
+                {row("gdrive", "Statement parser", gdriveStatus)}
+            </div>
+            <span className={style.sideCardHint}>
+                Gmail delivers receipts · statement parser ingests PDFs
+            </span>
+        </div>
+    );
+};
+
+/**
+ * ak-4qgd: compact Nocturne mode-toggle. Replaces the sidebar
+ * FieldSelector (MUI IconButton pair) with a native segment control
+ * at the top of the main content. Preserves the Transactions ↔ Files
+ * switch per SAFE constraint (removing FieldSelector from the sidebar
+ * would strand the file-ingestion view otherwise).
+ */
+interface ModeToggleProps {
+    transactionMode: boolean;
+    onSet: (next: boolean) => void;
+}
+const ModeToggle: React.FC<ModeToggleProps> = ({transactionMode, onSet}) => (
+    <div className={style.modeToggle} role="tablist" aria-label="View mode">
+        <button
+            type="button"
+            role="tab"
+            aria-selected={transactionMode}
+            onClick={() => onSet(true)}
+            className={`${style.modeToggleBtn} ${transactionMode ? style.modeToggleBtnActive : ""}`}
+        >
+            <i className="ph ph-receipt" aria-hidden="true"/>
+            <span>Transactions</span>
+        </button>
+        <button
+            type="button"
+            role="tab"
+            aria-selected={!transactionMode}
+            onClick={() => onSet(false)}
+            className={`${style.modeToggleBtn} ${!transactionMode ? style.modeToggleBtnActive : ""}`}
+        >
+            <i className="ph ph-files" aria-hidden="true"/>
+            <span>Files</span>
+        </button>
+    </div>
+);
 
 const Transactions = () => {
     const {state, dispatch} = useFilterContext();
@@ -545,18 +760,35 @@ const Transactions = () => {
         </>
     );
 
-    // Sidebar block — rendered as an actual column on desktop or inside a
-    // Nocturne-skinned mobile overlay (MUI Drawer dropped).
+    // ak-4qgd: Sidebar block — Calendar + 3 new cards (Spend-by-category,
+    // Recurring, Ingestion connected-status). Mode switcher moved OUT of
+    // the sidebar to the main content header (ModeToggle below).
+    // Rendered as an actual RIGHT column on desktop (DOM-ordered after
+    // <main> per grid-template-columns in Transaction.module.scss) or
+    // inside a Nocturne-skinned mobile overlay (MUI Drawer dropped).
     const sidebarContent = (
         <div className={style.sidebarInner}>
             <CalendarComponent/>
-            <GoogleComponent/>
-            <FieldSelector setTransactionMode={setTransactionMode}/>
+            <SpendByCategoryCard/>
+            <RecurringCard/>
+            <IngestionStatusCard/>
         </div>
     );
 
     return (
         <div className={style.page}>
+            <main className={style.main}>
+                <ModeToggle
+                    transactionMode={transactionModeSelection}
+                    onSet={setTransactionMode}
+                />
+                {transactionModeSelection ? renderTransactionMode() : renderFileMode()}
+            </main>
+
+            {/* ak-4qgd: sidebar moved RIGHT (DOM-ordered after <main> so
+                the grid-template-columns in Transaction.module.scss can
+                place it in the right column). Mobile overlay semantics
+                unchanged — still slides in with a backdrop + useModalA11y. */}
             {isMobile ? (
                 <>
                     {sidebarOpen && (
@@ -593,10 +825,6 @@ const Transactions = () => {
             ) : (
                 <aside className={style.sidebar}>{sidebarContent}</aside>
             )}
-
-            <main className={style.main}>
-                {transactionModeSelection ? renderTransactionMode() : renderFileMode()}
-            </main>
 
             {/* Transaction detail drawer (FE-8 brief 05 ask). PII posture:
                 amount + bank + date + details + reference ID. Raw email
