@@ -5,9 +5,9 @@
   grid-template-columns: 1fr 2fr;
   gap: 20px;
   padding: 20px;
-  background-color: #121C24;
+  background-color: var(--color-bg);
   border-radius: 8px;
-  border: 1px solid #2a3a50;
+  border: 1px solid var(--color-divider);
 
   @media screen and (max-width: 700px) {
     grid-template-columns: 1fr;
@@ -22,9 +22,9 @@
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   padding: 16px;
-  background-color: #121C24;
+  background-color: var(--color-bg);
   border-radius: 8px;
-  border: 1px solid #2a3a50;
+  border: 1px solid var(--color-divider);
 
   @media screen and (max-width: 600px) {
     grid-template-columns: 1fr;
@@ -36,7 +36,7 @@
 .pdfPreviewContainer {
   width: 100%;
   height: 600px;
-  border: 1px solid #333;
+  border: 1px solid var(--color-neutral-800);
   border-radius: 4px;
   overflow: hidden;
 
@@ -52,5 +52,90 @@
     width: 100%;
     height: 100%;
     border: none;
+  }
+}
+
+/* ak-17w0: Nocturne destructive gate for signature delete. Shape
+ * matches ak-9aqn / ak-c453 / FE-10 / ak-73nc destructive gates. */
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 1200;
+}
+
+.confirmDialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1210;
+  width: min(440px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: color-mix(in srgb, oklch(0.74 0.15 25) 10%, var(--color-surface));
+  box-shadow: inset 0 0 0 1px oklch(0.74 0.15 25),
+              0 10px 30px color-mix(in srgb, var(--color-bg) 70%, transparent);
+  color: var(--color-text);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.confirmKicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: oklch(0.74 0.15 25);
+
+  i { font-size: 15px; }
+}
+
+.confirmTitle {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.confirmBody {
+  font-size: 13px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
+}
+
+.confirmActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.confirmYesDestructive {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: oklch(0.74 0.15 25);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+
+  &:hover {
+    filter: brightness(1.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }

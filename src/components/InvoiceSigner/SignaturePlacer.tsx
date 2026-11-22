@@ -308,7 +308,7 @@ const SignaturePlacer = ({
   if (!invoiceData && !pdfBlobUrl) {
     return (
       <div className={placerStyles.placerContainer}>
-        <div style={{ textAlign: "center", padding: "40px", color: "#B0B0B0" }}>
+        <div style={{ textAlign: "center", padding: "40px", color: "var(--color-neutral-400)" }}>
           {pdfBlobUrl === undefined
             ? "Select an invoice to see the preview"
             : "Upload a PDF to see the preview"}
@@ -340,7 +340,7 @@ const SignaturePlacer = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#B0B0B0",
+              color: "var(--color-neutral-400)",
             }}
           >
             Generating preview...

@@ -1,4 +1,4 @@
-import {useState, useEffect, useRef} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {
     fetchAllInvoices,
     fetchUserSignatures,
@@ -9,6 +9,7 @@ import {
 } from "../../services/freelanceService";
 import {SignatureData, InvoiceData, Signature} from "../../utils/interfaces";
 import {useMessage} from "../../contexts/MessageContext";
+import useModalA11y from "../../hooks/useModalA11y";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 import ownStyles from "./InvoiceSigner.module.scss";
 import SignaturePlacer from "./SignaturePlacer";
@@ -25,6 +26,25 @@ const InvoiceSigner = () => {
     const [deletingSignature, setDeletingSignature] = useState<string | null>(null);
     const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // ak-17w0: destructive-gate state for signature delete. Replaces
+    // the pre-ak-17w0 window.confirm path. Shape matches ak-9aqn /
+    // ak-c453 / FE-10 destructive gates (role="alertdialog" +
+    // ph-warning kicker + useModalA11y focus-trap + .confirmYesDestructive).
+    const [deleteConfirmSignature, setDeleteConfirmSignature] = useState<{id: string; signature: Signature} | null>(null);
+    const deleteDialogRef = useRef<HTMLDivElement>(null);
+    useModalA11y({
+        open: deleteConfirmSignature !== null,
+        panelRef: deleteDialogRef as React.RefObject<HTMLElement>,
+    });
+    // Inline Esc per useModalA11y's caller-defined-policy.
+    useEffect(() => {
+        if (!deleteConfirmSignature) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setDeleteConfirmSignature(null);
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [deleteConfirmSignature]);
     const {setPayload} = useMessage();
 
     const MAX_SIGNATURES = 3;
@@ -109,8 +129,16 @@ const InvoiceSigner = () => {
         }
     };
 
-    const handleDeleteSignature = async (signatureId: string, signature: Signature) => {
-        if (!window.confirm("Are you sure you want to delete this signature? This action cannot be undone.")) return;
+    // ak-17w0: two-phase delete — opens Nocturne destructive gate.
+    const handleDeleteSignature = (signatureId: string, signature: Signature) => {
+        setDeleteConfirmSignature({id: signatureId, signature});
+    };
+
+    const confirmDeleteSignature = async () => {
+        const target = deleteConfirmSignature;
+        setDeleteConfirmSignature(null);
+        if (!target) return;
+        const {id: signatureId, signature} = target;
         try {
             setDeletingSignature(signatureId);
             await deleteSignature(signatureId);
@@ -223,12 +251,12 @@ const InvoiceSigner = () => {
         <div>
             {/* Signature Management Section */}
             <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
-                <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>
+                <h4 style={{color: "var(--color-text)", marginBottom: "15px"}}>
                     Manage Signatures
-                    <span style={{color: "#B0B0B0", fontSize: "0.8rem", marginLeft: "10px"}}>
+                    <span style={{color: "var(--color-neutral-400)", fontSize: "0.8rem", marginLeft: "10px"}}>
                         ({signatures.length}/{MAX_SIGNATURES} used)
                         {signatures.length >= MAX_SIGNATURES && (
-                            <span style={{color: "#FF6B6B", marginLeft: "5px"}}>Limit reached</span>
+                            <span style={{color: "oklch(0.74 0.15 25)", marginLeft: "5px"}}>Limit reached</span>
                         )}
                     </span>
                 </h4>
@@ -236,10 +264,10 @@ const InvoiceSigner = () => {
                 <div className={ownStyles.signatureManagementGrid}>
                     {/* Upload */}
                     <div>
-                        <h5 style={{color: "#FAFAFA", marginBottom: "15px"}}>Upload New Signature</h5>
+                        <h5 style={{color: "var(--color-text)", marginBottom: "15px"}}>Upload New Signature</h5>
                         <div style={{textAlign: "center", marginBottom: "15px"}}>
-                            <p style={{color: "#B0B0B0", margin: 0, fontSize: "0.9rem"}}>Upload your signature or initial image</p>
-                            <p style={{color: "#8B8B8B", fontSize: "0.8rem", margin: "5px 0 0 0"}}>PNG, JPG, GIF (Max 5MB)</p>
+                            <p style={{color: "var(--color-neutral-400)", margin: 0, fontSize: "0.9rem"}}>Upload your signature or initial image</p>
+                            <p style={{color: "var(--color-neutral-500)", fontSize: "0.8rem", margin: "5px 0 0 0"}}>PNG, JPG, GIF (Max 5MB)</p>
                         </div>
                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{display: "none"}} />
                         <div style={{textAlign: "center"}}>
@@ -256,7 +284,7 @@ const InvoiceSigner = () => {
 
                     {/* Signature Library */}
                     <div>
-                        <h5 style={{color: "#FAFAFA", marginBottom: "15px"}}>Signature Library</h5>
+                        <h5 style={{color: "var(--color-text)", marginBottom: "15px"}}>Signature Library</h5>
                         {signatures.length > 0 ? (
                             <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px", maxHeight: "400px", overflowY: "auto"}}>
                                 {signatures.map((sig) => (
@@ -264,15 +292,15 @@ const InvoiceSigner = () => {
                                         key={sig.id}
                                         style={{
                                             padding: "10px",
-                                            backgroundColor: selectedSignature === getSignatureDataUrl(sig) ? "#3A4F6A" : "#1E1E2E",
+                                            backgroundColor: selectedSignature === getSignatureDataUrl(sig) ? "var(--color-neutral-700)" : "var(--color-neutral-900)",
                                             borderRadius: "8px",
-                                            border: selectedSignature === getSignatureDataUrl(sig) ? "2px solid #7B68EE" : "1px solid #333",
+                                            border: selectedSignature === getSignatureDataUrl(sig) ? "2px solid var(--color-accent)" : "1px solid var(--color-neutral-800)",
                                             cursor: "pointer",
                                             transition: "all 0.2s",
                                         }}
                                         onClick={() => setSelectedSignature(getSignatureDataUrl(sig))}
                                     >
-                                        <div style={{backgroundColor: "#FAFAFA", padding: "8px", borderRadius: "4px", marginBottom: "8px", textAlign: "center", minHeight: "60px", display: "flex", alignItems: "center", justifyContent: "center"}}>
+                                        <div style={{backgroundColor: "var(--color-text)", padding: "8px", borderRadius: "4px", marginBottom: "8px", textAlign: "center", minHeight: "60px", display: "flex", alignItems: "center", justifyContent: "center"}}>
                                             <img
                                                 src={getSignatureDataUrl(sig)}
                                                 alt="Signature"
@@ -280,12 +308,12 @@ const InvoiceSigner = () => {
                                                 onError={(e) => {
                                                     (e.target as HTMLImageElement).style.display = "none";
                                                     const parent = (e.target as HTMLImageElement).parentElement;
-                                                    if (parent) parent.innerHTML = '<div style="color: #666; font-style: italic; font-size: 0.8rem;">Failed to load</div>';
+                                                    if (parent) parent.innerHTML = '<div style="color: var(--color-neutral-600); font-style: italic; font-size: 0.8rem;">Failed to load</div>';
                                                 }}
                                             />
                                         </div>
                                         <div style={{display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "6px"}}>
-                                            <span style={{color: "#FAFAFA", fontSize: "0.8rem"}}>{sig.name}</span>
+                                            <span style={{color: "var(--color-text)", fontSize: "0.8rem"}}>{sig.name}</span>
                                             {sig.is_default && <span className={styles.defaultBadge}>Default</span>}
                                         </div>
                                         <div style={{display: "flex", justifyContent: "center", gap: "4px"}}>
@@ -317,9 +345,9 @@ const InvoiceSigner = () => {
                                 ))}
                             </div>
                         ) : (
-                            <div style={{textAlign: "center", padding: "30px", color: "#B0B0B0", backgroundColor: "#1E1E2E", borderRadius: "8px", border: "1px dashed #333"}}>
+                            <div style={{textAlign: "center", padding: "30px", color: "var(--color-neutral-400)", backgroundColor: "var(--color-neutral-900)", borderRadius: "8px", border: "1px dashed var(--color-neutral-800)"}}>
                                 <p style={{margin: 0}}>No signatures uploaded yet</p>
-                                <p style={{margin: "5px 0 0 0", fontSize: "0.8rem", color: "#8B8B8B"}}>Upload your first signature to get started</p>
+                                <p style={{margin: "5px 0 0 0", fontSize: "0.8rem", color: "var(--color-neutral-500)"}}>Upload your first signature to get started</p>
                             </div>
                         )}
                     </div>
@@ -328,7 +356,7 @@ const InvoiceSigner = () => {
 
             {/* Invoice Selection */}
             <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
-                <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>Select Invoice to Sign</h4>
+                <h4 style={{color: "var(--color-text)", marginBottom: "15px"}}>Select Invoice to Sign</h4>
                 <div className={styles.formGroup}>
                     <label className={styles.formLabel}>Choose Invoice:</label>
                     <select className={styles.formInput} value={selectedInvoice} onChange={(e) => setSelectedInvoice(e.target.value)}>
@@ -344,12 +372,12 @@ const InvoiceSigner = () => {
                     const invoice = invoices.find(inv => inv.invoiceNumber === selectedInvoice);
                     if (!invoice) return null;
                     return (
-                        <div style={{marginTop: "15px", padding: "15px", backgroundColor: "#121C24", borderRadius: "8px", border: "1px solid #2a3a50"}}>
-                            <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px", color: "#B0B0B0", fontSize: "0.9rem"}}>
+                        <div style={{marginTop: "15px", padding: "15px", backgroundColor: "var(--color-bg)", borderRadius: "8px", border: "1px solid var(--color-divider)"}}>
+                            <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px", color: "var(--color-neutral-400)", fontSize: "0.9rem"}}>
                                 <div><strong>Project:</strong> {invoice.projectName}</div>
                                 <div><strong>Client:</strong> {invoice.to.name}</div>
                                 <div><strong>Total:</strong> {invoice.currency} {invoice.total.toFixed(2)}</div>
-                                <div><strong>Status:</strong> <span style={{color: invoice.status === "paid" ? "#4ADE80" : invoice.status === "sent" ? "#F59E0B" : "#B0B0B0"}}>{invoice.status}</span></div>
+                                <div><strong>Status:</strong> <span style={{color: invoice.status === "paid" ? "oklch(0.80 0.13 155)" : invoice.status === "sent" ? "oklch(0.80 0.13 85)" : "var(--color-neutral-400)"}}>{invoice.status}</span></div>
                             </div>
                         </div>
                     );
@@ -360,7 +388,7 @@ const InvoiceSigner = () => {
             {selectedInvoice && selectedSignature && (
                 <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
                     <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px"}}>
-                        <h4 style={{color: "#FAFAFA", margin: 0}}>Signature Placement</h4>
+                        <h4 style={{color: "var(--color-text)", margin: 0}}>Signature Placement</h4>
                         <button
                             className={styles.secondaryBtn}
                             onClick={() => setShowAdvancedSliders(!showAdvancedSliders)}
@@ -381,7 +409,7 @@ const InvoiceSigner = () => {
                     {showAdvancedSliders && (
                         <div className={ownStyles.advancedSlidersGrid}>
                             <div>
-                                <h5 style={{color: "#FAFAFA", marginBottom: "10px", fontSize: "0.9rem"}}>Position (mm)</h5>
+                                <h5 style={{color: "var(--color-text)", marginBottom: "10px", fontSize: "0.9rem"}}>Position (mm)</h5>
                                 <div className={styles.formGroup} style={{marginBottom: "10px"}}>
                                     <label className={styles.formLabel}>X: {signaturePosition.x}mm</label>
                                     <input type="range" min="10" max="150" step="1" value={signaturePosition.x}
@@ -396,7 +424,7 @@ const InvoiceSigner = () => {
                                 </div>
                             </div>
                             <div>
-                                <h5 style={{color: "#FAFAFA", marginBottom: "10px", fontSize: "0.9rem"}}>Size (mm)</h5>
+                                <h5 style={{color: "var(--color-text)", marginBottom: "10px", fontSize: "0.9rem"}}>Size (mm)</h5>
                                 <div className={styles.formGroup} style={{marginBottom: "10px"}}>
                                     <label className={styles.formLabel}>Width: {signaturePosition.width}mm</label>
                                     <input type="range" min="20" max="100" step="1" value={signaturePosition.width}
@@ -432,10 +460,10 @@ const InvoiceSigner = () => {
             {/* PDF Preview */}
             {previewUrl && (
                 <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
-                    <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>PDF Preview</h4>
-                    <div style={{backgroundColor: "#121C24", borderRadius: "8px", border: "1px solid #2a3a50", padding: "20px"}}>
+                    <h4 style={{color: "var(--color-text)", marginBottom: "15px"}}>PDF Preview</h4>
+                    <div style={{backgroundColor: "var(--color-bg)", borderRadius: "8px", border: "1px solid var(--color-divider)", padding: "20px"}}>
                         <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "10px"}}>
-                            <span style={{color: "#B0B0B0", fontSize: "0.9rem"}}>
+                            <span style={{color: "var(--color-neutral-400)", fontSize: "0.9rem"}}>
                                 Position: X={signaturePosition.x}mm, Y={signaturePosition.y}mm | Size: {signaturePosition.width}mm x {signaturePosition.height}mm
                             </span>
                             <button className={styles.secondaryBtn} onClick={() => { if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}
@@ -448,6 +476,58 @@ const InvoiceSigner = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ak-17w0: Nocturne destructive gate for signature delete.
+                Replaces pre-ak-17w0 window.confirm. Shape matches
+                ak-9aqn / ak-c453 / FE-10 (role=alertdialog +
+                ph-warning + useModalA11y + .confirmYesDestructive). */}
+            {deleteConfirmSignature && (
+                <>
+                    <div
+                        className={ownStyles.dialogBackdrop}
+                        onMouseDown={() => setDeleteConfirmSignature(null)}
+                        role="presentation"
+                    />
+                    <div
+                        ref={deleteDialogRef}
+                        className={ownStyles.confirmDialog}
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-label="Confirm delete signature"
+                        tabIndex={-1}
+                    >
+                        <div className={ownStyles.confirmKicker}>
+                            <i className="ph ph-warning" aria-hidden/>
+                            <span>Destructive action</span>
+                        </div>
+                        <div className={ownStyles.confirmTitle}>
+                            Delete this signature?
+                        </div>
+                        <div className={ownStyles.confirmBody}>
+                            Invoices already signed with this signature keep their
+                            signed PDFs — only the stored signature image is
+                            deleted. New signings will require uploading a fresh
+                            signature. This cannot be undone.
+                        </div>
+                        <div className={ownStyles.confirmActions}>
+                            <button
+                                type="button"
+                                className={styles.secondaryBtn}
+                                onClick={() => setDeleteConfirmSignature(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={ownStyles.confirmYesDestructive}
+                                onClick={() => void confirmDeleteSignature()}
+                            >
+                                Confirm delete
+                            </button>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );

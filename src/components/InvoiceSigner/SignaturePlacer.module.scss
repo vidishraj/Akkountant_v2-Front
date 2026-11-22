@@ -3,9 +3,9 @@
   width: 100%;
   max-width: 100%;
   overflow: hidden;
-  background-color: #1a2938;
+  background-color: var(--color-surface);
   border-radius: 8px;
-  border: 1px solid #2a3a50;
+  border: 1px solid var(--color-divider);
   padding: 16px;
   box-sizing: border-box;
 }
@@ -15,7 +15,7 @@
   width: 100%;
   max-width: 595px;
   margin: 0 auto;
-  background-color: #ffffff;
+  background-color: var(--color-text);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   border-radius: 4px;
   overflow: hidden;
@@ -33,9 +33,9 @@
 .signatureOverlay {
   position: absolute;
   cursor: grab;
-  border: 2px dashed #7b68ee;
+  border: 2px dashed var(--color-accent);
   border-radius: 4px;
-  background-color: rgba(123, 104, 238, 0.08);
+  background-color: color-mix(in srgb, var(--color-accent) 8%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -44,14 +44,14 @@
   transition: border-color 0.15s;
 
   &:hover {
-    border-color: #9b8aff;
-    background-color: rgba(123, 104, 238, 0.12);
+    border-color: var(--color-accent-2);
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
   }
 
   &.dragging {
     cursor: grabbing;
-    border-color: #4ade80;
-    background-color: rgba(74, 222, 128, 0.08);
+    border-color: oklch(0.80 0.13 155);
+    background-color: color-mix(in srgb, oklch(0.80 0.13 155) 8%, transparent);
   }
 
   img {
@@ -66,10 +66,10 @@
   position: absolute;
   cursor: grab;
   padding: 2px 4px;
-  border: 1px dashed #4ade80;
+  border: 1px dashed oklch(0.80 0.13 155);
   border-radius: 2px;
-  background-color: rgba(74, 222, 128, 0.08);
-  color: #1a1a1a;
+  background-color: color-mix(in srgb, oklch(0.80 0.13 155) 8%, transparent);
+  color: var(--color-surface);
   font-family: Helvetica, Arial, sans-serif;
   white-space: nowrap;
   user-select: none;
@@ -77,14 +77,14 @@
   z-index: 2;
 
   &:hover {
-    border-color: #22c55e;
-    background-color: rgba(74, 222, 128, 0.15);
+    border-color: oklch(0.80 0.13 155);
+    background-color: color-mix(in srgb, oklch(0.80 0.13 155) 15%, transparent);
   }
 
   &.dragging {
     cursor: grabbing;
-    border-color: #7b68ee;
-    background-color: rgba(123, 104, 238, 0.1);
+    border-color: var(--color-accent);
+    background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
   }
 }
 
@@ -92,8 +92,8 @@
   position: absolute;
   width: 12px;
   height: 12px;
-  background-color: #7b68ee;
-  border: 2px solid #fafafa;
+  background-color: var(--color-accent);
+  border: 2px solid var(--color-text);
   border-radius: 2px;
   cursor: nwse-resize;
   bottom: -6px;
@@ -101,7 +101,7 @@
   z-index: 2;
 
   &:hover {
-    background-color: #9b8aff;
+    background-color: var(--color-accent-2);
   }
 }
 
@@ -109,8 +109,8 @@
   position: absolute;
   top: -28px;
   left: 0;
-  background-color: rgba(18, 28, 36, 0.9);
-  color: #fafafa;
+  background-color: color-mix(in srgb, var(--color-bg) 90%, transparent);
+  color: var(--color-text);
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 0.7rem;
@@ -132,7 +132,7 @@
   gap: 16px;
   justify-content: center;
   margin-top: 8px;
-  color: #b0b0b0;
+  color: var(--color-neutral-400);
   font-size: 0.8rem;
 
   span {
@@ -140,7 +140,7 @@
     gap: 4px;
 
     strong {
-      color: #fafafa;
+      color: var(--color-text);
     }
   }
 }
