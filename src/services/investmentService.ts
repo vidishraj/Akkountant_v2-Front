@@ -10,6 +10,9 @@ import {
     MSNListResponse,
     MSNRateResponse,
     MSNSummaryResponse,
+    KiteAlertHistoryResponse,
+    KiteAlertsResponse,
+    KiteGttsResponse,
     KiteLoginUrlResponse,
     KiteMarginsResponse,
     KiteStatusResponse,
@@ -432,6 +435,57 @@ export async function fetchKiteTrades(
     );
 
     const response = await queueRequest(() => axios.get('/kite/trades', options));
+    return response.data;
+}
+
+/**
+ * ak-166j / ak-dx98 Bundle 3 (2026-11-12): GET /kite/gtts — active
+ * Good-Till-Triggered orders enriched with current LTP + distance_pct
+ * (BE `_enrich_gtts_with_ltp`). Read-only. 5-min BE cache per user.
+ */
+export async function fetchKiteGtts(
+    clearCache = false
+): Promise<KiteGttsResponse> {
+    const options = withRequestId(
+        'kite/gtts',
+        clearCache ? withCacheCleared() : {}
+    );
+    const response = await queueRequest(() => axios.get('/kite/gtts', options));
+    return response.data;
+}
+
+/**
+ * ak-166j / ak-dx98 Bundle 3: GET /kite/alerts — price alerts for the
+ * user. Read-only. 5-min BE cache per user. No LTP enrichment — alert
+ * payload already contains the lhs instrument + operator + rhs value.
+ */
+export async function fetchKiteAlerts(
+    clearCache = false
+): Promise<KiteAlertsResponse> {
+    const options = withRequestId(
+        'kite/alerts',
+        clearCache ? withCacheCleared() : {}
+    );
+    const response = await queueRequest(() => axios.get('/kite/alerts', options));
+    return response.data;
+}
+
+/**
+ * ak-166j / ak-dx98 Bundle 3: GET /kite/alerts/<uuid>/history — trigger
+ * log for a single alert. No cache (drill-down view WANTS fresh data —
+ * user is typically asking "did my alert just fire?"). URL-encodes the
+ * uuid defensively even though Kite's uuids are already URL-safe.
+ */
+export async function fetchKiteAlertHistory(
+    alertUuid: string
+): Promise<KiteAlertHistoryResponse> {
+    const options = withRequestId(
+        `kite/alerts/${alertUuid}/history`,
+        {}
+    );
+    const response = await queueRequest(() =>
+        axios.get(`/kite/alerts/${encodeURIComponent(alertUuid)}/history`, options)
+    );
     return response.data;
 }
 

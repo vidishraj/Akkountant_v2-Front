@@ -6,6 +6,7 @@ import {fetchPortfolioTrend, PortfolioTrendPoint} from "../../services/wealthDig
 import {getKiteLoginUrl} from "../../services/investmentService.ts";
 import {getRowDayChangeAmount} from "../../utils/holdings.ts";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
+import KiteMonitoring from "../../components/KiteMonitoring/KiteMonitoring.tsx";
 import type {KiteTrade, MSNListResponse} from "../../utils/interfaces.ts";
 import style from "./InvestmentsLanding.module.scss";
 
@@ -963,6 +964,13 @@ const InvestmentsLanding = () => {
                     ))}
                 </div>
             </section>
+
+            {/* ── Kite monitoring (ak-166j) ──
+                GTT + Alerts card wiring /kite/gtts + /kite/alerts +
+                /kite/alerts/<uuid>/history. Hidden entirely when Kite
+                isn't connected (handled inside KiteMonitoring). Lazy
+                fetches per sub-tab activation. */}
+            <KiteMonitoring/>
 
             {/* ── Fixed-return & physical (EPF / PPF / Gold) ── */}
             <section className={style.cardsSection}>

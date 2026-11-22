@@ -1,6 +1,8 @@
 import React, {createContext, useCallback, useContext, useEffect, useReducer, useRef, ReactNode} from 'react';
-import {KiteHolding, KiteMarginsResponse, KitePosition, KiteTrade} from '../utils/interfaces';
+import {KiteAlert, KiteGtt, KiteHolding, KiteMarginsResponse, KitePosition, KiteTrade} from '../utils/interfaces';
 import {
+    fetchKiteAlerts,
+    fetchKiteGtts,
     fetchKiteHoldings,
     fetchKiteMargins,
     fetchKitePositions,
@@ -49,6 +51,23 @@ interface TradesInfo {
     checked: boolean;
 }
 
+// ak-166j: GTT (Good-Till-Triggered) orders + price alerts state
+// slices for the Kite monitoring card. Same symmetric {data, loading,
+// checked} shape as margins / trades so one error-path discipline
+// covers all Kite sub-slices. Both lazy — fired by the monitoring
+// card on sub-tab activation. Cleared on disconnect.
+interface GttsInfo {
+    data: KiteGtt[] | null;
+    loading: boolean;
+    checked: boolean;
+}
+
+interface AlertsInfo {
+    data: KiteAlert[] | null;
+    loading: boolean;
+    checked: boolean;
+}
+
 // Kite Context State Interface
 interface KiteState {
     holdings: KiteHolding[];
@@ -78,6 +97,9 @@ interface KiteState {
     margins: MarginsInfo;
     // ak-2k93: Today's trades slice. LAZY — not fetched on provider mount.
     trades: TradesInfo;
+    // ak-166j: Monitoring surfaces — both LAZY, both cleared on disconnect.
+    gtts: GttsInfo;
+    alerts: AlertsInfo;
 }
 
 // Kite Actions
@@ -100,6 +122,16 @@ type KiteAction =
     | {type: 'SET_TRADES'; payload: KiteTrade[]}
     | {type: 'SET_TRADES_FAILED'}  // transport error — mark checked without data
     | {type: 'CLEAR_TRADES'}
+    // ak-166j: GTT actions
+    | {type: 'SET_GTTS_LOADING'; payload: boolean}
+    | {type: 'SET_GTTS'; payload: KiteGtt[]}
+    | {type: 'SET_GTTS_FAILED'}
+    | {type: 'CLEAR_GTTS'}
+    // ak-166j: Alert actions
+    | {type: 'SET_ALERTS_LOADING'; payload: boolean}
+    | {type: 'SET_ALERTS'; payload: KiteAlert[]}
+    | {type: 'SET_ALERTS_FAILED'}
+    | {type: 'CLEAR_ALERTS'}
     | {type: 'RESET_STATE'};
 
 // Initial state
@@ -125,6 +157,19 @@ const initialTrades: TradesInfo = {
     checked: false,
 };
 
+// ak-166j: initial GTT + alerts state — both not yet checked.
+const initialGtts: GttsInfo = {
+    data: null,
+    loading: false,
+    checked: false,
+};
+
+const initialAlerts: AlertsInfo = {
+    data: null,
+    loading: false,
+    checked: false,
+};
+
 const initialState: KiteState = {
     holdings: [],
     positions: {
@@ -143,6 +188,8 @@ const initialState: KiteState = {
     reconnect: initialReconnect,
     margins: initialMargins,
     trades: initialTrades,
+    gtts: initialGtts,
+    alerts: initialAlerts,
 };
 
 // Reducer
@@ -256,6 +303,51 @@ const kiteReducer = (state: KiteState, action: KiteAction): KiteState => {
                 ...state,
                 trades: initialTrades,
             };
+        // ak-166j: GTT reducer handlers
+        case 'SET_GTTS_LOADING':
+            return {
+                ...state,
+                gtts: {...state.gtts, loading: action.payload},
+            };
+        case 'SET_GTTS':
+            return {
+                ...state,
+                gtts: {data: action.payload, loading: false, checked: true},
+            };
+        case 'SET_GTTS_FAILED':
+            // Same error-path discipline as margins/trades: flip
+            // checked:true so the consumer renders a terminal fallback
+            // rather than an endless spinner.
+            return {
+                ...state,
+                gtts: {data: null, loading: false, checked: true},
+            };
+        case 'CLEAR_GTTS':
+            return {
+                ...state,
+                gtts: initialGtts,
+            };
+        // ak-166j: Alert reducer handlers
+        case 'SET_ALERTS_LOADING':
+            return {
+                ...state,
+                alerts: {...state.alerts, loading: action.payload},
+            };
+        case 'SET_ALERTS':
+            return {
+                ...state,
+                alerts: {data: action.payload, loading: false, checked: true},
+            };
+        case 'SET_ALERTS_FAILED':
+            return {
+                ...state,
+                alerts: {data: null, loading: false, checked: true},
+            };
+        case 'CLEAR_ALERTS':
+            return {
+                ...state,
+                alerts: initialAlerts,
+            };
         case 'RESET_STATE':
             return initialState;
         default:
@@ -277,6 +369,9 @@ interface KiteContextType {
     refreshMargins: (clearCache?: boolean) => Promise<void>;
     // ak-2k93: refresh Today's trades (lazy — called on section expand).
     refreshTrades: (clearCache?: boolean) => Promise<void>;
+    // ak-166j: monitoring surfaces (lazy — called on sub-tab activation).
+    refreshGtts: (clearCache?: boolean) => Promise<void>;
+    refreshAlerts: (clearCache?: boolean) => Promise<void>;
     getTotalPortfolioValue: () => number;
     getTotalPnL: () => number;
     getDayPnL: () => number;
@@ -466,6 +561,48 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
         }
     }, [state.isAuthenticated]);
 
+    // ak-166j: fetch active GTT monitors. LAZY — the monitoring section
+    // calls this on first sub-tab activation. Transport errors silent
+    // (SET_GTTS_FAILED flips checked:true so the consumer renders a
+    // terminal fallback instead of an endless spinner).
+    const refreshGtts = useCallback(async (clearCache = false) => {
+        try {
+            dispatch({type: 'SET_GTTS_LOADING', payload: true});
+            const res = await fetchKiteGtts(clearCache);
+            const gtts = Array.isArray(res?.gtts) ? res.gtts : [];
+            dispatch({type: 'SET_GTTS', payload: gtts});
+        } catch {
+            dispatch({type: 'SET_GTTS_FAILED'});
+        }
+    }, []);
+
+    // ak-166j: fetch active price alerts. LAZY — the monitoring section
+    // calls this on first sub-tab activation.
+    const refreshAlerts = useCallback(async (clearCache = false) => {
+        try {
+            dispatch({type: 'SET_ALERTS_LOADING', payload: true});
+            const res = await fetchKiteAlerts(clearCache);
+            const alerts = Array.isArray(res?.alerts) ? res.alerts : [];
+            dispatch({type: 'SET_ALERTS', payload: alerts});
+        } catch {
+            dispatch({type: 'SET_ALERTS_FAILED'});
+        }
+    }, []);
+
+    // ak-166j: clear gtts + alerts on disconnect. Same edge-detection
+    // pattern as margins / trades so we only clear on actual
+    // isAuthenticated true→false transitions.
+    const prevAuthForMonitoringRef = useRef<boolean>(false);
+    useEffect(() => {
+        const was = prevAuthForMonitoringRef.current;
+        const is = state.isAuthenticated;
+        prevAuthForMonitoringRef.current = is;
+        if (was && !is) {
+            dispatch({type: 'CLEAR_GTTS'});
+            dispatch({type: 'CLEAR_ALERTS'});
+        }
+    }, [state.isAuthenticated]);
+
     // Fetch holdings
     const fetchHoldings = async (clearCache = false) => {
         try {
@@ -625,6 +762,8 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
         beginReconnect,
         refreshMargins,
         refreshTrades,
+        refreshGtts,
+        refreshAlerts,
         getTotalPortfolioValue,
         getTotalPnL,
         getDayPnL,

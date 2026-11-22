@@ -760,6 +760,104 @@ export interface KiteMarginsResponse {
     commodity?: KiteMarginsSegment;
 }
 
+// ak-166j / ak-dx98 Bundle 3 (2026-11-12): GTT (Good-Till-Triggered)
+// order monitors + price alerts + per-alert trigger history. Every
+// field is defensive-optional for the same Kite-pass-through reason
+// margins/trades are — BE enriches minimally (GTT gets a `monitor`
+// block appended; alerts/history are near-raw).
+export interface KiteGttCondition {
+    exchange?: string;
+    tradingsymbol?: string;
+    trigger_values?: number[];
+    last_price?: number;
+    instrument_token?: number;
+}
+
+export interface KiteGttOrder {
+    exchange?: string;
+    tradingsymbol?: string;
+    transaction_type?: string;        // "BUY" | "SELL"
+    quantity?: number;
+    price?: number;
+    product?: string;
+    order_type?: string;
+}
+
+// `monitor` is BE-computed (`_enrich_gtts_with_ltp`) and takes one of
+// three shapes: null (non-active GTT), a success payload with current_ltp
+// + distance_pct, or an error object with error_class + message.
+export interface KiteGttMonitorSuccess {
+    current_ltp?: number;
+    // Single-leg GTT → scalar; OCO two-leg GTT → list of 2 scalars.
+    // Either leg can be null (BE emits null when trigger_value === 0).
+    distance_pct?: number | Array<number | null> | null;
+}
+
+export interface KiteGttMonitorError {
+    error_class?: string;             // "ohlc_fetch_failed" | "quote_unavailable"
+    message?: string | null;
+}
+
+export type KiteGttMonitor =
+    | KiteGttMonitorSuccess
+    | KiteGttMonitorError
+    | null;
+
+export interface KiteGtt {
+    id?: number;
+    status?: string;                  // "active" | "triggered" | "cancelled" | "expired"
+    type?: string;                    // "single" | "two-leg"
+    condition?: KiteGttCondition;
+    orders?: KiteGttOrder[];
+    created_at?: string;
+    updated_at?: string;
+    user_id?: string;
+    monitor?: KiteGttMonitor;
+}
+
+export interface KiteGttsResponse {
+    gtts: KiteGtt[];
+}
+
+// Kite alerts — "simple" (notification only) or "ato" (auto-place
+// order on trigger). Every field optional for drift safety. Operator
+// is a raw string ("<=" / ">=" / "<" / ">" / "==") — FE renders
+// verbatim rather than mapping to a fixed enum.
+export interface KiteAlert {
+    uuid?: string;
+    user_id?: string;
+    type?: string;                    // "simple" | "ato"
+    status?: string;                  // "enabled" | "disabled"
+    name?: string;
+    lhs_exchange?: string;
+    lhs_tradingsymbol?: string;
+    lhs_attribute?: string;           // "LastTradedPrice" | "OIDay" | etc.
+    operator?: string;
+    rhs_type?: string;
+    rhs_constant?: number;
+    rhs_exchange?: string;
+    rhs_tradingsymbol?: string;
+    basket?: unknown;                 // for "ato" alerts — opaque order blueprint
+    created_at?: string;
+    updated_at?: string;
+    disabled_reason?: string;
+}
+
+export interface KiteAlertsResponse {
+    alerts: KiteAlert[];
+}
+
+export interface KiteAlertHistoryEntry {
+    triggered_at?: string;
+    meta?: unknown;                   // lhs value at trigger — shape varies by alert type
+    order_result?: unknown;           // for "ato" alerts — placed-order outcome
+    uuid?: string;
+}
+
+export interface KiteAlertHistoryResponse {
+    history: KiteAlertHistoryEntry[];
+}
+
 // F&O Interfaces
 export interface FOContract {
     symbol: string;
