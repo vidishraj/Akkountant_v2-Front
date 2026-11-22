@@ -631,7 +631,7 @@ const WealthDigest = () => {
 
           {hasActions && (
             <div className={wdStyle.section}>
-              <h2 className={wdStyle.sectionHeading}>Actions</h2>
+              <h2 className={wdStyle.sectionHeading}>Do</h2>
               <div className={wdStyle.cardStack}>
                 {displayed!.actions.map((a) => (
                   <ActionCard
@@ -647,7 +647,7 @@ const WealthDigest = () => {
 
           {hasWatchItems && (
             <div className={wdStyle.section}>
-              <h2 className={wdStyle.sectionHeading}>Keep an eye on</h2>
+              <h2 className={wdStyle.sectionHeading}>Watch</h2>
               <div className={wdStyle.cardStack}>
                 {displayed!.watch_items.map((w) => (
                   <WatchItemCard key={w.id} item={w} />
@@ -658,7 +658,7 @@ const WealthDigest = () => {
 
           {hasNews && (
             <div className={wdStyle.section}>
-              <h2 className={wdStyle.sectionHeading}>Market context</h2>
+              <h2 className={wdStyle.sectionHeading}>Know</h2>
               <div className={wdStyle.cardStack}>
                 {displayed!.news.map((n) => (
                   <NewsCard key={n.id} item={n} />
