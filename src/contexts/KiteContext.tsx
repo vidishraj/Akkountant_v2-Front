@@ -1,8 +1,9 @@
-import React, {createContext, useCallback, useContext, useEffect, useReducer, ReactNode} from 'react';
-import {KiteHolding, KitePosition} from '../utils/interfaces';
+import React, {createContext, useCallback, useContext, useEffect, useReducer, useRef, ReactNode} from 'react';
+import {KiteHolding, KitePosition, KiteTrade} from '../utils/interfaces';
 import {
     fetchKiteHoldings,
     fetchKitePositions,
+    fetchKiteTrades,
     syncKiteHoldings,
     getKiteStatus,
     getKiteLoginUrl,
@@ -19,6 +20,18 @@ interface ReconnectInfo {
     reason: string | null;
     expiresAt: string | null;
     loginUrl: string | null;     // cached OAuth URL — used on click; re-fetched if null
+}
+
+// ak-2k93: Today's Kite trades state slice. LAZY fetch pattern —
+// `checked` starts false until the first `refreshTrades()` resolves
+// (or fails). Component is expected to trigger refresh on section
+// expand, not on mount; the section is default-collapsed so not
+// everyone opens it. Cleared on disconnect to prevent stale trades
+// surviving a session change.
+interface TradesInfo {
+    data: KiteTrade[] | null;
+    loading: boolean;
+    checked: boolean;
 }
 
 // Kite Context State Interface
@@ -43,6 +56,8 @@ interface KiteState {
     // different: `isAuthenticated` reacts to any fetch failure, whereas
     // `reconnect` is driven by the BE's explicit status payload.
     reconnect: ReconnectInfo;
+    // ak-2k93: Today's trades slice. LAZY — not fetched on provider mount.
+    trades: TradesInfo;
 }
 
 // Kite Actions
@@ -55,6 +70,11 @@ type KiteAction =
     | {type: 'SET_LAST_SYNC_TIME'; payload: string}
     | {type: 'SET_RECONNECT'; payload: ReconnectInfo}
     | {type: 'CLEAR_RECONNECT'}  // called after a successful reconnect handshake
+    // ak-2k93: Today's trades actions
+    | {type: 'SET_TRADES_LOADING'; payload: boolean}
+    | {type: 'SET_TRADES'; payload: KiteTrade[]}
+    | {type: 'SET_TRADES_FAILED'}  // transport error — mark checked without data
+    | {type: 'CLEAR_TRADES'}
     | {type: 'RESET_STATE'};
 
 // Initial state
@@ -64,6 +84,13 @@ const initialReconnect: ReconnectInfo = {
     reason: null,
     expiresAt: null,
     loginUrl: null,
+};
+
+// ak-2k93: initial Today's trades state — not yet checked.
+const initialTrades: TradesInfo = {
+    data: null,
+    loading: false,
+    checked: false,
 };
 
 const initialState: KiteState = {
@@ -82,6 +109,7 @@ const initialState: KiteState = {
     lastSyncTime: null,
     error: null,
     reconnect: initialReconnect,
+    trades: initialTrades,
 };
 
 // Reducer
@@ -140,6 +168,29 @@ const kiteReducer = (state: KiteState, action: KiteAction): KiteState => {
                 },
                 isAuthenticated: true,
             };
+        // ak-2k93: Today's trades reducer handlers
+        case 'SET_TRADES_LOADING':
+            return {
+                ...state,
+                trades: {...state.trades, loading: action.payload},
+            };
+        case 'SET_TRADES':
+            return {
+                ...state,
+                trades: {data: action.payload, loading: false, checked: true},
+            };
+        case 'SET_TRADES_FAILED':
+            // Transport error — mark checked so the consumer can render a
+            // fallback ("Trades unavailable") rather than an endless spinner.
+            return {
+                ...state,
+                trades: {data: null, loading: false, checked: true},
+            };
+        case 'CLEAR_TRADES':
+            return {
+                ...state,
+                trades: initialTrades,
+            };
         case 'RESET_STATE':
             return initialState;
         default:
@@ -157,6 +208,8 @@ interface KiteContextType {
     // ak-u60 additions
     refreshStatus: () => Promise<void>;
     beginReconnect: () => Promise<void>;
+    // ak-2k93: refresh Today's trades (lazy — called on section expand).
+    refreshTrades: (clearCache?: boolean) => Promise<void>;
     getTotalPortfolioValue: () => number;
     getTotalPnL: () => number;
     getDayPnL: () => number;
@@ -270,6 +323,40 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
     useEffect(() => {
         void refreshStatus();
     }, [refreshStatus]);
+
+    // ak-2k93: fetch Today's trades. LAZY by design — the consumer
+    // (Investments page "Today's trades" section) calls this on section
+    // expand, not on provider mount, because the section is default-
+    // collapsed. Idempotent on `checked` — callers can safely re-trigger
+    // from the expand handler; it's cheap but no need to hammer Kite.
+    // Transport errors are SILENT (no toast) and dispatch SET_TRADES_FAILED
+    // so the consumer renders a terminal fallback rather than a spinner.
+    const refreshTrades = useCallback(async (clearCache = false) => {
+        try {
+            dispatch({type: 'SET_TRADES_LOADING', payload: true});
+            const res = await fetchKiteTrades(clearCache);
+            const trades = Array.isArray(res?.trades) ? res.trades : [];
+            dispatch({type: 'SET_TRADES', payload: trades});
+        } catch {
+            // Silent — mirrors the margins / status transport-error pattern.
+            // Consumer still gets a terminal state via `checked:true`.
+            dispatch({type: 'SET_TRADES_FAILED'});
+        }
+    }, []);
+
+    // ak-2k93: clear trades on disconnect so a stale list doesn't persist
+    // across session changes (reconnect could be a different Kite account).
+    // Uses an edge-detected ref so we only clear on true→false transitions,
+    // not on every render where isAuthenticated stays false.
+    const prevAuthForTradesRef = useRef<boolean>(false);
+    useEffect(() => {
+        const was = prevAuthForTradesRef.current;
+        const is = state.isAuthenticated;
+        prevAuthForTradesRef.current = is;
+        if (was && !is) {
+            dispatch({type: 'CLEAR_TRADES'});
+        }
+    }, [state.isAuthenticated]);
 
     // Fetch holdings
     const fetchHoldings = async (clearCache = false) => {
@@ -428,6 +515,7 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
         syncHoldings,
         refreshStatus,
         beginReconnect,
+        refreshTrades,
         getTotalPortfolioValue,
         getTotalPnL,
         getDayPnL,

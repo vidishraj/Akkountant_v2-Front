@@ -695,6 +695,32 @@ export interface KiteStatusResponse {
     login_url: string | null;    // ready-to-redirect OAuth URL when reconnect_required
 }
 
+// ak-2k93 / ak-zai2 Bundle 2 (2026-11-12): BE pass-through of Kite SDK's
+// `k.trades()`. BE wraps as `{trades: [...]}`. Every field is
+// defensive-optional because BE forwards Kite's own shape with light
+// wrapping only; Kite drift reaches FE uncoerced. Readers must null-check.
+export interface KiteTrade {
+    trade_id?: string;
+    order_id?: string;
+    exchange_order_id?: string;
+    tradingsymbol?: string;
+    exchange?: string;
+    transaction_type?: string;        // "BUY" | "SELL" — treat as raw string for drift safety
+    product?: string;                 // "CNC" | "MIS" | "NRML" | ...
+    order_type?: string;
+    instrument_token?: number;
+    quantity?: number;
+    price?: number;                   // avg fill price per Kite
+    average_price?: number;           // alias in some Kite SDK versions
+    fill_timestamp?: string;          // ISO-like datetime string
+    exchange_timestamp?: string;
+    order_timestamp?: string;
+}
+
+export interface KiteTradesResponse {
+    trades: KiteTrade[];
+}
+
 // F&O Interfaces
 export interface FOContract {
     symbol: string;

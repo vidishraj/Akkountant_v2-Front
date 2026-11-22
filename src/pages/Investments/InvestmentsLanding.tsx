@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import {useKite} from "../../contexts/KiteContext.tsx";
@@ -6,7 +6,7 @@ import {fetchPortfolioTrend, PortfolioTrendPoint} from "../../services/wealthDig
 import {getKiteLoginUrl} from "../../services/investmentService.ts";
 import {getRowDayChangeAmount} from "../../utils/holdings.ts";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
-import type {MSNListResponse} from "../../utils/interfaces.ts";
+import type {KiteTrade, MSNListResponse} from "../../utils/interfaces.ts";
 import style from "./InvestmentsLanding.module.scss";
 
 /**
@@ -260,14 +260,64 @@ function buildTrendPaths(points: PortfolioTrendPoint[], width = 600, height = 15
     return {line, area, gaps, startLabel, endLabel};
 }
 
+/**
+ * ak-2k93: Format a Kite trade timestamp into an IST HH:MM label.
+ * Kite SDK returns a mix of ISO strings / "YYYY-MM-DD HH:MM:SS" strings
+ * on the trade rows; `Date()` parses both. Invalid / missing timestamps
+ * fall back to '—' so the column never shows "Invalid Date".
+ */
+function formatTradeTime(ts: string | undefined): string {
+    if (!ts) return "—";
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    }).format(d);
+}
+
+/**
+ * ak-2k93: Compute a trade's value defensively from BE fields. Quantity
+ * can be missing (unusual but possible per interface drift); price uses
+ * `price` with `average_price` as a Kite-SDK-alias fallback. Returns
+ * `{qty, px, value}` with every field coerced to a finite number or 0.
+ */
+function readTradeNums(t: KiteTrade): {qty: number; px: number; value: number} {
+    const qty = typeof t.quantity === "number" && Number.isFinite(t.quantity) ? t.quantity : 0;
+    const rawPx = typeof t.price === "number" && Number.isFinite(t.price)
+        ? t.price
+        : (typeof t.average_price === "number" && Number.isFinite(t.average_price) ? t.average_price : 0);
+    return {qty, px: rawPx, value: qty * rawPx};
+}
+
 const InvestmentsLanding = () => {
     const navigate = useNavigate();
     const {state, dispatch, globalInvestmentRefresh} = useMSNContext();
-    const {state: kiteState} = useKite();
+    const {state: kiteState, refreshTrades} = useKite();
 
     useEffect(() => {
         dispatch({type: "ResetCardSelector"});
     }, [dispatch]);
+
+    // ak-2k93: Today's trades section — default collapsed; fetch is LAZY
+    // (fires inside the expand handler, not on mount). Hidden entirely
+    // when Kite isn't connected per bead spec ("If !kite.connected → hide
+    // the section entirely (not a placeholder; nothing to show)").
+    const [tradesExpanded, setTradesExpanded] = useState<boolean>(false);
+    const handleToggleTrades = useCallback(() => {
+        setTradesExpanded((prev) => {
+            const next = !prev;
+            // Fire the fetch on the OPEN edge only, and only once per
+            // session (checked flag). Caller can explicitly refresh via a
+            // dedicated button later; for now opening is the trigger.
+            if (next && !kiteState.trades.checked && !kiteState.trades.loading) {
+                void refreshTrades(false);
+            }
+            return next;
+        });
+    }, [kiteState.trades.checked, kiteState.trades.loading, refreshTrades]);
 
     const [rangeDays, setRangeDays] = useState<number>(90);
     const [trend, setTrend] = useState<PortfolioTrendPoint[] | null>(null);
@@ -670,6 +720,112 @@ const InvestmentsLanding = () => {
                     </div>
                 </div>
             </section>
+
+            {/* ── Today's Kite trades (ak-2k93) ──
+                Hidden entirely when Kite isn't connected — not a placeholder,
+                nothing to show. When connected: default-collapsed; expanding
+                lazily fires /kite/trades (fetch only on OPEN edge; checked
+                flag prevents re-fetch while section is already loaded).
+                Table matches MSNList row pattern (compact, Nocturne tokens).
+                BUY/SELL chip tinted with the shared oklch green/red triple. */}
+            {kiteState.isAuthenticated && (() => {
+                const tradesState = kiteState.trades;
+                const trades = tradesState.data ?? [];
+                const countLabel = tradesState.checked ? String(trades.length) : "—";
+                return (
+                    <section className={style.tradesSection}>
+                        <button
+                            type="button"
+                            onClick={handleToggleTrades}
+                            aria-expanded={tradesExpanded}
+                            className={style.tradesHeader}
+                        >
+                            <h4 className={style.sectionTitle}>Today's trades</h4>
+                            <span className={style.tradesCount}>{countLabel}</span>
+                            <span className={style.spacer}/>
+                            <i
+                                className={`ph ${tradesExpanded ? "ph-caret-up" : "ph-caret-down"}`}
+                                style={{fontSize: 16, color: "var(--color-neutral-400)"}}
+                            />
+                        </button>
+                        {tradesExpanded && (
+                            <div className={style.tradesBody}>
+                                {tradesState.loading ? (
+                                    <div className={style.tradesEmpty}>Loading trades…</div>
+                                ) : !tradesState.checked ? (
+                                    // Pre-fetch state (shouldn't normally hit because
+                                    // the toggle fires the fetch, but defensive).
+                                    <div className={style.tradesEmpty}>—</div>
+                                ) : trades.length === 0 ? (
+                                    <div className={style.tradesEmpty}>No trades today.</div>
+                                ) : (
+                                    <div className={style.tradesTableWrap}>
+                                        <table className={style.tradesTable}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Time</th>
+                                                    <th>Symbol</th>
+                                                    <th>Side</th>
+                                                    <th className={style.tradesTh_num}>Qty</th>
+                                                    <th className={style.tradesTh_num}>Price</th>
+                                                    <th className={style.tradesTh_num}>Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {trades.map((t, i) => {
+                                                    const {qty, px, value} = readTradeNums(t);
+                                                    const side = (t.transaction_type || "").toUpperCase();
+                                                    const isBuy = side === "BUY";
+                                                    const isSell = side === "SELL";
+                                                    const sideColor = isBuy ? CLR_GAIN : isSell ? CLR_LOSS : "var(--color-neutral-400)";
+                                                    const ts = t.fill_timestamp
+                                                        || t.exchange_timestamp
+                                                        || t.order_timestamp
+                                                        || "";
+                                                    const rowKey = t.trade_id ?? `trade-${i}`;
+                                                    return (
+                                                        <tr key={rowKey}>
+                                                            <td>{formatTradeTime(ts)}</td>
+                                                            <td>
+                                                                <span className={style.tradesSymbol}>
+                                                                    {t.tradingsymbol ?? "—"}
+                                                                </span>
+                                                                {t.exchange && (
+                                                                    <span className={style.tradesExch}>
+                                                                        {" · "}{t.exchange}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    className={style.sideChip}
+                                                                    style={{
+                                                                        color: sideColor,
+                                                                        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${sideColor} 35%, transparent)`,
+                                                                    }}
+                                                                >
+                                                                    {side || "—"}
+                                                                </span>
+                                                            </td>
+                                                            <td className={style.tradesTd_num}>{qty}</td>
+                                                            <td className={style.tradesTd_num}>
+                                                                ₹{formatCurrency(px)}
+                                                            </td>
+                                                            <td className={style.tradesTd_num}>
+                                                                ₹{formatCompact(value)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </section>
+                );
+            })()}
 
             {/* ── Market-linked (Stocks / MF / NPS) ── */}
             <section className={style.cardsSection}>

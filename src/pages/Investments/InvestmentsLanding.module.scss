@@ -356,6 +356,124 @@
     border: 1px dashed var(--color-neutral-600);
 }
 
+/* ── Today's Kite trades (ak-2k93) ─────────────────────────────────────── */
+
+/* Collapsible section slotted between the status strip and the asset
+ * cards. Section only renders when Kite is connected; header is a
+ * button toggling the body. Body hosts either a loading line, an empty
+ * "no trades today" line, or a compact table with time/symbol/side
+ * chip/qty/price/value columns. */
+
+.tradesSection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tradesHeader {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 4px 2px;
+    border-radius: var(--radius-md);
+
+    &:hover .tradesCount,
+    &:focus-visible .tradesCount {
+        color: var(--color-neutral-300);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 4px;
+    }
+}
+
+.tradesCount {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--color-surface);
+}
+
+.tradesBody {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tradesEmpty {
+    font-size: 13px;
+    color: var(--color-neutral-500);
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+}
+
+.tradesTableWrap {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+}
+
+.tradesTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+
+    th,
+    td {
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--color-divider);
+    }
+
+    thead th {
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-neutral-500);
+        font-weight: 500;
+    }
+
+    tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    tbody tr:hover {
+        background: color-mix(in srgb, var(--color-neutral-700) 40%, transparent);
+    }
+}
+
+.tradesTh_num,
+.tradesTd_num {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.tradesSymbol {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.tradesExch {
+    color: var(--color-neutral-500);
+    font-size: 11.5px;
+}
+
+.sideChip {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+    background: transparent;
+}
+
 /* ── asset card sections ──────────────────────────────────────────────── */
 
 .cardsSection {

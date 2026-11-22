@@ -17,6 +17,7 @@ import {
     KiteHoldingsResponse,
     KitePositionsResponse,
     KiteSyncResponse,
+    KiteTradesResponse,
     RealizedPnLResponse,
     FOSummaryResponse,
     FOTrade,
@@ -391,6 +392,25 @@ export async function fetchKitePositions(
     );
 
     const response = await queueRequest(() => axios.get('/kite/positions', options));
+    return response.data;
+}
+
+/**
+ * ak-2k93 / ak-zai2 Bundle 2 (2026-11-12): fetch today's executed Kite
+ * trades. BE pass-through of Kite SDK's `k.trades()` wrapped as
+ * `{trades: [...]}`. Read-only, idempotent. FE consumer: Investments
+ * page "Today's trades" collapsible section — fetch is LAZY (fires on
+ * section expand, not on provider mount) per bead design.
+ */
+export async function fetchKiteTrades(
+    clearCache = false
+): Promise<KiteTradesResponse> {
+    const options = withRequestId(
+        'kite/trades',
+        clearCache ? withCacheCleared() : {}
+    );
+
+    const response = await queueRequest(() => axios.get('/kite/trades', options));
     return response.data;
 }
 
