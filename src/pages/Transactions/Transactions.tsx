@@ -41,6 +41,14 @@ import React, {useRef} from "react";
  * dispatch through the AgentChatBridge with pre-filled payloads — the
  * agent handles the actual linking/search behavior, so this is a UI-
  * surface wire with no new BE contract.
+ * FE-15 (ak-v1f5) prompt strip + '+ Add' consolidation: on-page agent-
+ * prompt strip ("Ask the Transactions assistant") sits at the top of
+ * the main content with 3 sample prompt pills; '+ Add' menu in the
+ * filter bar consolidates Scan / Import / Sync Email ingestion
+ * triggers. All pills + menu options dispatch via AgentChatBridge
+ * (same pattern as the ak-inli drawer Links — single bridge contract
+ * handles discovery/attach/trigger intents). ModeSelectorComponent's
+ * FieldSelector.tsx deleted (orphan after ak-4qgd's ModeToggle).
  *
  * Replaces the pre-FE-8 composition (MUI Drawer + TablePagination + MUI
  * TransactionCard). The row rendering is inlined so FE-8 can hit its
@@ -369,6 +377,145 @@ const BankChip: React.FC<BankChipProps> = ({bank}) => {
     );
 };
 
+/**
+ * ak-v1f5: on-page agent-prompt strip.
+ *
+ * Sits at the top of the main content, below the global Header. Three
+ * curated sample pills give the overseer a fast path into common
+ * Transactions-agent queries. Click = dispatch a send_message command
+ * through the shared AgentChatBridge (same imperative-bridge pattern
+ * ak-inli's drawer Links use) — opens the AgentChat drawer with the
+ * payload pre-filled. Zero new BE contract.
+ *
+ * The pill strings are intentionally conversational (natural phrasing,
+ * ends with punctuation) so the BE prompt catches them as if typed.
+ */
+const SAMPLE_PROMPTS: string[] = [
+    "What did I spend on groceries last month?",
+    "Show my unreconciled transactions.",
+    "Flag likely recurring charges from the last 90 days.",
+];
+
+const AgentPromptStrip: React.FC<{onPill: (payload: string) => void}> = ({onPill}) => (
+    <section className={style.promptStrip}>
+        <div className={style.promptStripHeader}>
+            <i className="ph ph-sparkle" aria-hidden="true"/>
+            <span>Ask the Transactions assistant</span>
+        </div>
+        <div className={style.promptStripPills} role="group" aria-label="Sample prompts">
+            {SAMPLE_PROMPTS.map((p) => (
+                <button
+                    key={p}
+                    type="button"
+                    onClick={() => onPill(p)}
+                    className={style.promptPill}
+                >
+                    {p}
+                </button>
+            ))}
+        </div>
+    </section>
+);
+
+/**
+ * ak-v1f5: '+ Add' consolidation menu.
+ *
+ * Replaces the FieldSelector + scattered scan/statement/email-sync
+ * entrypoints with a single filter-bar button that opens a 3-option
+ * menu. Each option dispatches via AgentChatBridge with a
+ * pre-filled intent — the agent's tool-use layer handles the actual
+ * scanner / upload / email-sync, so no new BE contract.
+ *
+ * Accessibility:
+ * - `aria-haspopup="menu"` + `aria-expanded` on the trigger
+ * - `role="menu"` on the panel, `role="menuitem"` on each option
+ * - Click-outside close via document-level pointerdown listener while
+ *   open, scoped by a ref so the trigger click isn't double-handled
+ * - Esc-to-close inline
+ */
+interface AddMenuOption {
+    label: string;
+    icon: string;
+    payload: string;
+}
+const ADD_MENU_OPTIONS: AddMenuOption[] = [
+    {
+        label: "Scan receipt",
+        icon: "ph-camera",
+        payload: "I'd like to scan a new receipt. Open the receipt scanner for me.",
+    },
+    {
+        label: "Import statement",
+        icon: "ph-file-arrow-up",
+        payload: "I'd like to import a bank statement file. Trigger the statement importer.",
+    },
+    {
+        label: "Sync email",
+        icon: "ph-envelope-simple",
+        payload: "Sync my Gmail inbox for new transactions from the last 30 days.",
+    },
+];
+
+const AddMenu: React.FC<{onPick: (payload: string) => void}> = ({onPick}) => {
+    const [open, setOpen] = useState<boolean>(false);
+    const wrapRef = useRef<HTMLDivElement | null>(null);
+
+    // Click-outside + Esc close. Only wired while open to keep idle
+    // document listeners at zero — matches the detail-drawer pattern.
+    useEffect(() => {
+        if (!open) return;
+        const onDoc = (e: Event) => {
+            const target = e.target as Node | null;
+            if (wrapRef.current && target && !wrapRef.current.contains(target)) {
+                setOpen(false);
+            }
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setOpen(false);
+        };
+        document.addEventListener("pointerdown", onDoc);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("pointerdown", onDoc);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [open]);
+
+    return (
+        <div className={style.addMenuWrap} ref={wrapRef}>
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className={`btn btn-primary ${style.addMenuBtn}`}
+                aria-haspopup="menu"
+                aria-expanded={open}
+            >
+                <i className="ph ph-plus" aria-hidden="true"/>
+                <span>Add</span>
+            </button>
+            {open && (
+                <div className={style.addMenuPanel} role="menu">
+                    {ADD_MENU_OPTIONS.map((opt) => (
+                        <button
+                            key={opt.label}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                                setOpen(false);
+                                onPick(opt.payload);
+                            }}
+                            className={style.addMenuItem}
+                        >
+                            <i className={`ph ${opt.icon}`} aria-hidden="true"/>
+                            <span>{opt.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 interface ModeToggleProps {
     transactionMode: boolean;
     onSet: (next: boolean) => void;
@@ -579,8 +726,20 @@ const Transactions = () => {
         return () => document.removeEventListener("keydown", onKey);
     }, [sidebarOpen]);
 
+    // ak-v1f5: dispatch an agent prompt / menu option through the shared
+    // AgentChatBridge. Mirrors the ak-inli drawer-Links dispatch shape.
+    const dispatchAgent = useCallback((payload: string) => {
+        setAgentCommand({
+            type: "send_message",
+            payload,
+            timestamp: Date.now(),
+        });
+    }, [setAgentCommand]);
+
     const renderTransactionMode = () => (
         <>
+            <AgentPromptStrip onPill={dispatchAgent}/>
+
             <section className={style.hero}>
                 <div className={style.heroTile}>
                     <span className={style.heroLabel}>Credit · in</span>
@@ -620,6 +779,7 @@ const Transactions = () => {
                     setDrawerState={() => setSidebarOpen(true)}
                     apply={refreshTransactions}
                 />
+                <AddMenu onPick={dispatchAgent}/>
             </div>
 
             {state.transactions.transaction.length === 0 ? (
