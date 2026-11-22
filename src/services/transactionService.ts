@@ -1,4 +1,4 @@
-import axios, {API_BASE_URL} from './AxiosConfig.tsx';
+import axios, {API_BASE_URL, getFirebaseAuthHeader} from './AxiosConfig.tsx';
 import Axios from 'axios';
 import {queueRequest} from './AxiosQueueManager.tsx';
 import {
@@ -9,7 +9,6 @@ import {
     GoogleStatusResponse,
     OptedBankPasswordsRequestBody,
 } from '../utils/interfaces.ts';
-import {auth} from '../components/FirebaseConfig';
 
 /**
  * Helper to clear cache by adding the `cache-control: no-cache` header.
@@ -162,11 +161,17 @@ export async function fetchStatementPeriods(bank?: string): Promise<any> {
  * Trigger statement check for a date from and date to
  */
 export async function downloadFile(fileId: string): Promise<any> {
-    const uid = auth.currentUser?.uid;
+    // ak-t7ax: ship the Firebase ID-token JWT (raw-uid fallback on SDK
+    // error) through the shared helper. This endpoint bypasses the
+    // axios-instance interceptor (uses the raw Axios constructor for
+    // blob responseType), so the header has to be set inline — using
+    // the same helper the interceptor does keeps the dual-mode BE
+    // rollout contract consistent across all request paths.
+    const authHeader = await getFirebaseAuthHeader();
     return Axios.get(`${API_BASE_URL}downloadFile`, {
         params: {fileId},
         responseType: 'blob',
-        headers: uid ? {'X-Firebase-ID': uid} : {},
+        headers: authHeader ? {'X-Firebase-ID': authHeader} : {},
     });
 }
 

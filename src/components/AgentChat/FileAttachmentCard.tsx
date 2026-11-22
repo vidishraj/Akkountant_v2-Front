@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { auth } from "../FirebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
-import { API_BASE_URL } from "../../services/AxiosConfig.tsx";
+import { API_BASE_URL, getFirebaseAuthHeader } from "../../services/AxiosConfig.tsx";
 import styles from "./AgentChat.module.scss";
 
 /**
@@ -82,16 +80,14 @@ function resolveUrl(url: string): string {
   return `${API_BASE_URL}${path}`;
 }
 
-async function getFirebaseUID(): Promise<string> {
-  const user = auth.currentUser;
-  if (user) return user.uid;
-  return new Promise((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(auth, (loggedInUser) => {
-      unsubscribe();
-      if (loggedInUser) resolve(loggedInUser.uid);
-      else reject(new Error("User not authenticated"));
-    });
-  });
+// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken,
+// raw-uid fallback on SDK error) via the shared AxiosConfig helper.
+// Rejects if no user is authenticated — matches the pre-ak-t7ax contract
+// so the caller's error-path (card flips to "not available") still fires.
+async function getFirebaseAuth(): Promise<string> {
+  const header = await getFirebaseAuthHeader();
+  if (!header) throw new Error("User not authenticated");
+  return header;
 }
 
 /**
@@ -102,9 +98,9 @@ async function getFirebaseUID(): Promise<string> {
  * browser honours it. Object URL is revoked after the click fires.
  */
 async function downloadWithAuth(url: string, filename: string): Promise<void> {
-  const uid = await getFirebaseUID();
+  const authHeader = await getFirebaseAuth();
   const res = await fetch(resolveUrl(url), {
-    headers: { "X-Firebase-ID": uid },
+    headers: { "X-Firebase-ID": authHeader },
   });
   if (!res.ok) {
     // Bubble up so the caller can flip the card to the not-available state.
@@ -129,9 +125,9 @@ async function downloadWithAuth(url: string, filename: string): Promise<void> {
  * owns the reference; browser cleans up on tab close.
  */
 async function previewWithAuth(url: string): Promise<void> {
-  const uid = await getFirebaseUID();
+  const authHeader = await getFirebaseAuth();
   const res = await fetch(resolveUrl(url), {
-    headers: { "X-Firebase-ID": uid },
+    headers: { "X-Firebase-ID": authHeader },
   });
   if (!res.ok) throw new Error(`preview failed: ${res.status}`);
   const blob = await res.blob();
