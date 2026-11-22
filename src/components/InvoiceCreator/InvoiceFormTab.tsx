@@ -1,5 +1,6 @@
-import {useState, useEffect, useCallback} from 'react';
+import React, {useEffect, useRef, useState, useCallback} from 'react';
 import {InvoiceData, InvoiceTemplate, CustomField, InvoiceItem, Customer} from '../../utils/interfaces';
+import useModalA11y from '../../hooks/useModalA11y';
 import {
     createInvoice,
     updateInvoice,
@@ -78,6 +79,22 @@ const InvoiceFormTab = ({
     const [editTemplateName, setEditTemplateName] = useState('');
     const [saveAsDefault, setSaveAsDefault] = useState(false);
     const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+    // ak-73nc: destructive-gate state for template delete.
+    const [deleteTemplateConfirm, setDeleteTemplateConfirm] = useState<InvoiceTemplate | null>(null);
+    const deleteTemplateDialogRef = useRef<HTMLDivElement>(null);
+    useModalA11y({
+        open: deleteTemplateConfirm !== null,
+        panelRef: deleteTemplateDialogRef as React.RefObject<HTMLElement>,
+    });
+    // Inline Esc per useModalA11y's caller-defined-policy.
+    useEffect(() => {
+        if (!deleteTemplateConfirm) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setDeleteTemplateConfirm(null);
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [deleteTemplateConfirm]);
     const {setPayload} = useMessage();
     const {setInvoiceJsonDraft} = useUser();
 
@@ -427,13 +444,26 @@ const InvoiceFormTab = ({
         }
     };
 
-    const handleDeleteTemplate = async (templateId: string) => {
+    // ak-73nc: template-delete runs through the Nocturne destructive-
+    // variant gate instead of native window.confirm. Two-phase:
+    //   1. handleDeleteTemplate(id) → opens the gate (stores template
+    //      in `deleteTemplateConfirm`).
+    //   2. confirmDeleteTemplate() → calls deleteInvoiceTemplate(id).
+    // Shape matches ak-9aqn / ak-c453 / FE-10 destructive gates:
+    // role="alertdialog" + ph-warning + useModalA11y focus-trap.
+    const handleDeleteTemplate = (templateId: string) => {
         const template = templates.find(t => t.id === templateId);
         if (!template) return;
-        if (!window.confirm(`Delete template "${template.name}"? This cannot be undone.`)) return;
+        setDeleteTemplateConfirm(template);
+    };
+
+    const confirmDeleteTemplate = async () => {
+        const template = deleteTemplateConfirm;
+        setDeleteTemplateConfirm(null);
+        if (!template) return;
         try {
             setLoading(true);
-            const result = await deleteInvoiceTemplate(templateId);
+            const result = await deleteInvoiceTemplate(template.id);
             setPayload({type: 'success', message: result.message});
             setSelectedTemplate('');
             setShowTemplateActions(false);
@@ -552,7 +582,7 @@ const InvoiceFormTab = ({
             {/* Quick Start & Actions */}
             <div className={styles.invoiceForm} style={{marginBottom: '15px'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', flexWrap: 'wrap', gap: '10px'}}>
-                    <h3 style={{color: '#FAFAFA', margin: 0}}>
+                    <h3 style={{color: 'var(--color-text)', margin: 0}}>
                         {isEditMode ? 'Edit Invoice' : duplicatingInvoiceData ? 'Duplicate Invoice' : 'Create Invoice'}
                     </h3>
                     <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
@@ -607,8 +637,8 @@ const InvoiceFormTab = ({
 
                 {/* Edit Template Modal */}
                 {editingTemplate && (
-                    <div style={{marginTop: '10px', padding: '12px', backgroundColor: '#29384D', borderRadius: '6px', border: '1px solid #5B5B7B'}}>
-                        <h4 style={{color: '#FAFAFA', marginBottom: '10px', fontSize: '1rem'}}>Edit Template: {editingTemplate.name}</h4>
+                    <div style={{marginTop: '10px', padding: '12px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-neutral-700)'}}>
+                        <h4 style={{color: 'var(--color-text)', marginBottom: '10px', fontSize: '1rem'}}>Edit Template: {editingTemplate.name}</h4>
                         <div className={styles.formRow}>
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Template Name *</label>
@@ -624,8 +654,8 @@ const InvoiceFormTab = ({
 
                 {/* Save Template Panel */}
                 {showSaveTemplate && (
-                    <div style={{marginTop: '10px', padding: '12px', backgroundColor: '#29384D', borderRadius: '6px', border: '1px solid #5B5B7B'}}>
-                        <h4 style={{color: '#FAFAFA', marginBottom: '10px', fontSize: '1rem'}}>Save as Template</h4>
+                    <div style={{marginTop: '10px', padding: '12px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-neutral-700)'}}>
+                        <h4 style={{color: 'var(--color-text)', marginBottom: '10px', fontSize: '1rem'}}>Save as Template</h4>
                         <div className={styles.formRow}>
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Template Name *</label>
@@ -633,13 +663,13 @@ const InvoiceFormTab = ({
                             </div>
                         </div>
                         <div style={{marginBottom: '15px'}}>
-                            <label style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#FAFAFA', cursor: 'pointer'}}>
-                                <input type="checkbox" checked={isCustomerTemplate} onChange={e => {setIsCustomerTemplate(e.target.checked); if (!e.target.checked) {setSelectedCustomerForTemplate(''); setSaveAsDefault(false);}}} style={{accentColor: '#7B68EE'}} />
+                            <label style={{display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text)', cursor: 'pointer'}}>
+                                <input type="checkbox" checked={isCustomerTemplate} onChange={e => {setIsCustomerTemplate(e.target.checked); if (!e.target.checked) {setSelectedCustomerForTemplate(''); setSaveAsDefault(false);}}} style={{accentColor: 'var(--color-accent)'}} />
                                 Link to specific customer
                             </label>
                             {isCustomerTemplate && (
-                                <label style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#FAFAFA', cursor: 'pointer', marginLeft: '26px', marginTop: '8px'}}>
-                                    <input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} style={{accentColor: '#7B68EE'}} />
+                                <label style={{display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text)', cursor: 'pointer', marginLeft: '26px', marginTop: '8px'}}>
+                                    <input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} style={{accentColor: 'var(--color-accent)'}} />
                                     Set as customer default template
                                 </label>
                             )}
@@ -1006,6 +1036,58 @@ const InvoiceFormTab = ({
                     </button>
                 )}
             </div>
+
+            {/* ak-73nc: Nocturne destructive gate for template delete.
+                Replaces pre-ak-73nc window.confirm. Shape matches
+                ak-9aqn InvoiceManager + ak-c453 CustomerManager + FE-10
+                files vault (role=alertdialog + ph-warning kicker +
+                useModalA11y focus-trap + .confirmYesDestructive). */}
+            {deleteTemplateConfirm && (
+                <>
+                    <div
+                        className={formStyles.dialogBackdrop}
+                        onMouseDown={() => setDeleteTemplateConfirm(null)}
+                        role="presentation"
+                    />
+                    <div
+                        ref={deleteTemplateDialogRef}
+                        className={formStyles.confirmDialog}
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-label="Confirm delete template"
+                        tabIndex={-1}
+                    >
+                        <div className={formStyles.confirmKicker}>
+                            <i className="ph ph-warning" aria-hidden/>
+                            <span>Destructive action</span>
+                        </div>
+                        <div className={formStyles.confirmTitle}>
+                            Delete template "{deleteTemplateConfirm.name}"?
+                        </div>
+                        <div className={formStyles.confirmBody}>
+                            This permanently removes the invoice template. Invoices
+                            that were created from it stay intact — only the
+                            template is deleted. This cannot be undone.
+                        </div>
+                        <div className={formStyles.confirmActions}>
+                            <button
+                                type="button"
+                                className={styles.secondaryBtn}
+                                onClick={() => setDeleteTemplateConfirm(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={formStyles.confirmYesDestructive}
+                                onClick={() => void confirmDeleteTemplate()}
+                            >
+                                Confirm delete
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

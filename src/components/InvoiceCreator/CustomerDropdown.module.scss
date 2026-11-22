@@ -8,8 +8,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px;
-  background-color: #121c24;
-  border: 1px solid #fafafa;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-text);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
@@ -19,18 +19,18 @@
   /* Match formInput focus styles exactly */
   &:focus-within {
     outline: none;
-    border-color: #7b68ee;
-    box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
   }
 
   /* Subtle hover effect that doesn't change the core appearance */
   &:hover:not(.disabled):not(:focus-within) {
-    border-color: rgba(123, 104, 238, 0.5);
+    border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
   }
 
   &.open {
-    border-color: #7b68ee;
-    box-shadow: 0 0 0 2px rgba(123, 104, 238, 0.2);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -38,7 +38,7 @@
   &.disabled {
     cursor: not-allowed;
     opacity: 0.6;
-    background-color: #121c24;
+    background-color: var(--color-bg);
   }
 }
 
@@ -58,7 +58,7 @@
 }
 
 .customerName {
-  color: #FAFAFA;
+  color: var(--color-text);
   font-weight: 500;
   font-size: 0.9rem; /* Match formInput font-size exactly */
   white-space: nowrap;
@@ -68,7 +68,7 @@
 }
 
 .customerCompany {
-  color: #B0B0B0;
+  color: var(--color-neutral-400);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -76,7 +76,7 @@
 }
 
 .placeholder {
-  color: #B0B0B0;
+  color: var(--color-neutral-400);
   font-style: italic;
   font-size: 0.9rem; /* Match formInput font-size exactly */
   line-height: 1.2;
@@ -92,7 +92,7 @@
 .clearButton {
   background: none;
   border: none;
-  color: #B0B0B0;
+  color: var(--color-neutral-400);
   font-size: 16px;
   cursor: pointer;
   padding: 0;
@@ -106,7 +106,7 @@
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
-    color: #FAFAFA;
+    color: var(--color-text);
   }
 
   &:disabled {
@@ -116,7 +116,7 @@
 }
 
 .dropdownArrow {
-  color: #B0B0B0;
+  color: var(--color-neutral-400);
   font-size: 12px;
   transition: transform 0.2s ease;
 
@@ -130,8 +130,8 @@
   top: 100%;
   left: 0;
   right: 0;
-  background-color: #121c24;
-  border: 1px solid #fafafa;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-text);
   border-top: none;
   border-radius: 0 0 4px 4px;
   max-height: 250px;
@@ -143,26 +143,26 @@
 .searchContainer {
   padding: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: #121c24;
+  background-color: var(--color-bg);
 }
 
 .searchInput {
   width: 100%;
   padding: 6px 10px;
-  background-color: #121c24;
-  border: 1px solid #fafafa;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-text);
   border-radius: 4px;
-  color: #FAFAFA;
+  color: var(--color-text);
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s ease;
 
   &:focus {
-    border-color: #7B68EE;
+    border-color: var(--color-accent);
   }
 
   &::placeholder {
-    color: #B0B0B0;
+    color: var(--color-neutral-400);
   }
 }
 
@@ -176,7 +176,7 @@
   }
 
   &::-webkit-scrollbar-track {
-    background: #121c24;
+    background: var(--color-bg);
   }
 
   &::-webkit-scrollbar-thumb {
@@ -184,7 +184,7 @@
     border-radius: 3px;
 
     &:hover {
-      background: #7B68EE;
+      background: var(--color-accent);
     }
   }
 }
@@ -199,12 +199,12 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
   &:hover {
-    background-color: rgba(41, 56, 77, 0.3);
+    background-color: color-mix(in srgb, var(--color-neutral-900) 60%, transparent);
   }
 
   &.selected {
-    background-color: rgba(123, 104, 238, 0.2);
-    border-left: 3px solid #7B68EE;
+    background-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    border-left: 3px solid var(--color-accent);
   }
 
   &:last-child {
@@ -225,13 +225,13 @@
   }
 
   .customerCompany {
-    color: #9CA3AF;
+    color: var(--color-neutral-400);
     font-size: 11px;
     font-weight: normal;
   }
 
   .customerEmail {
-    color: #9CA3AF;
+    color: var(--color-neutral-400);
     font-size: 11px;
   }
 }
@@ -245,7 +245,7 @@
 .noResults {
   padding: 12px;
   text-align: center;
-  color: #B0B0B0;
+  color: var(--color-neutral-400);
   font-style: italic;
   font-size: 13px;
 }
@@ -256,15 +256,15 @@
   justify-content: center;
   gap: 6px;
   padding: 12px;
-  color: #B0B0B0;
+  color: var(--color-neutral-400);
   font-size: 13px;
 }
 
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid #5B5B7B;
-  border-top: 2px solid #7B68EE;
+  border: 2px solid var(--color-neutral-700);
+  border-top: 2px solid var(--color-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

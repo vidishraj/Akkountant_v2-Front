@@ -103,8 +103,8 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
         return (
             <div className={styles.invoiceForm} style={{textAlign: 'center', padding: '60px 20px'}}>
                 <div style={{fontSize: '3rem', marginBottom: '16px', opacity: 0.5}}>📄</div>
-                <h3 style={{color: '#fafafa', marginBottom: '8px', fontWeight: 600}}>No Invoice Data</h3>
-                <p style={{color: '#b0b0b0', fontSize: '0.9rem', margin: 0}}>
+                <h3 style={{color: 'var(--color-text)', marginBottom: '8px', fontWeight: 600}}>No Invoice Data</h3>
+                <p style={{color: 'var(--color-neutral-400)', fontSize: '0.9rem', margin: 0}}>
                     Create or edit an invoice in the <strong>Create Invoice</strong> tab first, then come back here to preview.
                 </p>
             </div>
@@ -161,21 +161,21 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                 {/* Compact Invoice Summary */}
                 <div style={{
                     padding: '10px',
-                    backgroundColor: '#29384D',
+                    backgroundColor: 'var(--color-surface)',
                     borderRadius: '4px',
-                    border: '1px solid #5B5B7B'
+                    border: '1px solid var(--color-neutral-700)'
                 }}>
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
                         gap: '8px',
-                        color: '#B0B0B0',
+                        color: 'var(--color-neutral-400)',
                         fontSize: '0.85rem'
                     }}>
-                        <div><strong style={{color: '#7B68EE'}}>Invoice:</strong> {invoiceData.invoiceNumber}</div>
-                        <div><strong style={{color: '#7B68EE'}}>Project:</strong> {invoiceData.projectName}</div>
-                        <div><strong style={{color: '#7B68EE'}}>Client:</strong> {invoiceData.to.name}</div>
-                        <div><strong style={{color: '#7B68EE'}}>Total:</strong> {({USD:'$',INR:'\u20B9',GBP:'\u00A3',EUR:'\u20AC',AUD:'A$'}[invoiceData.currency] || '$')}{invoiceData.total.toFixed(2)}</div>
+                        <div><strong style={{color: 'var(--color-accent)'}}>Invoice:</strong> {invoiceData.invoiceNumber}</div>
+                        <div><strong style={{color: 'var(--color-accent)'}}>Project:</strong> {invoiceData.projectName}</div>
+                        <div><strong style={{color: 'var(--color-accent)'}}>Client:</strong> {invoiceData.to.name}</div>
+                        <div><strong style={{color: 'var(--color-accent)'}}>Total:</strong> {({USD:'$',INR:'\u20B9',GBP:'\u00A3',EUR:'\u20AC',AUD:'A$'}[invoiceData.currency] || '$')}{invoiceData.total.toFixed(2)}</div>
                     </div>
                 </div>
             </div>
@@ -185,10 +185,10 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                 <div className={styles.pdfPreview}>
                     <h3 className={styles.sectionTitle}>PDF Preview</h3>
                     <div style={{
-                        backgroundColor: '#29384D',
+                        backgroundColor: 'var(--color-surface)',
                         padding: '20px',
                         borderRadius: '8px',
-                        border: '1px solid #5B5B7B'
+                        border: '1px solid var(--color-neutral-700)'
                     }}>
                         <div style={{ position: 'relative', width: '100%' }}>
                             <iframe
@@ -197,7 +197,7 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                                 width="100%"
                                 height="800px"
                                 style={{
-                                    border: '1px solid #5B5B7B',
+                                    border: '1px solid var(--color-neutral-700)',
                                     borderRadius: '4px',
                                     backgroundColor: 'white',
                                     minHeight: '600px',
@@ -219,7 +219,7 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                                         backgroundColor: 'rgba(123, 104, 238, 0.1)',
                                         borderRadius: '4px',
                                         marginTop: '10px',
-                                        color: '#B0B0B0',
+                                        color: 'var(--color-neutral-400)',
                                         fontSize: '0.9rem'
                                     }}
                                 >
@@ -242,7 +242,7 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                             padding: '10px',
                             backgroundColor: 'rgba(123, 104, 238, 0.1)',
                             borderRadius: '4px',
-                            color: '#B0B0B0',
+                            color: 'var(--color-neutral-400)',
                             fontSize: '0.9rem',
                             textAlign: 'center'
                         }}>
@@ -254,8 +254,8 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
             ) : (
                 <div className={styles.invoiceForm} style={{textAlign: 'center', padding: '60px 20px'}}>
                     <div style={{fontSize: '3rem', marginBottom: '16px', opacity: 0.5}}>📄</div>
-                    <h3 style={{color: '#fafafa', marginBottom: '8px', fontWeight: 600}}>Ready to Preview</h3>
-                    <p style={{color: '#b0b0b0', fontSize: '0.9rem', marginBottom: '20px'}}>
+                    <h3 style={{color: 'var(--color-text)', marginBottom: '8px', fontWeight: 600}}>Ready to Preview</h3>
+                    <p style={{color: 'var(--color-neutral-400)', fontSize: '0.9rem', marginBottom: '20px'}}>
                         Click the button below to generate your invoice PDF.
                     </p>
                     <button
@@ -273,19 +273,19 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
             {/* <div style={{ 
                 marginTop: '30px', 
                 padding: '20px', 
-                backgroundColor: '#29384D', 
+                backgroundColor: 'var(--color-surface)', 
                 borderRadius: '8px',
-                border: '1px solid #5B5B7B'
+                border: '1px solid var(--color-neutral-700)'
             }}>
-                <h4 style={{ color: '#FAFAFA', marginBottom: '15px' }}>📋 PDF Features:</h4>
+                <h4 style={{ color: 'var(--color-text)', marginBottom: '15px' }}>📋 PDF Features:</h4>
                 <div style={{ 
                     display: 'grid', 
                     gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
                     gap: '20px'
                 }}>
                     <div>
-                        <h5 style={{ color: '#7B68EE', marginBottom: '8px' }}>Professional Layout:</h5>
-                        <ul style={{ color: '#B0B0B0', fontSize: '0.9rem', lineHeight: '1.6', margin: 0, paddingLeft: '20px' }}>
+                        <h5 style={{ color: 'var(--color-accent)', marginBottom: '8px' }}>Professional Layout:</h5>
+                        <ul style={{ color: 'var(--color-neutral-400)', fontSize: '0.9rem', lineHeight: '1.6', margin: 0, paddingLeft: '20px' }}>
                             <li>Standard A4 page format (210 × 297 mm)</li>
                             <li>Professional typography and spacing</li>
                             <li>Branded color scheme</li>
@@ -293,8 +293,8 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                         </ul>
                     </div>
                     <div>
-                        <h5 style={{ color: '#7B68EE', marginBottom: '8px' }}>Content Features:</h5>
-                        <ul style={{ color: '#B0B0B0', fontSize: '0.9rem', lineHeight: '1.6', margin: 0, paddingLeft: '20px' }}>
+                        <h5 style={{ color: 'var(--color-accent)', marginBottom: '8px' }}>Content Features:</h5>
+                        <ul style={{ color: 'var(--color-neutral-400)', fontSize: '0.9rem', lineHeight: '1.6', margin: 0, paddingLeft: '20px' }}>
                             <li>Complete invoice information</li>
                             <li>Itemized line items table</li>
                             <li>Tax calculations and totals</li>
@@ -302,8 +302,8 @@ const InvoicePDFPreview = ({invoiceData}: InvoicePDFPreviewProps) => {
                         </ul>
                     </div>
                     <div>
-                        <h5 style={{ color: '#7B68EE', marginBottom: '8px' }}>Print Ready:</h5>
-                        <ul style={{ color: '#B0B0B0', fontSize: '0.9rem', lineHeight: '1.6', margin: 0, paddingLeft: '20px' }}>
+                        <h5 style={{ color: 'var(--color-accent)', marginBottom: '8px' }}>Print Ready:</h5>
+                        <ul style={{ color: 'var(--color-neutral-400)', fontSize: '0.9rem', lineHeight: '1.6', margin: 0, paddingLeft: '20px' }}>
                             <li>High-quality PDF output</li>
                             <li>Print-optimized layout</li>
                             <li>Consistent formatting</li>

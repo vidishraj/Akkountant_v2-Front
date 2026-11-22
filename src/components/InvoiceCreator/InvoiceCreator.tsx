@@ -69,9 +69,12 @@ const InvoiceCreator = ({ editingInvoiceId, duplicatingInvoiceData, onEditComple
         }
     };
 
+    // ak-73nc: emoji → Phosphor on the sub-tab icons so the invoice
+    // creator reads as the same visual system as the rest of the Nocturne
+    // chain (FE-1 + ak-zyli sub-tabs).
     const subTabs = [
-        { key: 'creation' as InvoiceSubTab, label: 'Create Invoice', icon: '✏️' },
-        { key: 'pdf-preview' as InvoiceSubTab, label: 'PDF Preview', icon: '📄' }
+        { key: 'creation' as InvoiceSubTab, label: 'Create Invoice', icon: 'ph-note-pencil' },
+        { key: 'pdf-preview' as InvoiceSubTab, label: 'PDF Preview', icon: 'ph-file-pdf' }
     ];
 
     return (
@@ -85,7 +88,7 @@ const InvoiceCreator = ({ editingInvoiceId, duplicatingInvoiceData, onEditComple
                         onClick={() => setActiveSubTab(tab.key)}
                         data-tab={tab.key}
                     >
-                        <span style={{ marginRight: '8px' }}>{tab.icon}</span>
+                        <i className={`ph ${tab.icon}`} style={{ marginRight: '8px' }} aria-hidden/>
                         {tab.label}
                     </button>
                 ))}
