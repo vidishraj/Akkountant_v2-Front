@@ -4,6 +4,7 @@ import {getAuth} from "firebase/auth";
 import {useAuth} from "../../contexts/AuthContext";
 import {useMessage} from "../../contexts/MessageContext";
 import {useWealthDigest} from "../../contexts/WealthDigestContext";
+import {useKite} from "../../contexts/KiteContext";
 import AgentHeaderInput from "./AgentHeaderInput";
 import {AgentType} from "../../services/agentService";
 import ChangepasswordDialog from "../ChangePasswordDialog/ChangepasswordDialog";
@@ -77,6 +78,7 @@ const Header = () => {
     const {currentUser, loading} = useAuth();
     const {setPayload} = useMessage();
     const {hasUnread: hasUnreadDigest} = useWealthDigest();
+    const {state: kiteState, beginReconnect} = useKite();
 
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
@@ -245,6 +247,28 @@ const Header = () => {
 
             {authReady && (
                 <>
+                    {/* ak-u60: daily Kite reconnect affordance. Pill is
+                        normal state (not an error banner), muted ink, and
+                        only visible when the BE explicitly reports
+                        reconnect_required. Click opens the Zerodha OAuth
+                        URL via KiteContext.beginReconnect(); on return
+                        App.tsx's existing OAuth-callback handler runs
+                        generateKiteSession + syncHoldings, and the pill
+                        auto-clears via CLEAR_RECONNECT inside the
+                        context. */}
+                    {kiteState.reconnect.reconnectRequired && (
+                        <button
+                            type="button"
+                            onClick={() => void beginReconnect()}
+                            disabled={kiteState.loading.auth}
+                            className={styles.kiteReconnectPill}
+                            title="Kite tokens expire daily at 6:00 AM IST. Reconnect to refresh live holdings."
+                            aria-label="Reconnect Kite"
+                        >
+                            <i className="ph ph-plugs" aria-hidden/>
+                            <span>Reconnect Kite</span>
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={openInbox}

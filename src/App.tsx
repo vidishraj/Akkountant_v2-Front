@@ -17,6 +17,7 @@ import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {useEffect} from "react";
 import {generateKiteSession, syncKiteHoldings} from "./services/investmentService.ts";
 import {useMessage} from "./contexts/MessageContext.tsx";
+import {useKite} from "./contexts/KiteContext.tsx";
 import {useNavigate} from "react-router-dom";
 import Hero from './pages/Hero/Hero.tsx';
 
@@ -25,6 +26,11 @@ function App() {
     setupAxiosInterceptors();
     const {loading, setLoading} = useLoading();
     const {setPayload} = useMessage();
+    // ak-u60: KiteContext dispatch is reached from here so the OAuth
+    // callback can CLEAR_RECONNECT immediately on handshake success —
+    // otherwise the header pill stays visible until the next organic
+    // Kite op (fetchHoldings/sync via context) succeeds.
+    const {dispatch: kiteDispatch} = useKite();
     const navigate = useNavigate();
     const auth = getAuth();
 
@@ -62,12 +68,19 @@ function App() {
 
                     // Sync holdings
                     await syncKiteHoldings();
-                    
+
                     setPayload({
                         type: 'success',
                         message: 'Holdings synced successfully!'
                     });
-                    
+
+                    // ak-u60: handshake succeeded — flip the reconnect
+                    // pill off in the same tick so the user sees the
+                    // state resolve immediately. KiteContext's
+                    // CLEAR_RECONNECT also re-authenticates so the rest
+                    // of the app's isAuthenticated-gated UI follows.
+                    kiteDispatch({type: 'CLEAR_RECONNECT'});
+
                     // Clean up URL and redirect to investments
                     window.history.replaceState({}, document.title, window.location.pathname);
                     navigate('/investments');
@@ -92,7 +105,7 @@ function App() {
         };
 
         handleKiteCallback();
-    }, [navigate, setLoading, setPayload]);
+    }, [navigate, setLoading, setPayload, kiteDispatch]);
 
     return (
         <Routes>

@@ -11,6 +11,7 @@ import {
     MSNRateResponse,
     MSNSummaryResponse,
     KiteLoginUrlResponse,
+    KiteStatusResponse,
     KiteSessionRequest,
     KiteSessionResponse,
     KiteHoldingsResponse,
@@ -330,6 +331,23 @@ export async function fetchFOTrades(
  */
 export async function getKiteLoginUrl(): Promise<KiteLoginUrlResponse> {
     const response = await queueRequest(() => axios.get('/kite/login-url'));
+    return response.data;
+}
+
+/**
+ * ak-u60: GET /kite/status — the authoritative source of truth for the
+ * daily 6AM IST reconnect affordance. Returns
+ * `{connected, reconnect_required, reason, expires_at, login_url}` per
+ * BE bead ak-w4p. Never surfaces a user-facing error message on 4xx; the
+ * caller (KiteContext) treats transport errors as "unknown — leave the
+ * affordance state as last known" and does not toast.
+ *
+ * This is cheap + idempotent — safe to call on provider mount and on
+ * demand (e.g. after a sync that fails). Do NOT poll in a tight loop:
+ * the daily cycle is 24h, so once-per-session + on-demand suffices.
+ */
+export async function getKiteStatus(): Promise<KiteStatusResponse> {
+    const response = await queueRequest(() => axios.get('/kite/status'));
     return response.data;
 }
 

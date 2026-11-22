@@ -683,6 +683,18 @@ export interface KiteSyncResponse {
     holdings_synced: number;
 }
 
+// ak-u60: GET /kite/status payload from ak-w4p. The BE emits this on
+// every /kite/* 401 (as the response body) as well as from a dedicated
+// GET /kite/status endpoint. Reconnect is a DAILY 6AM IST state — FE
+// treats it as a normal affordance, not an error.
+export interface KiteStatusResponse {
+    connected: boolean;
+    reconnect_required: boolean;
+    reason: string | null;
+    expires_at: string | null;   // ISO; next token-expiry boundary
+    login_url: string | null;    // ready-to-redirect OAuth URL when reconnect_required
+}
+
 // F&O Interfaces
 export interface FOContract {
     symbol: string;
