@@ -1,10 +1,15 @@
-import {useState, useEffect, useRef, useCallback} from "react";
+import React, {useCallback, useEffect, useRef, useState} from "react";
 import {PDFDocument, rgb, StandardFonts} from "pdf-lib";
 import {fetchUserSignatures, uploadSignature, deleteSignature, setDefaultSignature} from "../../services/freelanceService";
 import {Signature} from "../../utils/interfaces";
 import {useMessage} from "../../contexts/MessageContext";
+import useModalA11y from "../../hooks/useModalA11y";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 import ownStyles from "../InvoiceSigner/InvoiceSigner.module.scss";
+// ak-phfs: destructive-gate classes land in a local SCSS file (not
+// InvoiceSigner.module.scss) so this bead stays independent of ak-17w0
+// per the ak-zyli N3/N4 parallel-development spec.
+import gateStyles from "./DocumentSigner.module.scss";
 import SignaturePlacer, {TextBox} from "../InvoiceSigner/SignaturePlacer";
 
 const DocumentSigner = () => {
@@ -22,6 +27,24 @@ const DocumentSigner = () => {
     const [textBoxes, setTextBoxes] = useState<TextBox[]>([]);
     const sigFileInputRef = useRef<HTMLInputElement>(null);
     const pdfFileInputRef = useRef<HTMLInputElement>(null);
+    // ak-phfs: Nocturne destructive gate for signature delete.
+    // Replaces pre-ak-phfs window.confirm. Shape mirrors ak-17w0
+    // InvoiceSigner (same SCSS module via ownStyles, so the dialog
+    // rules land once in InvoiceSigner.module.scss).
+    const [deleteConfirmSignature, setDeleteConfirmSignature] = useState<{id: string; signature: Signature} | null>(null);
+    const deleteDialogRef = useRef<HTMLDivElement>(null);
+    useModalA11y({
+        open: deleteConfirmSignature !== null,
+        panelRef: deleteDialogRef as React.RefObject<HTMLElement>,
+    });
+    useEffect(() => {
+        if (!deleteConfirmSignature) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setDeleteConfirmSignature(null);
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [deleteConfirmSignature]);
     const {setPayload} = useMessage();
 
     const addTextBox = () => {
@@ -99,8 +122,16 @@ const DocumentSigner = () => {
         }
     };
 
-    const handleDeleteSig = async (id: string, sig: Signature) => {
-        if (!window.confirm("Delete this signature?")) return;
+    // ak-phfs: two-phase delete through Nocturne destructive gate.
+    const handleDeleteSig = (id: string, sig: Signature) => {
+        setDeleteConfirmSignature({id, signature: sig});
+    };
+
+    const confirmDeleteSig = async () => {
+        const target = deleteConfirmSignature;
+        setDeleteConfirmSignature(null);
+        if (!target) return;
+        const {id, signature: sig} = target;
         try {
             setDeletingSignature(id);
             await deleteSignature(id);
@@ -236,18 +267,18 @@ const DocumentSigner = () => {
         <div>
             {/* Signature Management */}
             <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
-                <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>
+                <h4 style={{color: "var(--color-text)", marginBottom: "15px"}}>
                     Manage Signatures
-                    <span style={{color: "#B0B0B0", fontSize: "0.8rem", marginLeft: "10px"}}>
+                    <span style={{color: "var(--color-neutral-400)", fontSize: "0.8rem", marginLeft: "10px"}}>
                         ({signatures.length}/{MAX_SIGNATURES} used)
                     </span>
                 </h4>
                 <div className={ownStyles.signatureManagementGrid}>
                     <div>
-                        <h5 style={{color: "#FAFAFA", marginBottom: "15px"}}>Upload Signature</h5>
+                        <h5 style={{color: "var(--color-text)", marginBottom: "15px"}}>Upload Signature</h5>
                         <div style={{textAlign: "center", marginBottom: "15px"}}>
-                            <p style={{color: "#B0B0B0", margin: 0, fontSize: "0.9rem"}}>Upload your signature image</p>
-                            <p style={{color: "#8B8B8B", fontSize: "0.8rem", margin: "5px 0 0 0"}}>PNG, JPG (Max 5MB)</p>
+                            <p style={{color: "var(--color-neutral-400)", margin: 0, fontSize: "0.9rem"}}>Upload your signature image</p>
+                            <p style={{color: "var(--color-neutral-500)", fontSize: "0.8rem", margin: "5px 0 0 0"}}>PNG, JPG (Max 5MB)</p>
                         </div>
                         <input ref={sigFileInputRef} type="file" accept="image/*" onChange={handleSigUpload} style={{display: "none"}} />
                         <div style={{textAlign: "center"}}>
@@ -262,7 +293,7 @@ const DocumentSigner = () => {
                         </div>
                     </div>
                     <div>
-                        <h5 style={{color: "#FAFAFA", marginBottom: "15px"}}>Signature Library</h5>
+                        <h5 style={{color: "var(--color-text)", marginBottom: "15px"}}>Signature Library</h5>
                         {signatures.length > 0 ? (
                             <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px", maxHeight: "400px", overflowY: "auto"}}>
                                 {signatures.map((sig) => (
@@ -270,18 +301,18 @@ const DocumentSigner = () => {
                                         key={sig.id}
                                         style={{
                                             padding: "10px",
-                                            backgroundColor: selectedSignature === getSignatureDataUrl(sig) ? "#3A4F6A" : "#1E1E2E",
+                                            backgroundColor: selectedSignature === getSignatureDataUrl(sig) ? "var(--color-neutral-700)" : "var(--color-neutral-900)",
                                             borderRadius: "8px",
-                                            border: selectedSignature === getSignatureDataUrl(sig) ? "2px solid #7B68EE" : "1px solid #333",
+                                            border: selectedSignature === getSignatureDataUrl(sig) ? "2px solid var(--color-accent)" : "1px solid var(--color-neutral-800)",
                                             cursor: "pointer",
                                         }}
                                         onClick={() => setSelectedSignature(getSignatureDataUrl(sig))}
                                     >
-                                        <div style={{backgroundColor: "#FAFAFA", padding: "8px", borderRadius: "4px", marginBottom: "8px", textAlign: "center", minHeight: "60px", display: "flex", alignItems: "center", justifyContent: "center"}}>
+                                        <div style={{backgroundColor: "var(--color-text)", padding: "8px", borderRadius: "4px", marginBottom: "8px", textAlign: "center", minHeight: "60px", display: "flex", alignItems: "center", justifyContent: "center"}}>
                                             <img src={getSignatureDataUrl(sig)} alt="Signature" style={{maxWidth: "100%", maxHeight: "50px", objectFit: "contain"}} />
                                         </div>
                                         <div style={{display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "6px"}}>
-                                            <span style={{color: "#FAFAFA", fontSize: "0.8rem"}}>{sig.name}</span>
+                                            <span style={{color: "var(--color-text)", fontSize: "0.8rem"}}>{sig.name}</span>
                                             {sig.is_default && <span className={styles.defaultBadge}>Default</span>}
                                         </div>
                                         <div style={{display: "flex", justifyContent: "center", gap: "4px"}}>
@@ -298,7 +329,7 @@ const DocumentSigner = () => {
                                 ))}
                             </div>
                         ) : (
-                            <div style={{textAlign: "center", padding: "30px", color: "#B0B0B0", backgroundColor: "#1E1E2E", borderRadius: "8px", border: "1px dashed #333"}}>
+                            <div style={{textAlign: "center", padding: "30px", color: "var(--color-neutral-400)", backgroundColor: "var(--color-neutral-900)", borderRadius: "8px", border: "1px dashed var(--color-neutral-800)"}}>
                                 <p style={{margin: 0}}>No signatures uploaded yet</p>
                             </div>
                         )}
@@ -308,14 +339,14 @@ const DocumentSigner = () => {
 
             {/* PDF Upload */}
             <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
-                <h4 style={{color: "#FAFAFA", marginBottom: "15px"}}>Upload Document</h4>
+                <h4 style={{color: "var(--color-text)", marginBottom: "15px"}}>Upload Document</h4>
                 <input ref={pdfFileInputRef} type="file" accept=".pdf" onChange={handlePdfUpload} style={{display: "none"}} />
                 <div style={{display: "flex", alignItems: "center", gap: "15px", flexWrap: "wrap"}}>
                     <button className={styles.primaryBtn} onClick={() => pdfFileInputRef.current?.click()}>
                         Choose PDF
                     </button>
                     {pdfFile && (
-                        <span style={{color: "#B0B0B0", fontSize: "0.9rem"}}>
+                        <span style={{color: "var(--color-neutral-400)", fontSize: "0.9rem"}}>
                             {pdfFile.name} ({pageCount} page{pageCount > 1 ? 's' : ''}, {(pdfFile.size / 1024 / 1024).toFixed(1)}MB)
                         </span>
                     )}
@@ -336,7 +367,7 @@ const DocumentSigner = () => {
             {pdfBlobUrl && selectedSignature && (
                 <div className={styles.invoiceForm} style={{marginBottom: "20px"}}>
                     <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "8px"}}>
-                        <h4 style={{color: "#FAFAFA", margin: 0}}>Place Signature & Text</h4>
+                        <h4 style={{color: "var(--color-text)", margin: 0}}>Place Signature & Text</h4>
                         <button className={styles.secondaryBtn} onClick={addTextBox} style={{padding: "5px 12px", fontSize: "0.8rem"}}>
                             + Add Text
                         </button>
@@ -396,6 +427,60 @@ const DocumentSigner = () => {
                         </button>
                     </div>
                 </div>
+            )}
+
+            {/* ak-phfs: Nocturne destructive gate for signature delete.
+                Replaces pre-ak-phfs window.confirm. Shape matches
+                ak-9aqn / ak-c453 / FE-10 / ak-73nc / ak-17w0. Classes
+                live in the local DocumentSigner.module.scss (not
+                InvoiceSigner's) so this bead stays independent of
+                ak-17w0 per the N3/N4 parallel-development spec. */}
+            {deleteConfirmSignature && (
+                <>
+                    <div
+                        className={gateStyles.dialogBackdrop}
+                        onMouseDown={() => setDeleteConfirmSignature(null)}
+                        role="presentation"
+                    />
+                    <div
+                        ref={deleteDialogRef}
+                        className={gateStyles.confirmDialog}
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-label="Confirm delete signature"
+                        tabIndex={-1}
+                    >
+                        <div className={gateStyles.confirmKicker}>
+                            <i className="ph ph-warning" aria-hidden/>
+                            <span>Destructive action</span>
+                        </div>
+                        <div className={gateStyles.confirmTitle}>
+                            Delete this signature?
+                        </div>
+                        <div className={gateStyles.confirmBody}>
+                            Documents already signed with this signature keep
+                            their signed PDFs — only the stored signature image
+                            is deleted. New signings will require uploading a
+                            fresh signature. This cannot be undone.
+                        </div>
+                        <div className={gateStyles.confirmActions}>
+                            <button
+                                type="button"
+                                className={styles.secondaryBtn}
+                                onClick={() => setDeleteConfirmSignature(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={gateStyles.confirmYesDestructive}
+                                onClick={() => void confirmDeleteSig()}
+                            >
+                                Confirm delete
+                            </button>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );
