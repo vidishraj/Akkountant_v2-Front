@@ -1,20 +1,17 @@
 import {useState, useEffect, useMemo, useCallback} from "react";
-import {
-    // AreaChart/Area dropped ak-wnrr — earnings chart replaced by a hand-
-    // drawn gap-aware SVG (buildEarningsTrendPaths). The remaining recharts
-    // consumers are the Pie (client distribution) and Bar charts which have
-    // no interpolation concern (categorical data).
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    PieChart,
-    Pie,
-    Cell,
-} from "recharts";
+// ak-hpd3: recharts dropped entirely from this file.
+// - AreaChart/Area was already dropped in ak-wnrr (replaced by a hand-
+//   drawn gap-aware SVG, `buildEarningsTrendPaths`).
+// - PieChart (Client Distribution) → Nocturne CSS-bar list (sorted
+//   descending; names + bars + % values are more scannable than slice
+//   angles per brief 06 §6).
+// - BarChart "Monthly Paid Earnings (Bar)" removed — it duplicated the
+//   primary gap-aware SVG above (brief 06 §6 explicit duplication flag).
+// - BarChart "Unpaid by Currency" → Nocturne CSS-bar list (same shape
+//   as the client list for visual consistency + removes the final
+//   recharts consumer on this page).
+// No other chart primitives remain on the Freelance Dashboard, so the
+// recharts import is gone — net `-recharts` dependency on this surface.
 import {
     fetchFreelanceDashboard,
     fetchInvoiceById,
@@ -316,7 +313,22 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
         return status === "paid" ? "paid" : status === "overdue" ? "overdue" : "pending";
     };
 
-    const COLORS = ["#7B68EE", "#32CD32", "#FFD700", "#FF6347", "#20B2AA", "#FF69B4", "#FFA500", "#9932CC"];
+    // ak-hpd3: palette for the Nocturne CSS-bar list (Client Distribution +
+    // Unpaid by Currency). Tokens cycle through the accent + accent-2 ramps
+    // so bars read as a varied-but-related family; neutral-600 is the
+    // last fallback when there are more bars than palette slots. Values
+    // are CSS variables so a design-system refresh retunes the bars
+    // without touching the component.
+    const BAR_PALETTE = [
+        "var(--color-accent-500)",
+        "var(--color-accent-2-500)",
+        "var(--color-accent-700)",
+        "var(--color-accent-2-700)",
+        "var(--color-accent-300)",
+        "var(--color-accent-2-300)",
+        "var(--color-neutral-500)",
+        "var(--color-neutral-600)",
+    ];
 
     // Compute derived metrics
     const unpaidTotal = useMemo(() => {
@@ -378,13 +390,10 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
         return ((currentAvg - prevAvg) / prevAvg) * 100;
     }, [dashboardData, filteredMonthlyData, filteredTotalEarnings, startDate, endDate]);
 
-    // Paid vs Unpaid monthly data (from filtered)
-    const paidVsUnpaidData = useMemo(() => {
-        return filteredMonthlyData.map(m => ({
-            month: m.month,
-            paid: m.earnings,
-        }));
-    }, [filteredMonthlyData]);
+    // ak-hpd3: `paidVsUnpaidData` useMemo removed — it only fed the
+    // duplicate "Monthly Paid Earnings (Bar)" recharts chart that
+    // duplicated the primary gap-aware SVG. The primary SVG consumes
+    // `filteredMonthlyData` directly.
 
     // Filter recent invoices to date range
     const filteredInvoices = useMemo(() => {
@@ -630,76 +639,120 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                 </div>
 
                 <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
-                    <h3 className={styles.sectionTitle}>Client Distribution (INR)</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={(dashboardData.earningsByClient ?? []).filter(item => item.earnings > 0)}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({client, percent}) => percent && percent > 0.05 ? `${client}: ${(percent * 100).toFixed(0)}%` : ""}
-                                outerRadius={100}
-                                innerRadius={40}
-                                fill="#8884d8"
-                                dataKey="earnings"
-                            >
-                                {(dashboardData.earningsByClient ?? []).filter(item => item.earnings > 0).map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
-                                formatter={(value: number) => [formatBaseCurrency(value), "Paid Earnings"]}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
+                    <h3 className={styles.sectionTitle}>Who you work for</h3>
+                    {/* ak-hpd3: PieChart replaced by a CSS-bar list.
+                        Pie-slice angles are hard to compare across clients;
+                        a sorted-descending horizontal-bar list reads at a
+                        glance. Bar width = share of total paid earnings
+                        (CONSUME from BE verbatim — the FE only aggregates
+                        for the denominator, matching §23 #2). §4 PII:
+                        client names are row-visible per the ak-9aqn
+                        "row-level minimal" posture — the Freelance
+                        Dashboard is the overseer's own surface. */}
+                    {(() => {
+                        const clients = (dashboardData.earningsByClient ?? [])
+                            .filter((c) => c.earnings > 0)
+                            .sort((a, b) => b.earnings - a.earnings);
+                        if (clients.length === 0) {
+                            return (
+                                <div className={ownStyles.emptyRow}>
+                                    No client earnings in the selected range.
+                                </div>
+                            );
+                        }
+                        const total = clients.reduce((s, c) => s + c.earnings, 0);
+                        return (
+                            <ul className={ownStyles.distList} aria-label="Earnings by client (sorted descending)">
+                                {clients.map((c, i) => {
+                                    const pct = total > 0 ? (c.earnings / total) * 100 : 0;
+                                    const color = BAR_PALETTE[i % BAR_PALETTE.length];
+                                    return (
+                                        <li key={`${c.client}-${i}`} className={ownStyles.distRow}>
+                                            <span className={ownStyles.distName} title={c.client}>
+                                                {c.client}
+                                            </span>
+                                            <div className={ownStyles.distTrack} aria-hidden="true">
+                                                <div
+                                                    className={ownStyles.distFill}
+                                                    style={{width: `${pct.toFixed(2)}%`, background: color}}
+                                                />
+                                            </div>
+                                            <span className={ownStyles.distValue}>
+                                                {formatBaseCurrency(c.earnings)}
+                                            </span>
+                                            <span className={ownStyles.distPct}>
+                                                {pct.toFixed(1)}%
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        );
+                    })()}
                 </div>
             </div>
 
-            {/* 5. Secondary Charts - Bar charts side by side */}
-            <div className={ownStyles.secondaryChartGrid}>
-                {paidVsUnpaidData.length > 0 && (
-                    <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
-                        <h3 className={styles.sectionTitle}>Monthly Paid Earnings (Bar)</h3>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={paidVsUnpaidData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
-                                <XAxis dataKey="month" stroke="#FAFAFA" fontSize={11} tickFormatter={formatMonthLabel}
-                                       angle={-35} textAnchor="end" height={50} interval={0} />
-                                <YAxis stroke="#FAFAFA" fontSize={11} tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`} />
-                                <Tooltip
-                                    contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
-                                    labelFormatter={formatMonthLabel}
-                                    formatter={(value: number) => [formatBaseCurrency(value), "Paid"]}
-                                />
-                                <Bar dataKey="paid" fill="#4ADE80" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
-
-                {dashboardData.unpaidByCurrency && dashboardData.unpaidByCurrency.length > 0 && (
-                    <div className={ownStyles.chartContainer} style={{marginBottom: 0}}>
-                        <h3 className={styles.sectionTitle}>Unpaid by Currency</h3>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={(dashboardData.unpaidByCurrency ?? []).map(item => ({
+            {/* ak-hpd3: Monthly Paid Earnings (Bar) removed — it duplicated
+                the primary gap-aware SVG "Monthly Paid Earnings (INR)" chart
+                above (brief 06 §6 explicit duplication flag). The Unpaid-by-
+                Currency breakdown is retained as unique information and
+                re-skinned as a Nocturne CSS-bar list (matching the "Who you
+                work for" list above — single visual language across the
+                dashboard; no recharts). */}
+            {dashboardData.unpaidByCurrency && dashboardData.unpaidByCurrency.length > 0 && (
+                <div className={ownStyles.chartContainer} style={{marginBottom: 20}}>
+                    <h3 className={styles.sectionTitle}>Unpaid by currency</h3>
+                    {(() => {
+                        const rows = (dashboardData.unpaidByCurrency ?? [])
+                            .map((item) => ({
                                 ...item,
-                                inrAmount: getINRConversion(item.amount, item.currency)
-                            }))}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#5B5B7B" />
-                                <XAxis dataKey="currency" stroke="#FAFAFA" />
-                                <YAxis stroke="#FAFAFA" />
-                                <Tooltip
-                                    contentStyle={{backgroundColor: "#121C24", border: "1px solid #5B5B7B", borderRadius: "4px", color: "#FAFAFA"}}
-                                    formatter={(value: number) => [formatBaseCurrency(value), "Unpaid (INR)"]}
-                                />
-                                <Bar dataKey="inrAmount" fill="#FFD700" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
-            </div>
+                                inrAmount: getINRConversion(item.amount, item.currency),
+                            }))
+                            .filter((r) => r.inrAmount > 0 || r.amount > 0)
+                            .sort((a, b) => b.inrAmount - a.inrAmount);
+                        if (rows.length === 0) {
+                            return (
+                                <div className={ownStyles.emptyRow}>
+                                    No unpaid invoices in the selected range.
+                                </div>
+                            );
+                        }
+                        const total = rows.reduce((s, r) => s + r.inrAmount, 0);
+                        return (
+                            <ul className={ownStyles.distList} aria-label="Unpaid amounts by currency (INR-equivalent, sorted descending)">
+                                {rows.map((r, i) => {
+                                    const pct = total > 0 ? (r.inrAmount / total) * 100 : 0;
+                                    const color = BAR_PALETTE[i % BAR_PALETTE.length];
+                                    return (
+                                        <li key={r.currency} className={ownStyles.distRow}>
+                                            <span className={ownStyles.distName}>
+                                                {r.currency}
+                                                {typeof r.count === "number" && r.count > 0 && (
+                                                    <span className={ownStyles.distNameSub}>
+                                                        {" · "}{r.count} invoice{r.count === 1 ? "" : "s"}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <div className={ownStyles.distTrack} aria-hidden="true">
+                                                <div
+                                                    className={ownStyles.distFill}
+                                                    style={{width: `${pct.toFixed(2)}%`, background: color}}
+                                                />
+                                            </div>
+                                            <span className={ownStyles.distValue}>
+                                                {formatBaseCurrency(r.inrAmount)}
+                                            </span>
+                                            <span className={ownStyles.distPct}>
+                                                {pct.toFixed(1)}%
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        );
+                    })()}
+                </div>
+            )}
             </ErrorBoundary>
 
             {/* 6. Secondary Metrics Row */}

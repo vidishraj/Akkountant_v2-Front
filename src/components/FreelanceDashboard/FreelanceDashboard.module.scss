@@ -460,3 +460,86 @@
   color: var(--color-accent-300);
   text-align: center;
 }
+
+/* ───── ak-hpd3 distribution-list (Client + Unpaid-by-Currency) ───── */
+/* Shared shape used by "Who you work for" (Client Distribution) and
+ * "Unpaid by currency" — a single visual language across the dashboard
+ * after dropping recharts Pie + Bar on this surface. Nocturne tokens
+ * throughout; rows are right-aligned on value + percent for tabular-
+ * nums scannability. */
+
+.distList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.distRow {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.8fr) minmax(0, 3fr) minmax(90px, auto) minmax(45px, auto);
+  gap: 12px;
+  align-items: center;
+  padding: 6px 2px;
+  font-size: 13px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: minmax(80px, 1.5fr) minmax(0, 2fr) minmax(80px, auto);
+
+    > *:nth-child(4) {
+      display: none;
+    }
+  }
+}
+
+.distName {
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.distNameSub {
+  color: var(--color-neutral-500);
+  font-weight: 400;
+  font-size: 11.5px;
+}
+
+.distTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  overflow: hidden;
+}
+
+.distFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 220ms ease;
+}
+
+.distValue {
+  color: var(--color-text);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.distPct {
+  color: var(--color-neutral-400);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.emptyRow {
+  padding: 20px 12px;
+  color: var(--color-neutral-500);
+  font-size: 13px;
+  text-align: center;
+}
