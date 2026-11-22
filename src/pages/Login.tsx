@@ -1,75 +1,30 @@
-// src/Login.tsx
+// ak-tduq / FE-23: Nocturne dark-theme rewrite of the sign-in surface.
+// Pre-ak-tduq Login used MUI (Container/Box/TextField/Button + Lottie) on a
+// `backgroundColor:'beige'` ground with a white rounded card — a jarring
+// handoff into the Nocturne dark app. Rewrite:
+//   - MUI + Lottie removed entirely (no runtime deps consumed)
+//   - Native HTML form + Nocturne global classes (`field`, `input`,
+//     `btn btn-primary btn-block`) from `styles/nocturne.css`
+//   - Brand mark (Ak chip + 'Akkountant' wordmark) matches Header's
+//     `.brandChip` / `.brandWord` tokens so the sign-in moment uses the
+//     same visual vocabulary as the authed app
+//   - Radial accent glow on a dark ground mirrors the Home.dc.html
+//     top-left-glow pattern (centered here since the Login card itself
+//     is centered rather than left-aligned like the Home hero).
+//
+// Firebase wire UNCHANGED per bead: signInWithEmailAndPassword(auth,
+// email, password) → setUser(...) → navigate(returnUrl || '/home');
+// errors routed through setPayload with the 'Firebase: ' prefix stripped.
+// The authLoading guard + currentUser redirect effect are preserved
+// byte-equivalent.
 import React, {useEffect, useState} from 'react';
 import {signInWithEmailAndPassword} from 'firebase/auth';
 import {useNavigate, useSearchParams} from 'react-router-dom';
-import {
-    Box,
-    Button,
-    TextField,
-    CircularProgress,
-} from '@mui/material';
-import {styled} from '@mui/system';
-import Lottie from 'lottie-react';
-import loginAnimation from '../assets/loginAnimation.json';
 import {useUser} from '../contexts/GlobalContext';
 import {auth} from '../components/FirebaseConfig.tsx';
 import {useAuth} from '../contexts/AuthContext';
 import {useMessage} from '../contexts/MessageContext.tsx';
-
-const Container = styled(Box)(({theme}) => ({
-    display: 'flex',
-    flexWrap: 'nowrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '84vh',
-    backgroundColor: 'beige',
-    [theme.breakpoints.down('md')]: {
-        display: 'block'
-    }
-}));
-
-
-const LottieContainers = styled(Box)(({theme}) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '60vh',
-    flexBasis: '30%',
-    [theme.breakpoints.down('md')]: {
-        position: 'absolute',
-        backgroundColor: 'beige',
-        overflow: 'hidden',
-        zIndex: '-1',
-        maxHeight: '70vh',
-        '&:first-of-type': {
-            top: 0,
-            left: 0,
-        },
-        '&:last-of-type': {
-            top: '50%',
-        },
-    },
-}));
-
-const LoginBox = styled(Box)(({theme}) => ({
-    backgroundColor: 'white',
-    color: '#333',
-    borderRadius: '10%',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    padding: '24px',
-    maxWidth: '300px',
-    maxHeight: 'fit-content',
-    [theme.breakpoints.down('md')]: {
-        boxShadow: 'none',
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '250px'
-    },
-}));
-
+import style from './Login.module.scss';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -107,81 +62,76 @@ const Login = () => {
             navigate(returnUrl ? decodeURIComponent(returnUrl) : '/home');
         }
     }, [currentUser, authLoading, navigate, returnUrl, setUser]);
-    
-    // Show loading while checking authentication
+
+    // Show the Nocturne-grounded loader while Firebase resolves the
+    // persisted session on first paint — prevents the pre-auth flash.
     if (authLoading) {
         return (
-            <Box 
-                sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    minHeight: '100vh',
-                    backgroundColor: 'beige',
-                    color: '#333'
-                }}
-            >
-                Loading...
-            </Box>
+            <div className={style.page}>
+                <span className={style.loading}>Loading…</span>
+            </div>
         );
     }
 
     return (
-        <Container>
-            <LottieContainers>
-                <Lottie animationData={loginAnimation} loop style={{width: 300, height: 300}}/>
-            </LottieContainers>
-            <LoginBox>
-                <form onSubmit={handleLogin}>
-                    <TextField
-                        fullWidth
-                        label="Email"
-                        variant="outlined"
-                        margin="normal"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        sx={{
-                            '& label': {color: '#666 !important'},
-                            '& label.Mui-focused': {color: '#1976d2 !important'},
-                            '& input': {color: '#333 !important'},
-                            '& .MuiOutlinedInput-notchedOutline': {borderColor: '#ccc !important'},
-                            '&:hover .MuiOutlinedInput-notchedOutline': {borderColor: '#999 !important'},
-                            '& .Mui-focused .MuiOutlinedInput-notchedOutline': {borderColor: '#1976d2 !important'},
-                        }}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Password"
-                        type="password"
-                        variant="outlined"
-                        margin="normal"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        sx={{
-                            '& label': {color: '#666 !important'},
-                            '& label.Mui-focused': {color: '#1976d2 !important'},
-                            '& input': {color: '#333 !important'},
-                            '& .MuiOutlinedInput-notchedOutline': {borderColor: '#ccc !important'},
-                            '&:hover .MuiOutlinedInput-notchedOutline': {borderColor: '#999 !important'},
-                            '& .Mui-focused .MuiOutlinedInput-notchedOutline': {borderColor: '#1976d2 !important'},
-                        }}
-                    />
-                    <Button
-                        fullWidth
-                        variant="contained"
-                        color="primary"
+        <div className={style.page}>
+            <div className={style.card}>
+                <div className={style.brand}>
+                    <span className={style.brandChip} aria-hidden="true">Ak</span>
+                    <span className={style.brandWord}>Akkountant</span>
+                </div>
+                <h3 className={style.heading}>Sign in</h3>
+                <p className={style.sub}>Enter your credentials to continue.</p>
+                <form onSubmit={handleLogin} className={style.form} noValidate>
+                    <div className="field">
+                        <label htmlFor="login-email">Email</label>
+                        <input
+                            id="login-email"
+                            type="email"
+                            autoComplete="email"
+                            autoFocus
+                            required
+                            className="input"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                    </div>
+                    <div className="field">
+                        <label htmlFor="login-password">Password</label>
+                        <input
+                            id="login-password"
+                            type="password"
+                            autoComplete="current-password"
+                            required
+                            className="input"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                    </div>
+                    <button
                         type="submit"
-                        disabled={loading}
-                        sx={{mt: 2}}
+                        disabled={loading || !email || !password}
+                        className={`btn btn-primary btn-block ${style.submitBtn}`}
                     >
-                        {loading ? <CircularProgress size={24}/> : 'Login'}
-                    </Button>
+                        {loading ? (
+                            <>
+                                <i
+                                    className={`ph ph-circle-notch ${style.spin}`}
+                                    aria-hidden="true"
+                                />
+                                <span>Signing in…</span>
+                            </>
+                        ) : (
+                            <>
+                                <i className="ph ph-sign-in" aria-hidden="true"/>
+                                <span>Sign in</span>
+                            </>
+                        )}
+                    </button>
                 </form>
-            </LoginBox>
-        </Container>
-    )
-}
-
+            </div>
+        </div>
+    );
+};
 
 export default Login;
-

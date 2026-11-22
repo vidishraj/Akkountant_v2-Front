@@ -1,0 +1,119 @@
+/* ak-tduq / FE-23: Nocturne sign-in surface. Every color / radius /
+ * shadow / space routed through `var(--...)` tokens defined in
+ * `styles/nocturne.css` — zero inline hex, zero MUI, zero Lottie.
+ *
+ * Layout: full-viewport centered card on a dark ground with a soft
+ * radial accent-glow (mirrors the Home.dc.html top-left glow pattern
+ * — centered here because the sign-in moment is center-anchored).
+ */
+
+.page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 80vh;
+    padding: 32px 20px;
+    box-sizing: border-box;
+    background:
+        radial-gradient(
+            900px 600px at 50% -5%,
+            color-mix(in srgb, var(--color-accent) 10%, transparent),
+            transparent 65%
+        ),
+        var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+}
+
+.card {
+    width: 100%;
+    max-width: 380px;
+    padding: 28px 28px 24px;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+
+    @media (max-width: 480px) {
+        padding: 22px 20px 20px;
+        gap: 12px;
+    }
+}
+
+/* Brand mark — matches Header.module.scss `.brand*` byte-for-byte so
+ * the sign-in moment uses the same visual vocabulary as the authed
+ * header pinned above the page. */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--color-text);
+}
+
+.brandChip {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    box-shadow: inset 0 0 0 1.5px var(--color-accent);
+    background: var(--color-accent-900);
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.brandWord {
+    font-family: var(--font-heading);
+    font-size: 16.5px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+}
+
+.heading {
+    margin: 4px 0 0;
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: var(--font-heading-weight);
+    letter-spacing: -0.015em;
+}
+
+.sub {
+    margin: 0 0 4px;
+    font-size: 13px;
+    color: color-mix(in srgb, var(--color-text) 65%, transparent);
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* The global `.btn-block` ships with margin-top: var(--space-2); we
+ * add a small additional lift here so the button reads as a distinct
+ * action step after the field rows. */
+.submitBtn {
+    margin-top: 6px;
+    min-height: 40px;
+}
+
+/* Spinner used only during the submission tick. One keyframe, local
+ * to this module so it doesn't leak into the global stylesheet. */
+@keyframes aktduqSpin {
+    to { transform: rotate(360deg); }
+}
+
+.spin {
+    display: inline-block;
+    animation: aktduqSpin 0.9s linear infinite;
+}
+
+.loading {
+    font-size: 15px;
+    color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
