@@ -6,9 +6,9 @@
 }
 
 .activeRunCard {
-  background-color: #1a2938;
-  border: 1px solid #7b68ee;
-  border-left: 4px solid #7b68ee;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-left: 4px solid var(--color-accent);
   border-radius: 8px;
   padding: 12px 16px;
 }
@@ -23,14 +23,14 @@
 }
 
 .jobCard {
-  background-color: #1a2938;
-  border: 1px solid #2a3a50;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-divider);
   border-radius: 10px;
   padding: 16px;
   transition: border-color 0.2s;
 
   &:hover {
-    border-color: #3a4f6a;
+    border-color: var(--color-neutral-700);
   }
 }
 
@@ -42,7 +42,7 @@
 }
 
 .jobTitle {
-  color: #fafafa;
+  color: var(--color-text);
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -56,28 +56,28 @@
 }
 
 .healthy {
-  background-color: rgba(74, 222, 128, 0.15);
-  color: #4ade80;
+  background-color: color-mix(in srgb, oklch(0.80 0.13 155) 15%, transparent);
+  color: oklch(0.80 0.13 155);
 }
 
 .degraded {
-  background-color: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
+  background-color: color-mix(in srgb, oklch(0.80 0.13 85) 15%, transparent);
+  color: oklch(0.80 0.13 85);
 }
 
 .critical {
-  background-color: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background-color: color-mix(in srgb, oklch(0.74 0.15 25) 15%, transparent);
+  color: oklch(0.74 0.15 25);
 }
 
 .down {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background-color: color-mix(in srgb, oklch(0.74 0.15 25) 20%, transparent);
+  color: oklch(0.74 0.15 25);
 }
 
 .idle {
-  background-color: rgba(139, 139, 139, 0.15);
-  color: #8b8b8b;
+  background-color: color-mix(in srgb, var(--color-neutral-500) 15%, transparent);
+  color: var(--color-neutral-500);
 }
 
 /* Day-by-day timeline bar */
@@ -107,28 +107,28 @@
 }
 
 .dayCellEmpty {
-  background-color: #1e2d3d;
+  background-color: var(--color-neutral-900);
 }
 
 .dayCellCompleted {
-  background-color: #4ade80;
+  background-color: oklch(0.80 0.13 155);
 }
 
 .dayCellPending {
-  background-color: #f59e0b;
+  background-color: oklch(0.80 0.13 85);
 }
 
 .dayCellOverdue {
-  background-color: #ef4444;
+  background-color: oklch(0.74 0.15 25);
 }
 
 .dayCellFailed {
-  background-color: #a855f7;
+  background-color: oklch(0.60 0.25 300);
 }
 
 .dayCellMixed {
   /* For days with mixed statuses — use a gradient */
-  background: linear-gradient(to top, #ef4444 0%, #f59e0b 50%, #4ade80 100%);
+  background: linear-gradient(to top, oklch(0.74 0.15 25) 0%, oklch(0.80 0.13 85) 50%, oklch(0.80 0.13 155) 100%);
 }
 
 .timelineLabels {
@@ -136,7 +136,7 @@
   justify-content: space-between;
   margin-top: 4px;
   font-size: 10px;
-  color: #5a6a7c;
+  color: var(--color-neutral-600);
 }
 
 /* Tooltip overlay */
@@ -145,13 +145,13 @@
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #0f1419;
-  border: 1px solid #2a3a50;
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
   border-radius: 6px;
   padding: 6px 10px;
   white-space: nowrap;
   font-size: 11px;
-  color: #fafafa;
+  color: var(--color-text);
   z-index: 10;
   pointer-events: none;
 
@@ -162,14 +162,14 @@
     left: 50%;
     transform: translateX(-50%);
     border: 4px solid transparent;
-    border-top-color: #2a3a50;
+    border-top-color: var(--color-divider);
   }
 }
 
 .tooltipDate {
   font-weight: 600;
   margin-bottom: 3px;
-  color: #b0b0b0;
+  color: var(--color-neutral-400);
 }
 
 .tooltipRow {
@@ -189,7 +189,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #8b8b8b;
+  color: var(--color-neutral-500);
   font-size: 0.8rem;
   margin-top: 10px;
 }
@@ -212,18 +212,18 @@
 }
 
 .priorityHigh {
-  background-color: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background-color: color-mix(in srgb, oklch(0.74 0.15 25) 15%, transparent);
+  color: oklch(0.74 0.15 25);
 }
 
 .priorityMedium {
-  background-color: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
+  background-color: color-mix(in srgb, oklch(0.80 0.13 85) 15%, transparent);
+  color: oklch(0.80 0.13 85);
 }
 
 .priorityLow {
-  background-color: rgba(139, 139, 139, 0.15);
-  color: #8b8b8b;
+  background-color: color-mix(in srgb, var(--color-neutral-500) 15%, transparent);
+  color: var(--color-neutral-500);
 }
 
 .legend {
@@ -238,7 +238,7 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: #8b8b8b;
+  color: var(--color-neutral-500);
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 4px;
@@ -258,7 +258,7 @@
 
 .expandedSection {
   margin-top: 14px;
-  border-top: 1px solid #2a3a50;
+  border-top: 1px solid var(--color-divider);
   padding-top: 12px;
 }
 
@@ -270,7 +270,7 @@
 }
 
 .expandedTitle {
-  color: #b0b0b0;
+  color: var(--color-neutral-400);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -299,3 +299,470 @@
     gap: 1px;
   }
 }
+
+/* ─── ak-cfzj (ak-2n09a): Nocturne dialog chrome replacing MUI
+ * Dialog/Table/TablePagination/Checkbox/Select/LinearProgress.
+ * Shape matches FE-5 DepositsComponent + ak-2n09 FileTimestamps —
+ * fixed backdrop + centered panel, Nocturne tokens throughout.
+ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel {
+  width: min(960px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-bg) 70%, transparent);
+  color: var(--color-text);
+  overflow: hidden;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-divider);
+  flex-wrap: wrap;
+
+  @media screen and (max-width: 720px) {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  i {
+    font-size: 17px;
+    color: var(--color-accent);
+  }
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  @media screen and (max-width: 720px) {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+.toolbarSelectGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  @media screen and (max-width: 720px) {
+    flex: 1;
+  }
+}
+
+.jobSelect {
+  all: unset;
+  cursor: pointer;
+  min-width: 160px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-divider);
+  font-size: 13px;
+  font-family: var(--font-body);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  option {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+}
+
+.runBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: var(--color-accent);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent-200);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.iconBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ─── ak-cfzj table replacing MUI Table/TableHead/TableRow/TableCell */
+
+.tableWrapper {
+  background: var(--color-bg);
+  border-radius: 6px;
+  border: 1px solid var(--color-divider);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+  }
+
+  thead th {
+    color: var(--color-neutral-500);
+    font-weight: 600;
+    font-size: 0.75rem;
+    border-bottom: 1px solid var(--color-divider);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: color-mix(in srgb, var(--color-text) 3%, transparent);
+    }
+  }
+
+  tbody td {
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-surface);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.tableLoadingCell {
+  color: var(--color-neutral-500) !important;
+  text-align: center !important;
+  padding: 16px 12px !important;
+}
+
+.tableResultCell {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cancelIconBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: oklch(0.74 0.15 25);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: color-mix(in srgb, oklch(0.74 0.15 25) 12%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(0.74 0.15 25);
+    outline-offset: 2px;
+  }
+}
+
+.statusEnabled {
+  color: oklch(0.80 0.13 155);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusDisabled {
+  color: oklch(0.74 0.15 25);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ─── ak-cfzj pager replacing MUI TablePagination */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--color-divider);
+  color: var(--color-neutral-500);
+  font-size: 0.75rem;
+}
+
+.pagerStatus {
+  font-variant-numeric: tabular-nums;
+}
+
+.pagerBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--color-neutral-400);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+/* ─── ak-cfzj checkbox replacing MUI Checkbox */
+
+.checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1.5px solid var(--color-neutral-500);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background-color 0.12s, border-color 0.12s;
+
+  &:hover {
+    border-color: var(--color-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+
+  &:checked {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(45deg, transparent 50%, var(--color-text) 50%) no-repeat,
+        linear-gradient(-45deg, transparent 50%, var(--color-text) 50%) no-repeat;
+      /* Simple checkmark via two lines — tiny CSS, no SVG dep. */
+      clip-path: polygon(14% 50%, 10% 60%, 40% 90%, 90% 25%, 80% 15%, 40% 65%);
+      background: var(--color-text);
+    }
+  }
+
+  &:indeterminate {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      top: 50%;
+      height: 2px;
+      transform: translateY(-50%);
+      background: var(--color-text);
+      border-radius: 1px;
+    }
+  }
+}
+
+/* ─── ak-cfzj progress strip (replaces MUI LinearProgress for run-polling) */
+
+.progressStrip {
+  height: 3px;
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--color-accent);
+    border-radius: 2px;
+    animation: jobsProgressSlide 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes jobsProgressSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+.activeRunHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.activeRunTitle {
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.activeRunStatus {
+  font-size: 0.75rem;
+}
+
+.activeRunStatusRunning { color: oklch(0.80 0.13 85); }
+.activeRunStatusCompleted { color: oklch(0.80 0.13 155); }
+.activeRunStatusFailed { color: oklch(0.74 0.15 25); }
+
+.activeRunResult {
+  color: var(--color-neutral-400);
+  margin-top: 4px;
+  font-size: 0.75rem;
+  display: block;
+}
+
+.activeRunError {
+  color: oklch(0.74 0.15 25);
+  margin-top: 4px;
+  font-size: 0.75rem;
+  display: block;
+}
+
+.cancelBulkBtn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, oklch(0.74 0.15 25) 12%, transparent);
+  color: oklch(0.74 0.15 25);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid color-mix(in srgb, oklch(0.74 0.15 25) 40%, transparent);
+
+  i { font-size: 12px; }
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, oklch(0.74 0.15 25) 20%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(0.74 0.15 25);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.expandedHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+

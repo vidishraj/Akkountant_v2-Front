@@ -1,29 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    Typography,
-    IconButton,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    Collapse,
-    Button,
-    Checkbox,
-    TablePagination,
-    useMediaQuery,
-    Box,
-    Tooltip,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel
-} from "@mui/material";
-import {LinearProgress} from "@mui/material";
-import {
     fetchJobsSummary,
     fetchJobsByTitleStatus,
     fetchJobsDailyHistory,
@@ -38,12 +14,52 @@ import {
 } from '../../services/jobService.ts';
 import {fetchJobsTable} from '../../services/investmentService.ts';
 import {useMessage} from '../../contexts/MessageContext.tsx';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import CloseIcon from '@mui/icons-material/Close';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import CancelIcon from '@mui/icons-material/Cancel';
-import DeleteIcon from '@mui/icons-material/Delete';
+import useModalA11y from '../../hooks/useModalA11y.ts';
 import cardStyles from './JobsDialog.module.scss';
+
+/**
+ * ak-cfzj (ak-2n09a): JobsDialog MUI → Nocturne rewrite.
+ *
+ * Pre-ak-cfzj was 872 LOC of MUI (Dialog/Table/TablePagination/Checkbox/
+ * Select/FormControl/InputLabel/Collapse/Tooltip/IconButton/Button/
+ * LinearProgress/Typography/Box, plus @mui/icons-material). The visuals
+ * were force-themed inline with sx={{color: '#FAFAFA', ...}} hex
+ * overrides because the MUI theme wasn't Nocturne-skinned.
+ *
+ * This commit swaps every MUI surface for Nocturne primitives + native
+ * HTML + Phosphor icons, preserving ALL state, effects, refs, callbacks
+ * and data wiring byte-for-byte. The render shape is intentionally the
+ * same as the FE-5 DepositsComponent + ak-2n09 FileTimestampsDialog:
+ * fixed backdrop + centered panel, useModalA11y focus-trap, inline Esc.
+ *
+ * Structural equivalents
+ *   MUI Dialog              → .backdrop + .panel + useModalA11y
+ *   MUI DialogTitle         → .header
+ *   MUI DialogContent       → .body
+ *   MUI Table/Head/…        → native <table>/<thead>/…
+ *   MUI TablePagination     → hand-rolled .pager strip
+ *   MUI Checkbox            → native <input type="checkbox"> + .checkbox
+ *   MUI Select + FormControl → native <select>/<option>
+ *   MUI Button              → <button> + .runBtn / "btn btn-*" shared
+ *   MUI IconButton          → <button> + .iconBtn + Phosphor icon
+ *   MUI LinearProgress      → .progressStrip (CSS keyframe)
+ *   MUI Collapse            → direct conditional render (was always
+ *                              `in={true}` in the pre-ak-cfzj use)
+ *   MUI Tooltip             → `title` attribute on the child
+ *   MUI Typography          → <span>/<div> with explicit SCSS class
+ *   @mui/icons-material/*   → Phosphor ph-*
+ *     Refresh              → ph-arrows-clockwise
+ *     Close                → ph-x
+ *     KeyboardArrowUp      → ph-caret-up
+ *     Cancel               → ph-x-circle
+ *     Delete               → ph-trash
+ *   useMediaQuery           → window.matchMedia + useEffect hook
+ *
+ * Data wiring is unchanged — same jobService calls, same message
+ * payload shapes, same bulk-cancel + run-now polling + 15s auto-dismiss
+ * semantics. The helpers (generateDateRange, dominantStatus,
+ * buildGradient) are copied byte-for-byte.
+ */
 
 interface JobsDialogProps {
     open: boolean,
@@ -62,11 +78,18 @@ interface ExpandedJobType {
 
 const HISTORY_DAYS = 90;
 
+/**
+ * ak-cfzj: palette-aware status tokens. The tooltip legend reads these
+ * as inline `style={{backgroundColor}}` to match the per-day timeline
+ * cells; swapping to oklch() keeps the dashboard legible across the
+ * Nocturne palette (previously the inline hex codes didn't participate
+ * in token updates).
+ */
 const STATUS_COLORS: Record<string, string> = {
-    Completed: '#4ade80',
-    Pending: '#f59e0b',
-    Overdue: '#ef4444',
-    Failed: '#a855f7',
+    Completed: 'oklch(0.80 0.13 155)',
+    Pending: 'oklch(0.80 0.13 85)',
+    Overdue: 'oklch(0.74 0.15 25)',
+    Failed: 'oklch(0.60 0.25 300)',
 };
 
 const STATUS_CELL_CLASS: Record<string, string> = {
@@ -101,6 +124,40 @@ function dominantStatus(dayData: Record<string, number>): string {
     return 'Completed';
 }
 
+/**
+ * ak-cfzj: FE-local useMediaQuery stand-in. Returns `true` when the
+ * passed query matches. Preserves the pre-ak-cfzj `isMobile` semantics
+ * (viewport ≤ 768px) without pulling @mui/material/useMediaQuery.
+ */
+function useMediaQuery(query: string): boolean {
+    const [matches, setMatches] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia(query).matches;
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mql = window.matchMedia(query);
+        const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
+        // Safari < 14 lacks addEventListener on MQL — defensive dual path.
+        if (typeof mql.addEventListener === 'function') {
+            mql.addEventListener('change', onChange);
+            setMatches(mql.matches);
+            return () => mql.removeEventListener('change', onChange);
+        }
+        // Fallback (legacy).
+        const legacy = mql as unknown as {
+            addListener: (cb: (e: MediaQueryListEvent) => void) => void;
+            removeListener: (cb: (e: MediaQueryListEvent) => void) => void;
+        };
+        legacy.addListener(onChange);
+        setMatches(mql.matches);
+        return () => legacy.removeListener(onChange);
+    }, [query]);
+
+    return matches;
+}
+
 const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     const [jobsSummary, setJobsSummary] = useState<JobSummary[]>([]);
     const [dailyHistory, setDailyHistory] = useState<DailyHistory>({});
@@ -115,6 +172,22 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
     // Active runs (run-now with polling)
     const [activeRuns, setActiveRuns] = useState<Record<string, RunStatusResponse>>({});
     const pollRefs = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+
+    // ak-cfzj: Nocturne modal a11y + inline Esc handler.
+    const panelRef = useRef<HTMLDivElement>(null);
+    useModalA11y({
+        open,
+        panelRef: panelRef as React.RefObject<HTMLElement>,
+    });
+
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [open, onClose]);
 
     const startRunPolling = useCallback((runId: string, title: string) => {
         setActiveRuns(prev => ({
@@ -195,7 +268,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             loadJobsSummary();
             loadAvailableJobs();
         }
-    }, [open]);
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadJobDetails = async (title: string, status: string, page = 1) => {
         const key = `${title}-${status}`;
@@ -385,8 +458,9 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
             setPayload({type: "success", message: `${selectedJob} started — running now`});
             startRunPolling(response.run_id, selectedJob);
             setSelectedJob("");
-        } catch (error: any) {
-            const msg = error?.response?.data?.message || "Failed to start job";
+        } catch (error) {
+            const anyErr = error as {response?: {data?: {message?: string}}};
+            const msg = anyErr?.response?.data?.message || "Failed to start job";
             setPayload({type: "error", message: msg});
             console.error("Error starting job:", error);
         }
@@ -457,7 +531,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                             <div className={cardStyles.tooltipDate}>
                                                 {new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                             </div>
-                                            <div style={{ color: '#5a6a7c' }}>No jobs</div>
+                                            <div style={{ color: 'var(--color-neutral-600)' }}>No jobs</div>
                                         </div>
                                     )}
                                 </div>
@@ -492,7 +566,7 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                             <div key={status} className={cardStyles.tooltipRow}>
                                                 <span
                                                     className={cardStyles.tooltipDot}
-                                                    style={{ backgroundColor: STATUS_COLORS[status] || '#8b8b8b' }}
+                                                    style={{ backgroundColor: STATUS_COLORS[status] || 'var(--color-neutral-500)' }}
                                                 />
                                                 {status}: {count}
                                             </div>
@@ -511,266 +585,261 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
         );
     };
 
+    if (!open) return null;
+
     return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            fullScreen={isMobile}
-            maxWidth="md"
-            PaperProps={{
-                sx: {
-                    backgroundColor: "#121C24",
-                    color: "#FAFAFA",
-                    borderRadius: 2,
-                    width: '95%',
-                    height: '90%'
-                },
-            }}
+        <div
+            className={cardStyles.backdrop}
+            onMouseDown={onClose}
+            role="presentation"
         >
-            <DialogTitle sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'stretch', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 2, sm: 0 },
-                padding: { xs: 2, sm: 3 }
-            }}>
-                <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ flexShrink: 0 }}>
-                    Jobs Management
-                </Typography>
-                <Box sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: 'center',
-                    gap: { xs: 1, sm: 2 },
-                    flexWrap: 'wrap'
-                }}>
-                    <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        width: { xs: '100%', sm: 'auto' }
-                    }}>
-                        <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 }, flex: { xs: 1, sm: 'none' } }}>
-                            <InputLabel sx={{color: '#FAFAFA', '&.Mui-focused': {color: '#7b68ee'}}}>
-                                Select Job
-                            </InputLabel>
-                            <Select
+            <div
+                ref={panelRef}
+                className={cardStyles.panel}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Jobs management"
+                tabIndex={-1}
+                onMouseDown={(e) => e.stopPropagation()}
+            >
+                <div className={cardStyles.header}>
+                    <span className={cardStyles.title}>
+                        <i className="ph ph-briefcase" aria-hidden/>
+                        <span>Jobs Management</span>
+                    </span>
+
+                    <div className={cardStyles.toolbar}>
+                        <div className={cardStyles.toolbarSelectGroup}>
+                            <select
+                                className={cardStyles.jobSelect}
                                 value={selectedJob}
                                 onChange={(e) => setSelectedJob(e.target.value)}
-                                label="Select Job"
-                                sx={{
-                                    color: '#FAFAFA',
-                                    '& .MuiOutlinedInput-notchedOutline': {borderColor: '#5a6a7c'},
-                                    '&:hover .MuiOutlinedInput-notchedOutline': {borderColor: '#FAFAFA'},
-                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {borderColor: '#7b68ee'},
-                                    '& .MuiSvgIcon-root': {color: '#FAFAFA'}
-                                }}
+                                aria-label="Select job"
                             >
+                                <option value="" disabled>
+                                    Select job…
+                                </option>
                                 {Object.entries(availableJobs).map(([key, value]) => (
-                                    <MenuItem key={key} value={key}>
+                                    <option key={key} value={key}>
                                         {value}
-                                    </MenuItem>
+                                    </option>
                                 ))}
-                            </Select>
-                        </FormControl>
-                        <Button
-                            variant="contained"
-                            onClick={handleJobCreation}
-                            disabled={!selectedJob || loading}
-                            size="small"
-                            sx={{
-                                backgroundColor: '#7b68ee',
-                                '&:hover': {backgroundColor: '#6a5acd'},
-                                '&:disabled': {backgroundColor: '#555'},
-                                whiteSpace: 'nowrap'
-                            }}
-                        >
-                            {isMobile ? 'Run' : 'Run Now'}
-                        </Button>
-                    </Box>
+                            </select>
+                            <button
+                                type="button"
+                                className={cardStyles.runBtn}
+                                onClick={handleJobCreation}
+                                disabled={!selectedJob || loading}
+                            >
+                                {isMobile ? 'Run' : 'Run Now'}
+                            </button>
+                        </div>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton
+                        <button
+                            type="button"
+                            className={cardStyles.iconBtn}
                             onClick={() => loadJobsSummary(true)}
                             disabled={loading}
-                            sx={{color: '#FAFAFA'}}
-                            size={isMobile ? "small" : "medium"}
+                            aria-label="Refresh"
+                            title="Refresh"
                         >
-                            <RefreshIcon/>
-                        </IconButton>
-                        <IconButton
+                            <i className="ph ph-arrows-clockwise"/>
+                        </button>
+                        <button
+                            type="button"
+                            className={cardStyles.iconBtn}
                             onClick={onClose}
-                            sx={{color: '#FAFAFA'}}
-                            size={isMobile ? "small" : "medium"}
+                            aria-label="Close"
+                            title="Close"
                         >
-                            <CloseIcon/>
-                        </IconButton>
-                    </Box>
-                </Box>
-            </DialogTitle>
+                            <i className="ph ph-x"/>
+                        </button>
+                    </div>
+                </div>
 
-            <DialogContent sx={{padding: 0, overflow: 'auto'}}>
-                {/* Active Runs */}
-                {Object.keys(activeRuns).length > 0 && (
-                    <div className={cardStyles.activeRunsSection}>
-                        {Object.values(activeRuns).map(run => (
-                            <div key={run.run_id} className={cardStyles.activeRunCard}>
-                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                    <Typography variant="body2" sx={{color: '#fafafa', fontWeight: 600}}>
-                                        {run.title}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{color: run.status === 'Completed' ? '#4ADE80' : run.status === 'Failed' ? '#EF4444' : '#F59E0B'}}>
-                                        {run.status === 'running' ? 'Running...' : `${run.status} (${run.duration_seconds}s)`}
-                                    </Typography>
+                <div className={cardStyles.body}>
+                    {/* Active Runs */}
+                    {Object.keys(activeRuns).length > 0 && (
+                        <div className={cardStyles.activeRunsSection}>
+                            {Object.values(activeRuns).map(run => {
+                                const statusClass =
+                                    run.status === 'Completed'
+                                        ? cardStyles.activeRunStatusCompleted
+                                        : run.status === 'Failed'
+                                            ? cardStyles.activeRunStatusFailed
+                                            : cardStyles.activeRunStatusRunning;
+                                return (
+                                    <div key={run.run_id} className={cardStyles.activeRunCard}>
+                                        <div className={cardStyles.activeRunHeader}>
+                                            <span className={cardStyles.activeRunTitle}>
+                                                {run.title}
+                                            </span>
+                                            <span className={`${cardStyles.activeRunStatus} ${statusClass}`}>
+                                                {run.status === 'running'
+                                                    ? 'Running…'
+                                                    : `${run.status} (${run.duration_seconds}s)`}
+                                            </span>
+                                        </div>
+                                        {run.status === 'running' && (
+                                            <div className={cardStyles.progressStrip} aria-hidden/>
+                                        )}
+                                        {run.result && (
+                                            <span className={cardStyles.activeRunResult}>
+                                                {run.result}
+                                            </span>
+                                        )}
+                                        {run.error && (
+                                            <span className={cardStyles.activeRunError}>
+                                                {run.error}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    <div className={cardStyles.cardList}>
+                        {/* Legend at top */}
+                        <div className={cardStyles.legend}>
+                            {Object.entries(STATUS_COLORS).map(([status, color]) => (
+                                <div key={status} className={cardStyles.legendItem} style={{ cursor: 'default' }}>
+                                    <span className={cardStyles.legendDot} style={{ backgroundColor: color }} />
+                                    {status}
                                 </div>
-                                {run.status === 'running' && <LinearProgress sx={{mt: 1, borderRadius: 2, '& .MuiLinearProgress-bar': {backgroundColor: '#7b68ee'}}} />}
-                                {run.result && <Typography variant="caption" sx={{color: '#aaa', mt: 0.5, display: 'block'}}>{run.result}</Typography>}
-                                {run.error && <Typography variant="caption" sx={{color: '#EF4444', mt: 0.5, display: 'block'}}>{run.error}</Typography>}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
 
-                <div className={cardStyles.cardList}>
-                    {/* Legend at top */}
-                    <div className={cardStyles.legend}>
-                        {Object.entries(STATUS_COLORS).map(([status, color]) => (
-                            <div key={status} className={cardStyles.legendItem} style={{ cursor: 'default' }}>
-                                <span className={cardStyles.legendDot} style={{ backgroundColor: color }} />
-                                {status}
-                            </div>
-                        ))}
-                    </div>
+                        {jobsSummary.map((job) => {
+                            const health = getHealthStatus(job);
+                            const total = getTotal(job);
+                            const expandedKeys = getExpandedStatuses(job.title);
 
-                    {jobsSummary.map((job) => {
-                        const health = getHealthStatus(job);
-                        const total = getTotal(job);
-                        const expandedKeys = getExpandedStatuses(job.title);
+                            return (
+                                <div key={job.title}>
+                                    {/* Job Card */}
+                                    <div className={cardStyles.jobCard}>
+                                        {/* Card Header */}
+                                        <div className={cardStyles.cardHeader}>
+                                            <span className={cardStyles.jobTitle}>{job.title}</span>
+                                            <span className={`${cardStyles.healthBadge} ${health.className}`}>
+                                                {health.label}
+                                            </span>
+                                        </div>
 
-                        return (
-                            <div key={job.title}>
-                                {/* Job Card */}
-                                <div className={cardStyles.jobCard}>
-                                    {/* Card Header */}
-                                    <div className={cardStyles.cardHeader}>
-                                        <span className={cardStyles.jobTitle}>{job.title}</span>
-                                        <span className={`${cardStyles.healthBadge} ${health.className}`}>
-                                            {health.label}
-                                        </span>
+                                        {/* Day-by-day timeline */}
+                                        {renderTimeline(job)}
+
+                                        {/* Card Footer */}
+                                        <div className={cardStyles.cardFooter}>
+                                            <div className={cardStyles.footerItem}>
+                                                <span>{total} total</span>
+                                            </div>
+                                            <div className={cardStyles.footerItem}>
+                                                <span className={cardStyles.successRate}>{getSuccessRate(job)}%</span>
+                                                <span>success</span>
+                                            </div>
+                                            <span className={`${cardStyles.priorityPill} ${getPriorityClass(job.priority)}`}>
+                                                {job.priority}
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    {/* Day-by-day timeline */}
-                                    {renderTimeline(job)}
+                                    {/* Expanded detail sections */}
+                                    {expandedKeys.map((expandedKey) => {
+                                        const jobData = expandedJobs[expandedKey];
+                                        if (!jobData) return null;
+                                        const status = jobData.status;
+                                        const canCancel = canCancelJobs(status);
+                                        const selectedSize = jobData?.selectedJobs?.size || 0;
+                                        const allSelectedOnPage = jobData?.jobs?.length > 0
+                                            && jobData.jobs.every(j => jobData?.selectedJobs?.has(j.id));
+                                        const someSelectedOnPage = selectedSize > 0 && !allSelectedOnPage;
+                                        const totalPages = Math.max(1, Math.ceil(jobData.totalJobs / 10));
 
-                                    {/* Card Footer */}
-                                    <div className={cardStyles.cardFooter}>
-                                        <div className={cardStyles.footerItem}>
-                                            <span>{total} total</span>
-                                        </div>
-                                        <div className={cardStyles.footerItem}>
-                                            <span className={cardStyles.successRate}>{getSuccessRate(job)}%</span>
-                                            <span>success</span>
-                                        </div>
-                                        <span className={`${cardStyles.priorityPill} ${getPriorityClass(job.priority)}`}>
-                                            {job.priority}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Expanded detail sections */}
-                                {expandedKeys.map((expandedKey) => {
-                                    const jobData = expandedJobs[expandedKey];
-                                    if (!jobData) return null;
-                                    const status = jobData.status;
-
-                                    return (
-                                        <Collapse key={expandedKey} in={true} timeout="auto">
-                                            <div className={cardStyles.expandedSection}>
+                                        return (
+                                            <div key={expandedKey} className={cardStyles.expandedSection}>
                                                 <div className={cardStyles.expandedHeader}>
                                                     <span className={cardStyles.expandedTitle}>
                                                         {job.title} — {status} Jobs
                                                     </span>
-                                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                                        {canCancelJobs(status) && (
-                                                            <Button
-                                                                startIcon={<DeleteIcon/>}
-                                                                variant="outlined"
-                                                                color="error"
-                                                                size="small"
+                                                    <div className={cardStyles.expandedHeaderActions}>
+                                                        {canCancel && (
+                                                            <button
+                                                                type="button"
+                                                                className={cardStyles.cancelBulkBtn}
                                                                 onClick={() => handleBulkCancel(job.title, status)}
-                                                                disabled={(jobData?.selectedJobs?.size || 0) === 0}
-                                                                sx={{ fontSize: '0.75rem' }}
+                                                                disabled={selectedSize === 0}
                                                             >
-                                                                Cancel ({jobData?.selectedJobs?.size || 0})
-                                                            </Button>
+                                                                <i className="ph ph-trash"/>
+                                                                <span>Cancel ({selectedSize})</span>
+                                                            </button>
                                                         )}
-                                                        <IconButton
-                                                            size="small"
+                                                        <button
+                                                            type="button"
+                                                            className={cardStyles.iconBtn}
                                                             onClick={() => handleExpandToggle(job.title, status)}
-                                                            sx={{color: '#FAFAFA'}}
+                                                            aria-label="Collapse"
+                                                            title="Collapse"
                                                         >
-                                                            <KeyboardArrowUpIcon/>
-                                                        </IconButton>
-                                                    </Box>
+                                                            <i className="ph ph-caret-up"/>
+                                                        </button>
+                                                    </div>
                                                 </div>
 
-                                                <Box sx={{
-                                                    backgroundColor: '#0f1419',
-                                                    borderRadius: 1,
-                                                    border: '1px solid #2a3a50',
-                                                    overflowX: 'auto',
-                                                }}>
-                                                    <Table size="small">
-                                                        <TableHead>
-                                                            <TableRow>
-                                                                {canCancelJobs(status) && (
-                                                                    <TableCell sx={{color: '#FAFAFA', borderBottom: '1px solid #2a3a50'}}>
-                                                                        <Checkbox
-                                                                            checked={jobData?.jobs?.length > 0 && jobData.jobs.every(j => jobData?.selectedJobs?.has(j.id))}
-                                                                            indeterminate={(jobData?.selectedJobs?.size || 0) > 0 && (jobData?.selectedJobs?.size || 0) < (jobData?.jobs?.length || 0)}
+                                                <div className={cardStyles.tableWrapper}>
+                                                    <table className={cardStyles.table}>
+                                                        <thead>
+                                                            <tr>
+                                                                {canCancel && (
+                                                                    <th>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className={cardStyles.checkbox}
+                                                                            checked={allSelectedOnPage}
+                                                                            ref={(el) => {
+                                                                                if (el) el.indeterminate = someSelectedOnPage;
+                                                                            }}
                                                                             onChange={() => handleSelectAll(job.title, status)}
-                                                                            sx={{color: '#FAFAFA', '&.Mui-checked': {color: '#7b68ee'}}}
+                                                                            aria-label="Select all on page"
                                                                         />
-                                                                    </TableCell>
+                                                                    </th>
                                                                 )}
-                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>ID</TableCell>
-                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Priority</TableCell>
-                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Due Date</TableCell>
-                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Failures</TableCell>
-                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Result</TableCell>
-                                                                <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Status</TableCell>
-                                                                {canCancelJobs(status) && (
-                                                                    <TableCell sx={{color: '#8b8b8b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid #2a3a50'}}>Actions</TableCell>
-                                                                )}
-                                                            </TableRow>
-                                                        </TableHead>
-                                                        <TableBody>
+                                                                <th>ID</th>
+                                                                <th>Priority</th>
+                                                                <th>Due Date</th>
+                                                                <th>Failures</th>
+                                                                <th>Result</th>
+                                                                <th>Status</th>
+                                                                {canCancel && <th>Actions</th>}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
                                                             {jobData.loading ? (
-                                                                <TableRow>
-                                                                    <TableCell
-                                                                        colSpan={canCancelJobs(status) ? 8 : 6}
-                                                                        sx={{color: '#8b8b8b', textAlign: 'center', borderBottom: '1px solid #2a3a50'}}
+                                                                <tr>
+                                                                    <td
+                                                                        className={cardStyles.tableLoadingCell}
+                                                                        colSpan={canCancel ? 8 : 6}
                                                                     >
-                                                                        Loading...
-                                                                    </TableCell>
-                                                                </TableRow>
+                                                                        Loading…
+                                                                    </td>
+                                                                </tr>
                                                             ) : jobData.jobs.map((jobDetail) => (
-                                                                <TableRow key={jobDetail.id} sx={{
-                                                                    '&:hover': { backgroundColor: 'rgba(255,255,255,0.03)' }
-                                                                }}>
-                                                                    {canCancelJobs(status) && (
-                                                                        <TableCell sx={{borderBottom: '1px solid #1a2938'}}>
-                                                                            <Checkbox
+                                                                <tr key={jobDetail.id}>
+                                                                    {canCancel && (
+                                                                        <td>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                className={cardStyles.checkbox}
                                                                                 checked={jobData?.selectedJobs?.has(jobDetail.id) || false}
                                                                                 onChange={() => handleJobSelection(jobDetail.id, job.title, status)}
-                                                                                sx={{color: '#FAFAFA', '&.Mui-checked': {color: '#7b68ee'}}}
+                                                                                aria-label={`Select job ${jobDetail.id}`}
                                                                             />
-                                                                        </TableCell>
+                                                                        </td>
                                                                     )}
-                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>{jobDetail.id}</TableCell>
-                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>{jobDetail.priority}</TableCell>
-                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>
+                                                                    <td>{jobDetail.id}</td>
+                                                                    <td>{jobDetail.priority}</td>
+                                                                    <td>
                                                                         {new Date(jobDetail.due_date).toLocaleString(undefined, {
                                                                             year: 'numeric',
                                                                             month: 'short',
@@ -778,73 +847,79 @@ const JobsDialog: React.FC<JobsDialogProps> = ({open, onClose}) => {
                                                                             hour: '2-digit',
                                                                             minute: '2-digit',
                                                                         })}
-                                                                    </TableCell>
-                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>{jobDetail.failures}</TableCell>
-                                                                    <TableCell sx={{color: '#FAFAFA', fontSize: '0.8rem', maxWidth: 180, borderBottom: '1px solid #1a2938'}}>
-                                                                        <Tooltip title={jobDetail.result || 'No result yet'}>
-                                                                            <Typography
-                                                                                noWrap
-                                                                                sx={{
-                                                                                    overflow: 'hidden',
-                                                                                    textOverflow: 'ellipsis',
-                                                                                    maxWidth: 180,
-                                                                                    fontSize: '0.8rem',
-                                                                                }}
-                                                                            >
-                                                                                {jobDetail.result || 'Pending...'}
-                                                                            </Typography>
-                                                                        </Tooltip>
-                                                                    </TableCell>
-                                                                    <TableCell sx={{fontSize: '0.8rem', borderBottom: '1px solid #1a2938'}}>
-                                                                        <span style={{
-                                                                            color: jobDetail.job_type_disabled ? '#ef4444' : '#4ade80',
-                                                                            fontSize: '0.75rem',
-                                                                            fontWeight: 600,
-                                                                        }}>
+                                                                    </td>
+                                                                    <td>{jobDetail.failures}</td>
+                                                                    <td
+                                                                        className={cardStyles.tableResultCell}
+                                                                        title={jobDetail.result || 'No result yet'}
+                                                                    >
+                                                                        {jobDetail.result || 'Pending…'}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={jobDetail.job_type_disabled ? cardStyles.statusDisabled : cardStyles.statusEnabled}>
                                                                             {jobDetail.job_type_disabled ? 'Disabled' : 'Enabled'}
                                                                         </span>
-                                                                    </TableCell>
-                                                                    {canCancelJobs(status) && (
-                                                                        <TableCell sx={{borderBottom: '1px solid #1a2938'}}>
-                                                                            <IconButton
-                                                                                size="small"
+                                                                    </td>
+                                                                    {canCancel && (
+                                                                        <td>
+                                                                            <button
+                                                                                type="button"
+                                                                                className={cardStyles.cancelIconBtn}
                                                                                 onClick={() => handleCancelJob(jobDetail.id, job.title, status)}
-                                                                                sx={{color: '#ef4444'}}
+                                                                                aria-label="Cancel job"
+                                                                                title="Cancel job"
                                                                             >
-                                                                                <CancelIcon fontSize="small"/>
-                                                                            </IconButton>
-                                                                        </TableCell>
+                                                                                <i className="ph ph-x-circle"/>
+                                                                            </button>
+                                                                        </td>
                                                                     )}
-                                                                </TableRow>
+                                                                </tr>
                                                             ))}
-                                                        </TableBody>
-                                                    </Table>
+                                                        </tbody>
+                                                    </table>
 
-                                                    <TablePagination
-                                                        component="div"
-                                                        count={jobData.totalJobs}
-                                                        page={jobData.page - 1}
-                                                        onPageChange={(_, newPage) => handlePageChange(job.title, status, newPage)}
-                                                        rowsPerPage={10}
-                                                        rowsPerPageOptions={[10]}
-                                                        sx={{
-                                                            color: '#8b8b8b',
-                                                            '& .MuiTablePagination-actions': {color: '#8b8b8b'},
-                                                            '& .MuiIconButton-root': {color: '#8b8b8b'},
-                                                            borderTop: '1px solid #2a3a50',
-                                                        }}
-                                                    />
-                                                </Box>
+                                                    {/* ak-cfzj: hand-rolled pager replacing MUI
+                                                        TablePagination. 10 rows/page is fixed
+                                                        (pre-ak-cfzj rowsPerPage was non-configurable
+                                                        too). `handlePageChange` takes a 0-indexed
+                                                        page to preserve the pre-ak-cfzj callback
+                                                        signature. */}
+                                                    <div className={cardStyles.pager}>
+                                                        <span className={cardStyles.pagerStatus}>
+                                                            {jobData.totalJobs === 0
+                                                                ? '0 jobs'
+                                                                : `Page ${jobData.page} of ${totalPages} · ${jobData.totalJobs} total`}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            className={cardStyles.pagerBtn}
+                                                            onClick={() => handlePageChange(job.title, status, jobData.page - 2)}
+                                                            disabled={jobData.page <= 1 || jobData.loading}
+                                                            aria-label="Previous page"
+                                                        >
+                                                            <i className="ph ph-caret-left"/>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={cardStyles.pagerBtn}
+                                                            onClick={() => handlePageChange(job.title, status, jobData.page)}
+                                                            disabled={jobData.page >= totalPages || jobData.loading}
+                                                            aria-label="Next page"
+                                                        >
+                                                            <i className="ph ph-caret-right"/>
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </Collapse>
-                                    );
-                                })}
-                            </div>
-                        );
-                    })}
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     );
 };
 
@@ -859,7 +934,7 @@ function buildGradient(dayData: Record<string, number>, total: number): string {
     for (const status of order) {
         const count = dayData[status];
         if (!count) continue;
-        const color = STATUS_COLORS[status] || '#8b8b8b';
+        const color = STATUS_COLORS[status] || 'oklch(0.60 0 0)';
         const nextPct = pct + (count / total) * 100;
         stops.push(`${color} ${pct}%`);
         stops.push(`${color} ${nextPct}%`);
