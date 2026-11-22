@@ -19,6 +19,7 @@ import SortedBy from "../../components/SortComponent.tsx";
 import FileSummary from "../../components/FileSummaryComponent/FileSummary.tsx";
 import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 import useModalA11y from "../../hooks/useModalA11y.ts";
+import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext.tsx";
 import {useMessage} from "../../contexts/MessageContext.tsx";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import {formatDateString} from "../../utils/util.tsx";
@@ -32,6 +33,14 @@ import React, {useRef} from "react";
  * FE-14 (ak-4qgd) sidebar overhaul: moved LEFT → RIGHT, mode switcher +
  * GoogleComponent removed from sidebar, three new cards added
  * (Spend-by-category / Recurring / Ingestion connected-status).
+ * FE-16 (ak-inli) ledger polish: columns reordered to Bank / Description
+ * (+ inline Category chip) / Date / Amount; BankChip monospace component;
+ * column-level hide-amounts privacy toggle (blur + click-to-reveal);
+ * detail-drawer "Links" section (Attach from Files + Link investment)
+ * and "Find similar with assistant" CTA. The three new drawer actions
+ * dispatch through the AgentChatBridge with pre-filled payloads — the
+ * agent handles the actual linking/search behavior, so this is a UI-
+ * surface wire with no new BE contract.
  *
  * Replaces the pre-FE-8 composition (MUI Drawer + TablePagination + MUI
  * TransactionCard). The row rendering is inlined so FE-8 can hit its
@@ -341,6 +350,25 @@ const IngestionStatusCard: React.FC = () => {
  * switch per SAFE constraint (removing FieldSelector from the sidebar
  * would strand the file-ingestion view otherwise).
  */
+/**
+ * ak-inli: BankChip — small monospace uppercase chip for the Bank column.
+ * Replaces the pre-ak-inli plain-text bank rendering per design (brief
+ * 05 ledger-row shape: `bank-mono-chip / Description + Category / Date /
+ * Amount`). Label resolution falls back through BANK_LABEL → raw bank
+ * code → "—" so unknown bank codes still render SOMETHING readable.
+ */
+interface BankChipProps {
+    bank: string | null | undefined;
+}
+const BankChip: React.FC<BankChipProps> = ({bank}) => {
+    const label = bank ? (BANK_LABEL[bank] ?? bank) : "—";
+    return (
+        <span className={style.bankChip} title={bank ?? undefined}>
+            {label}
+        </span>
+    );
+};
+
 interface ModeToggleProps {
     transactionMode: boolean;
     onSet: (next: boolean) => void;
@@ -377,6 +405,18 @@ const Transactions = () => {
     const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
     const [detailTx, setDetailTx] = useState<Transaction | null>(null);
     const {setPayload} = useMessage();
+    // ak-inli: AgentChatBridge handle — used by the three drawer actions
+    // (Attach from Files / Link investment / Find similar with assistant)
+    // to open the agent drawer with a pre-filled payload instead of
+    // adding three bespoke endpoints.
+    const {setCommand: setAgentCommand} = useAgentChatBridge();
+
+    // ak-inli: column-level hide-amounts privacy toggle. Starts REVEALED
+    // (default-visible) since the Transactions page is already behind the
+    // auth gate; the toggle exists for over-the-shoulder / screen-share
+    // scenarios. Click the Amount column header → blur all amount cells;
+    // click again → reveal.
+    const [amountsHidden, setAmountsHidden] = useState<boolean>(false);
 
     // Client-side mobile detection via resize — drops MUI's useMediaQuery.
     const [isMobile, setIsMobile] = useState<boolean>(
@@ -591,12 +631,34 @@ const Transactions = () => {
                 </div>
             ) : (
                 <div className={style.txnList} role="table" aria-label="Transactions">
+                    {/* ak-inli: 4-column layout per design — Bank chip /
+                        Description (+ inline Category chip) / Date / Amount.
+                        The Amount header hosts the column-level hide-amounts
+                        toggle (click to blur / reveal all amount cells). */}
                     <div className={style.txnHeader} role="row">
-                        <span role="columnheader">Date</span>
-                        <span role="columnheader">Description</span>
                         <span role="columnheader">Bank</span>
-                        <span role="columnheader">Category</span>
-                        <span role="columnheader" className={style.txnColAmount}>Amount</span>
+                        <span role="columnheader">Description</span>
+                        <span role="columnheader">Date</span>
+                        <span role="columnheader" className={style.txnColAmount}>
+                            <button
+                                type="button"
+                                onClick={() => setAmountsHidden((v) => !v)}
+                                className={style.privacyToggle}
+                                aria-pressed={amountsHidden}
+                                aria-label={amountsHidden
+                                    ? "Reveal amounts"
+                                    : "Hide amounts"}
+                                title={amountsHidden
+                                    ? "Reveal amounts"
+                                    : "Hide amounts"}
+                            >
+                                <i
+                                    className={`ph ${amountsHidden ? "ph-eye-slash" : "ph-eye"}`}
+                                    aria-hidden="true"
+                                />
+                            </button>
+                            <span>Amount</span>
+                        </span>
                     </div>
                     {state.transactions.transaction.map((txn: Transaction) => {
                         const amount = parseFloat(txn.amount);
@@ -609,27 +671,32 @@ const Transactions = () => {
                                 className={style.txnRow}
                                 onClick={() => setDetailTx(txn)}
                             >
+                                <span role="cell" className={style.txnColBank}>
+                                    <BankChip bank={txn.bank}/>
+                                </span>
+                                <span role="cell" className={style.txnColDesc}>
+                                    <span className={style.txnDescText}>
+                                        {txn.details || "—"}
+                                    </span>
+                                    {/* ak-inli: inline Category chip inside
+                                        Description cell — merged from the
+                                        pre-ak-inli standalone Category column.
+                                        Rendered only when a tag is present
+                                        so unshipped rows stay visually quiet. */}
+                                    {txn.tag && (
+                                        <span className={style.txnCategoryChipInline}>
+                                            {txn.tag}
+                                        </span>
+                                    )}
+                                </span>
                                 <span role="cell" className={style.txnColDate}>
                                     {formatDateString(txn.date)}
                                 </span>
-                                <span role="cell" className={style.txnColDesc}>
-                                    {txn.details || "—"}
-                                </span>
-                                <span role="cell" className={style.txnColBank}>
-                                    {BANK_LABEL[txn.bank] ?? txn.bank ?? "—"}
-                                </span>
-                                <span role="cell" className={style.txnColCategory}>
-                                    {/* FE-8 placeholder slot per bead — BE not yet enriched. */}
-                                    {txn.tag ? (
-                                        <span className={style.txnCategoryChip}>{txn.tag}</span>
-                                    ) : (
-                                        <span className={style.txnCategoryPlaceholder}>—</span>
-                                    )}
-                                </span>
                                 <span
                                     role="cell"
-                                    className={style.txnColAmount}
+                                    className={`${style.txnColAmount} ${amountsHidden ? style.amountHidden : ""}`}
                                     style={{color: isCredit ? CLR_GAIN : CLR_LOSS}}
+                                    aria-hidden={amountsHidden || undefined}
                                 >
                                     {isCredit ? "+" : "−"}₹{formatCurrency(Math.abs(amount))}
                                 </span>
@@ -898,6 +965,65 @@ const Transactions = () => {
                                 <dd className={style.detailRefId}>{detailTx.referenceID}</dd>
                             </div>
                         </dl>
+
+                        {/* ak-inli: Links section + Find-similar CTA. All
+                            three actions dispatch through the AgentChatBridge
+                            with pre-filled payloads — the agent's existing
+                            tool-use surface handles the actual behavior, so
+                            no new BE contract is introduced. Drawer closes
+                            after dispatch so the opened agent drawer isn't
+                            layered under the detail drawer. */}
+                        <div className={style.detailLinks}>
+                            <div className={style.detailLinksLabel}>Links</div>
+                            <div className={style.detailLinksRow}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAgentCommand({
+                                            type: "send_message",
+                                            payload: `Attach a file from my Files vault to transaction ${detailTx.referenceID} (${detailTx.details ?? "no description"}, ₹${formatCurrency(Math.abs(parseFloat(detailTx.amount)))}).`,
+                                            timestamp: Date.now(),
+                                        });
+                                        closeDetail();
+                                    }}
+                                    className={`btn btn-secondary ${style.detailLinkBtn}`}
+                                >
+                                    <i className="ph ph-paperclip" aria-hidden="true"/>
+                                    <span>Attach from Files</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAgentCommand({
+                                            type: "send_message",
+                                            payload: `Link transaction ${detailTx.referenceID} (${detailTx.details ?? "no description"}, ₹${formatCurrency(Math.abs(parseFloat(detailTx.amount)))}) to an investment holding.`,
+                                            timestamp: Date.now(),
+                                        });
+                                        closeDetail();
+                                    }}
+                                    className={`btn btn-secondary ${style.detailLinkBtn}`}
+                                >
+                                    <i className="ph ph-chart-line-up" aria-hidden="true"/>
+                                    <span>Link investment</span>
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAgentCommand({
+                                        type: "send_message",
+                                        payload: `Find similar transactions to ${detailTx.referenceID}: "${detailTx.details ?? ""}" on ${formatDateString(detailTx.date)} for ₹${formatCurrency(Math.abs(parseFloat(detailTx.amount)))}.`,
+                                        timestamp: Date.now(),
+                                    });
+                                    closeDetail();
+                                }}
+                                className={`btn btn-primary ${style.detailFindSimilarBtn}`}
+                            >
+                                <i className="ph ph-sparkle" aria-hidden="true"/>
+                                <span>Find similar with assistant</span>
+                            </button>
+                        </div>
+
                         <div className={style.detailFooter}>
                             {/* §10 receipts / auto-export: this surface intentionally
                                 has NO auto-copy / auto-export affordance. Users can
