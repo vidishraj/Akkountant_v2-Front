@@ -1,7 +1,8 @@
 import React, {createContext, useCallback, useContext, useEffect, useReducer, useRef, ReactNode} from 'react';
-import {KiteHolding, KitePosition, KiteTrade} from '../utils/interfaces';
+import {KiteHolding, KiteMarginsResponse, KitePosition, KiteTrade} from '../utils/interfaces';
 import {
     fetchKiteHoldings,
+    fetchKiteMargins,
     fetchKitePositions,
     fetchKiteTrades,
     syncKiteHoldings,
@@ -20,6 +21,20 @@ interface ReconnectInfo {
     reason: string | null;
     expiresAt: string | null;
     loginUrl: string | null;     // cached OAuth URL — used on click; re-fetched if null
+}
+
+// ak-oc5s: MarginsInfo caches the /kite/margins response + fetch state.
+// `checked` disambiguates "not fetched yet" from "fetched but empty".
+// The renderer shows a placeholder when `data === null` (either not
+// connected or not yet fetched) and the live breakdown only when data
+// is present. Transport errors never toast; the reducer's SET_MARGINS_FAILED
+// branch leaves `data=null, loading=false, checked=true` so the renderer
+// resolves to state (d) "Margins unavailable — retry on refresh" rather
+// than spinning forever.
+interface MarginsInfo {
+    data: KiteMarginsResponse | null;
+    loading: boolean;
+    checked: boolean;
 }
 
 // ak-2k93: Today's Kite trades state slice. LAZY fetch pattern —
@@ -56,6 +71,11 @@ interface KiteState {
     // different: `isAuthenticated` reacts to any fetch failure, whereas
     // `reconnect` is driven by the BE's explicit status payload.
     reconnect: ReconnectInfo;
+    // ak-oc5s: Kite /kite/margins payload for the Available-funds tile.
+    // Auto-fired once on provider-mount transition into connected=true;
+    // cleared when `isAuthenticated` flips false (disconnect / token
+    // expiry).
+    margins: MarginsInfo;
     // ak-2k93: Today's trades slice. LAZY — not fetched on provider mount.
     trades: TradesInfo;
 }
@@ -70,6 +90,11 @@ type KiteAction =
     | {type: 'SET_LAST_SYNC_TIME'; payload: string}
     | {type: 'SET_RECONNECT'; payload: ReconnectInfo}
     | {type: 'CLEAR_RECONNECT'}  // called after a successful reconnect handshake
+    // ak-oc5s: /kite/margins actions
+    | {type: 'SET_MARGINS_LOADING'; payload: boolean}
+    | {type: 'SET_MARGINS'; payload: KiteMarginsResponse}
+    | {type: 'SET_MARGINS_FAILED'}  // transport error — mark checked without data
+    | {type: 'CLEAR_MARGINS'}
     // ak-2k93: Today's trades actions
     | {type: 'SET_TRADES_LOADING'; payload: boolean}
     | {type: 'SET_TRADES'; payload: KiteTrade[]}
@@ -84,6 +109,13 @@ const initialReconnect: ReconnectInfo = {
     reason: null,
     expiresAt: null,
     loginUrl: null,
+};
+
+// ak-oc5s: initial margins state — not yet checked.
+const initialMargins: MarginsInfo = {
+    data: null,
+    loading: false,
+    checked: false,
 };
 
 // ak-2k93: initial Today's trades state — not yet checked.
@@ -109,6 +141,7 @@ const initialState: KiteState = {
     lastSyncTime: null,
     error: null,
     reconnect: initialReconnect,
+    margins: initialMargins,
     trades: initialTrades,
 };
 
@@ -168,6 +201,38 @@ const kiteReducer = (state: KiteState, action: KiteAction): KiteState => {
                 },
                 isAuthenticated: true,
             };
+        // ak-oc5s: /kite/margins reducer handlers
+        case 'SET_MARGINS_LOADING':
+            return {
+                ...state,
+                margins: {...state.margins, loading: action.payload},
+            };
+        case 'SET_MARGINS':
+            return {
+                ...state,
+                margins: {
+                    data: action.payload,
+                    loading: false,
+                    checked: true,
+                },
+            };
+        case 'SET_MARGINS_FAILED':
+            // ak-oc5s reviewer MAJOR: on transport error, flip `checked:true`
+            // so the InvestmentsLanding tile renderer resolves to state (d)
+            // "Margins unavailable — retry on refresh" instead of being stuck
+            // on (b) "Loading margins…" forever. Without this, the renderer's
+            // precedence `loadingFirst = connected && (loading || !checked)`
+            // evaluates true after a failed fetch (loading=false, checked=
+            // false) and the (d) fallback becomes dead code.
+            return {
+                ...state,
+                margins: {data: null, loading: false, checked: true},
+            };
+        case 'CLEAR_MARGINS':
+            return {
+                ...state,
+                margins: initialMargins,
+            };
         // ak-2k93: Today's trades reducer handlers
         case 'SET_TRADES_LOADING':
             return {
@@ -208,6 +273,8 @@ interface KiteContextType {
     // ak-u60 additions
     refreshStatus: () => Promise<void>;
     beginReconnect: () => Promise<void>;
+    // ak-oc5s: capital-visibility
+    refreshMargins: (clearCache?: boolean) => Promise<void>;
     // ak-2k93: refresh Today's trades (lazy — called on section expand).
     refreshTrades: (clearCache?: boolean) => Promise<void>;
     getTotalPortfolioValue: () => number;
@@ -323,6 +390,47 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
     useEffect(() => {
         void refreshStatus();
     }, [refreshStatus]);
+
+    // ak-oc5s: fetch /kite/margins. Silent on transport failures; the
+    // Available-funds tile falls back to its "Margins unavailable — retry
+    // on refresh" terminal state via SET_MARGINS_FAILED (which flips
+    // `checked:true` so the tile renderer's state (d) branch activates
+    // instead of being stuck on the (b) "Loading margins…" spinner-text).
+    // Fires once per session when Kite is connected (via the auto-effect
+    // below) + on demand when the caller passes clearCache=true.
+    const refreshMargins = useCallback(async (clearCache = false) => {
+        try {
+            dispatch({type: 'SET_MARGINS_LOADING', payload: true});
+            const data = await fetchKiteMargins(clearCache);
+            dispatch({type: 'SET_MARGINS', payload: data});
+        } catch {
+            // Silent — bead rule: "no error toast; the overall page keeps
+            // working". Reviewer MAJOR (post-cb880a8): we must flip
+            // `checked:true` on the error path or the tile renderer stays
+            // stuck on "Loading…" forever — SET_MARGINS_FAILED does both
+            // (clears loading + marks checked) so the renderer resolves
+            // to state (d) "Margins unavailable — retry on refresh".
+            dispatch({type: 'SET_MARGINS_FAILED'});
+        }
+    }, []);
+
+    // ak-oc5s: auto-fire refreshMargins on the connected=false→true
+    // transition, and CLEAR_MARGINS on the connected=true→false
+    // transition. Prevents a repeated fetch while connected stays true
+    // (useRef-tracked edge detection) and keeps the Available-funds tile
+    // honest about stale data when the daily 6AM token expiry kicks in
+    // mid-session.
+    const prevAuthForMarginsRef = useRef<boolean>(false);
+    useEffect(() => {
+        const was = prevAuthForMarginsRef.current;
+        const is = state.isAuthenticated;
+        prevAuthForMarginsRef.current = is;
+        if (!was && is) {
+            void refreshMargins(false);
+        } else if (was && !is) {
+            dispatch({type: 'CLEAR_MARGINS'});
+        }
+    }, [state.isAuthenticated, refreshMargins]);
 
     // ak-2k93: fetch Today's trades. LAZY by design — the consumer
     // (Investments page "Today's trades" section) calls this on section
@@ -515,6 +623,7 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
         syncHoldings,
         refreshStatus,
         beginReconnect,
+        refreshMargins,
         refreshTrades,
         getTotalPortfolioValue,
         getTotalPnL,

@@ -11,6 +11,7 @@ import {
     MSNRateResponse,
     MSNSummaryResponse,
     KiteLoginUrlResponse,
+    KiteMarginsResponse,
     KiteStatusResponse,
     KiteSessionRequest,
     KiteSessionResponse,
@@ -349,6 +350,26 @@ export async function getKiteLoginUrl(): Promise<KiteLoginUrlResponse> {
  */
 export async function getKiteStatus(): Promise<KiteStatusResponse> {
     const response = await queueRequest(() => axios.get('/kite/status'));
+    return response.data;
+}
+
+/**
+ * ak-oc5s: GET /kite/margins — available + utilised margin breakdown
+ * per segment (equity / commodity) from ak-zai2 (Kite Bundle 2). Thin
+ * pass-through of Kite's user-margins API; caller treats this as
+ * capital-visibility ONLY (not transactional). Silent on transport
+ * failures — the renderer falls back to the placeholder tile.
+ *
+ * Fired once per session on provider mount (when Kite connected) and
+ * again on reconnect success. BE caches ~5 min per ak-zai2's design
+ * so clearCache=true is rarely needed; default false.
+ */
+export async function fetchKiteMargins(clearCache = false): Promise<KiteMarginsResponse> {
+    const options = withRequestId(
+        'kite/margins',
+        clearCache ? withCacheCleared() : {},
+    );
+    const response = await queueRequest(() => axios.get('/kite/margins', options));
     return response.data;
 }
 

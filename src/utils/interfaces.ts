@@ -721,6 +721,45 @@ export interface KiteTradesResponse {
     trades: KiteTrade[];
 }
 
+// ak-oc5s: GET /kite/margins payload from ak-zai2 (Kite Bundle 2).
+// Thin wrap of Kite's user-margins API — equity + commodity segments,
+// each with available + utilised breakdowns. All numeric fields are
+// optional/defensive because (a) BE passes the Kite response through
+// with light transform, so Kite's own field drift reaches us
+// uncoerced, and (b) commodity may be entirely absent for equity-only
+// users. Renderers must guard every field; `typeof ===  "number"` +
+// finite check both.
+export interface KiteMarginsSegment {
+    enabled?: boolean;
+    net?: number;
+    available?: {
+        adhoc_margin?: number;
+        cash?: number;
+        collateral?: number;
+        intraday_payin?: number;
+        live_balance?: number;
+        opening_balance?: number;
+    };
+    utilised?: {
+        debits?: number;
+        exposure?: number;
+        m2m_realised?: number;
+        m2m_unrealised?: number;
+        option_premium?: number;
+        payout?: number;
+        span?: number;
+        holding_sales?: number;
+        turnover?: number;
+        liquid_collateral?: number;
+        stock_collateral?: number;
+    };
+}
+
+export interface KiteMarginsResponse {
+    equity?: KiteMarginsSegment;
+    commodity?: KiteMarginsSegment;
+}
+
 // F&O Interfaces
 export interface FOContract {
     symbol: string;

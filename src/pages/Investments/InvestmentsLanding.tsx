@@ -35,11 +35,12 @@ import style from "./InvestmentsLanding.module.scss";
  *   already normalizes shape (ak-uqjz `wealthDigestNormalizers.ts`).
  *
  * Deferred per bead text:
- * - Kite margins / Available funds — Bundle 2 BE endpoint `/kite/margins`
- *   isn't on origin/Personal yet. Available-funds tile shows '—' with the
- *   design's "From Kite margins once the session is live" hint.
  * - Reconciliation count — BE not yet wired; dashed Sample chip per the
  *   FE scope's "stub with Sample chips" convention.
+ *
+ * ak-oc5s: Available-funds tile now consumes /kite/margins live
+ * (ak-zai2 Bundle 2) via `kiteState.margins` — 4-state renderer
+ * documented at the tile IIFE.
  */
 
 // OKLCH triples from design — sanctioned per FE scope (gain/loss/warning).
@@ -662,18 +663,96 @@ const InvestmentsLanding = () => {
                     </div>
                 </div>
 
-                <div className={style.statusTile}>
-                    <div className={style.statusKicker}>
-                        <i className="ph ph-wallet" style={{fontSize: 15}}/>
-                        <span>Available funds</span>
-                    </div>
-                    {/* Bundle 2 `/kite/margins` not yet on origin/Personal; design
-                        says '—' with the hint until the endpoint lands. */}
-                    <div className={style.statusValue} style={{color: "var(--color-neutral-500)"}}>—</div>
-                    <span className={style.statusHint}>
-                        From Kite margins once the session is live
-                    </span>
-                </div>
+                {/* ak-oc5s: live Kite margins wired from /kite/margins
+                    (ak-zai2 Bundle 2). Four display states:
+                      (a) not connected  → placeholder + hint
+                      (b) connected, loading or not checked → '—' + hint
+                      (c) connected, data present  → equity-available
+                                                     headline + breakdown
+                      (d) connected, checked, no equity data → '—' +
+                                                     "Margins unavailable" hint
+                    All numeric reads are defensive (typeof-number) —
+                    the BE pass-through may drop fields silently on Kite
+                    drift. */}
+                {(() => {
+                    const marginsData = kiteState.margins.data;
+                    const marginsLoading = kiteState.margins.loading;
+                    const marginsChecked = kiteState.margins.checked;
+                    const connected = kiteState.isAuthenticated;
+
+                    // Reader helpers — tolerate drift.
+                    const n = (v: unknown): number | null =>
+                        typeof v === 'number' && Number.isFinite(v) ? v : null;
+                    const equity = marginsData?.equity;
+                    const commodity = marginsData?.commodity;
+                    const equityAvail = n(equity?.available?.live_balance)
+                        ?? n(equity?.available?.cash);
+                    const commodityAvail = n(commodity?.available?.live_balance)
+                        ?? n(commodity?.available?.cash);
+                    const equityUtilised = n(equity?.utilised?.debits);
+                    const commodityEnabled = commodity?.enabled === true
+                        || typeof commodityAvail === 'number';
+
+                    const notConnected = !connected;
+                    const loadingFirst = connected && (marginsLoading || !marginsChecked);
+                    const liveData = connected && marginsChecked && equityAvail !== null;
+                    // The remaining branch (connected && checked && no equity data)
+                    // falls through to the silent-fallback `else` below — now reachable
+                    // after SET_MARGINS_FAILED flips checked:true on transport error.
+
+                    let valueNode: React.ReactNode;
+                    let valueStyle: React.CSSProperties;
+                    let hintNode: React.ReactNode;
+
+                    if (notConnected) {
+                        valueNode = '—';
+                        valueStyle = {color: 'var(--color-neutral-500)'};
+                        hintNode = 'Connect Kite to see available funds';
+                    } else if (loadingFirst) {
+                        valueNode = '—';
+                        valueStyle = {color: 'var(--color-neutral-500)'};
+                        hintNode = 'Loading margins…';
+                    } else if (liveData) {
+                        valueNode = (
+                            <span title={`₹${formatCurrency(equityAvail!)}`}>
+                                ₹{formatCompact(equityAvail!)}
+                            </span>
+                        );
+                        valueStyle = {};
+                        // Hint composition: show commodity if enabled + used (equity)
+                        // if non-zero. Keep compact — this tile is narrow.
+                        const parts: string[] = [];
+                        if (commodityEnabled && commodityAvail !== null && commodityAvail > 0) {
+                            parts.push(`Commodity ₹${formatCompact(commodityAvail)}`);
+                        }
+                        if (equityUtilised !== null && equityUtilised > 0) {
+                            parts.push(`Used ₹${formatCompact(equityUtilised)}`);
+                        }
+                        hintNode = parts.length > 0
+                            ? `Equity available · ${parts.join(' · ')}`
+                            : 'Equity available · Kite live';
+                    } else {
+                        // noData — BE unreachable (SET_MARGINS_FAILED path), or
+                        // /kite/margins returned without an equity section
+                        // (unusual). Fall back silently.
+                        valueNode = '—';
+                        valueStyle = {color: 'var(--color-neutral-500)'};
+                        hintNode = 'Margins unavailable — retry on refresh';
+                    }
+
+                    return (
+                        <div className={style.statusTile}>
+                            <div className={style.statusKicker}>
+                                <i className="ph ph-wallet" style={{fontSize: 15}}/>
+                                <span>Available funds</span>
+                            </div>
+                            <div className={style.statusValue} style={valueStyle}>
+                                {valueNode}
+                            </div>
+                            <span className={style.statusHint}>{hintNode}</span>
+                        </div>
+                    );
+                })()}
 
                 <button
                     type="button"
