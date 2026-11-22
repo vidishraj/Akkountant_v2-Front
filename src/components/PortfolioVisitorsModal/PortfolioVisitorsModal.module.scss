@@ -1,41 +1,112 @@
-.modalTitle {
-  background-color: #1e2a38 !important;
-  border-bottom: 1px solid #3a4a5c !important;
-  padding: 12px 24px !important;
+/* ak-pqcv (ak-2n09b): full-rewrite Nocturne SCSS for PortfolioVisitorsModal.
+ * Pre-ak-pqcv was all `:global{.MuiTableCell-root {...}}` MUI-override
+ * rules + hardcoded hex. The TSX swapped MUI for native HTML + Phosphor,
+ * so all those `:global` selectors would match nothing today — this file
+ * is a from-scratch Nocturne stylesheet shaped like ak-cfzj (JobsDialog)
+ * + FE-10 (Files) for consistency. Zero hex, Nocturne tokens throughout.
+ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.modalContent {
-  background-color: #121C24 !important;
-  overflow-y: auto !important;
-  padding: 0 !important;
+.panel {
+  width: min(1100px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-bg) 70%, transparent);
+  color: var(--color-text);
+  overflow: hidden;
 
-  :global {
-    .MuiTableCell-root {
-      color: #FAFAFA !important;
-      border-bottom: 1px solid #2a3a4c;
-      padding: 8px 12px;
-      font-size: 0.85rem;
-
-      @media (max-width: 600px) {
-        padding: 6px 8px;
-        font-size: 0.75rem;
-      }
-    }
-
-    .MuiTableHead-root .MuiTableCell-root {
-      background-color: #1e2a38;
-      color: #B0B0B0 !important;
-      font-weight: 600;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .MuiTableRow-root:hover {
-      background-color: rgba(123, 104, 238, 0.06);
-    }
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
+
+.panelFull {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  border-radius: 0;
+  border: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-divider);
+
+  @media screen and (max-width: 600px) {
+    padding: 12px 14px;
+  }
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+
+  i {
+    font-size: 17px;
+    color: var(--color-accent);
+  }
+}
+
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.iconBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ─── Stats cards (all aggregates — §4 safe) ─────────────────────── */
 
 .statsRow {
   display: flex;
@@ -43,7 +114,7 @@
   padding: 16px 20px;
   overflow-x: auto;
 
-  @media (max-width: 600px) {
+  @media screen and (max-width: 600px) {
     flex-wrap: wrap;
     gap: 8px;
     padding: 12px;
@@ -53,77 +124,130 @@
 .statCard {
   flex: 1;
   min-width: 120px;
-  background-color: #29384D !important;
-  border: 1px solid #3a4a5c !important;
-  border-radius: 8px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: 10px;
 
-  @media (max-width: 600px) {
+  @media screen and (max-width: 600px) {
     min-width: calc(50% - 8px);
     flex: unset;
   }
-}
 
-.statCardContent {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 4px !important;
-  padding: 12px 8px !important;
-
-  &:last-child {
-    padding-bottom: 12px !important;
+  i {
+    font-size: 24px;
   }
 }
 
+.statIconUsers { color: var(--color-accent-400); }
+.statIconTrend { color: oklch(0.80 0.13 155); }
+.statIconLive { color: var(--color-accent); }
+.statIconCity { color: oklch(0.80 0.13 85); }
+
 .statNumber {
-  color: #FAFAFA !important;
-  font-weight: bold !important;
-  font-size: 1.5rem !important;
-  line-height: 1.2 !important;
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 1.4rem;
+  line-height: 1.2;
 }
 
 .statLabel {
-  color: #8899AA !important;
+  color: var(--color-neutral-500);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 0.65rem !important;
+  font-size: 0.68rem;
 }
 
-.tabs {
-  border-bottom: 1px solid #2a3a4c;
-  padding: 0 20px;
-  min-height: 40px !important;
+/* ─── Tabs ───────────────────────────────────────────────────────── */
 
-  :global {
-    .MuiTab-root {
-      min-height: 40px;
-      text-transform: none;
-      font-size: 0.9rem;
-    }
+.tabBar {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.tab {
+  all: unset;
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--color-neutral-500);
+  border-bottom: 2px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
+
+.tabActive {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+}
+
+/* ─── Overview container + section cards ─────────────────────────── */
 
 .overviewContainer {
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+
+  @media screen and (max-width: 600px) {
+    padding: 12px;
+    gap: 14px;
+  }
 }
 
 .section {
-  background-color: #1a2836;
-  border-radius: 8px;
-  border: 1px solid #2a3a4c;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: 10px;
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 
 .sectionTitle {
-  color: #FAFAFA !important;
-  font-weight: 600 !important;
-  padding: 12px 16px;
-  background-color: #1e2a38;
-  border-bottom: 1px solid #2a3a4c;
-  font-size: 0.9rem !important;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  border-bottom: 1px solid var(--color-divider);
+
+  /* The bare .sectionTitle uses the row background; nudge its padding
+   * to 0 when inside a row so it doesn't double-pad. */
+  .sectionTitle {
+    padding: 0;
+    background: none;
+    border: none;
+  }
+}
+
+/* When sectionTitle is the direct child (no row wrapper) it pads itself. */
+.section > .sectionTitle {
+  display: block;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .innerTable {
@@ -135,71 +259,313 @@
   display: flex;
   gap: 16px;
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 900px) {
     flex-direction: column;
   }
 }
+
+/* ─── Table (shared across overview sections + all-visitors) ─────── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+
+    @media screen and (max-width: 600px) {
+      padding: 6px 8px;
+      font-size: 0.75rem;
+    }
+  }
+
+  thead th {
+    color: var(--color-neutral-500);
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--color-divider);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: color-mix(in srgb, var(--color-accent) 6%, transparent);
+    }
+  }
+
+  tbody td {
+    color: var(--color-text);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-divider) 60%, transparent);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.alignRight { text-align: right; }
+
+.noWrap {
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', monospace;
+  font-size: 0.78rem;
+}
+
+.truncateCell {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loadingCell {
+  text-align: center !important;
+  color: var(--color-neutral-500) !important;
+  padding: 16px 12px !important;
+}
+
+/* Country column: flag + name */
+.countryCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flag {
+  width: 16px;
+  height: 12px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Daily-visits "bar" column */
+.barCell {
+  width: 40%;
+}
+
+.barTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-neutral-900);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 4px;
+}
+
+/* ─── §4 reveal state styling ─────────────────────────────────────── */
+
+.piiMask {
+  color: var(--color-neutral-600);
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+}
+
+.piiHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 12px 16px 0;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
+  border-radius: 6px;
+  color: var(--color-neutral-300);
+  font-size: 0.78rem;
+
+  i {
+    font-size: 14px;
+    color: var(--color-accent-2);
+    flex-shrink: 0;
+  }
+}
+
+.revealRowBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--color-neutral-400);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.revealToggle {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  color: var(--color-neutral-300);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+
+  i { font-size: 12px; }
+
+  &:hover {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.hiddenNotice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  color: var(--color-neutral-500);
+  font-size: 0.8rem;
+
+  i { font-size: 15px; }
+
+  strong {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+}
+
+/* ─── All-visitors tab + pager ───────────────────────────────────── */
 
 .visitorsTableContainer {
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
+}
 
-  :global {
-    .MuiTableContainer-root {
-      overflow-x: auto;
-    }
+.tableWrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid var(--color-divider);
+}
 
-    .MuiTable-root {
-      min-width: 600px;
-    }
+.chip {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.chipLive {
+  background: color-mix(in srgb, oklch(0.80 0.13 155) 15%, transparent);
+  color: oklch(0.80 0.13 155);
+}
+
+.chipLog {
+  background: color-mix(in srgb, var(--color-neutral-500) 15%, transparent);
+  color: var(--color-neutral-400);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--color-divider);
+  color: var(--color-neutral-500);
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+
+  @media screen and (max-width: 600px) {
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
   }
 }
 
-.pagination {
-  background-color: #1e2a38;
-  border-top: 1px solid #2a3a4c;
+.pagerStatus {
+  font-variant-numeric: tabular-nums;
+}
 
-  :global {
-    .MuiTablePagination-toolbar {
-      color: #FAFAFA !important;
-      min-height: 44px;
+.pagerSelectLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
 
-      @media (max-width: 600px) {
-        flex-wrap: wrap;
-        justify-content: center;
-        padding: 4px;
-        min-height: unset;
-      }
-    }
+.pagerSelect {
+  all: unset;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-divider);
+  font-size: 0.78rem;
 
-    .MuiTablePagination-selectLabel,
-    .MuiTablePagination-displayedRows,
-    .MuiTablePagination-select {
-      color: #FAFAFA !important;
-      font-size: 0.8rem;
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 
-      @media (max-width: 600px) {
-        font-size: 0.7rem;
-      }
-    }
+  option {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+}
 
-    .MuiTablePagination-actions .MuiIconButton-root {
-      color: #FAFAFA !important;
+.pagerBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--color-neutral-400);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-      &.Mui-disabled {
-        color: #555 !important;
-      }
-    }
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    color: var(--color-text);
+  }
 
-    .MuiSelect-icon {
-      color: #FAFAFA !important;
-    }
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 
-    .MuiInputBase-root {
-      color: #FAFAFA !important;
-    }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 }
