@@ -2,22 +2,25 @@ import {useState, useEffect, useMemo, useCallback} from "react";
 // ak-hpd3: recharts dropped entirely from this file.
 // - AreaChart/Area was already dropped in ak-wnrr (replaced by a hand-
 //   drawn gap-aware SVG, `buildEarningsTrendPaths`).
-// - PieChart (Client Distribution) → Nocturne CSS-bar list (sorted
-//   descending; names + bars + % values are more scannable than slice
-//   angles per brief 06 §6).
-// - BarChart "Monthly Paid Earnings (Bar)" removed — it duplicated the
-//   primary gap-aware SVG above (brief 06 §6 explicit duplication flag).
-// - BarChart "Unpaid by Currency" → Nocturne CSS-bar list (same shape
-//   as the client list for visual consistency + removes the final
-//   recharts consumer on this page).
-// No other chart primitives remain on the Freelance Dashboard, so the
-// recharts import is gone — net `-recharts` dependency on this surface.
+// - PieChart (Client Distribution) → Nocturne CSS-bar list.
+// - BarChart "Monthly Paid Earnings (Bar)" removed — duplicate.
+// - BarChart "Unpaid by Currency" → CSS-bar list.
+// ak-h8ab (FE-17 redesign) piles on:
+// - Overdue hero card at page-top with 3 agent-chat-dispatched actions
+//   (Draft follow-up email / Mark paid / View invoice).
+// - 4-KPI grid promoted — Paid-this-FY gradient hero / Monthly-avg /
+//   Avg-invoice / Collection-rate.
+// - Recurring card (sample until BE recurring-detector lands).
+// - FY-for-CA card with "Prepare PDF" FE-side generation via pdf-lib
+//   (ak-cw3d pattern; already a project dep).
+// - Recent invoices compact footer "All invoices →".
 import {
     fetchFreelanceDashboard,
     fetchInvoiceById,
 } from "../../services/freelanceService";
-import {FreelanceDashboard as DashboardData, InvoiceData} from "../../utils/interfaces";
+import {FreelanceDashboard as DashboardData, FreelanceEarning, InvoiceData} from "../../utils/interfaces";
 import {useMessage} from "../../contexts/MessageContext";
+import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext";
 import {Dialog, DialogTitle, DialogContent, IconButton, CircularProgress} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import InvoicePDFPreview from "../InvoiceCreator/InvoicePDFPreview";
@@ -184,6 +187,12 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const {setPayload} = useMessage();
+    // ak-h8ab: AgentChatBridge handle — used by Overdue hero actions
+    // (Draft follow-up email + Mark paid). Mirrors the ak-inli drawer-
+    // Links + ak-v1f5 prompt-strip dispatch shape: setCommand type
+    // "send_message" with a pre-filled payload; agent handles the
+    // actual composition / mutation path from there.
+    const {setCommand: setAgentCommand} = useAgentChatBridge();
 
     const handleInvoiceClick = async (invoiceNumber: string) => {
         setPreviewOpen(true);
@@ -420,6 +429,201 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
         };
     }, [filteredInvoices]);
 
+    // ak-h8ab: pick the top overdue invoice for the hero card. Priority
+    // ordering: oldest date (most delinquent) first, then largest INR
+    // amount as the tie-breaker. The hero card is top-of-page per brief
+    // 06 §6/§7 — the design puts the daily-action affordance before any
+    // of the KPIs.
+    //
+    // ak-h8ab MINOR-1 fix (reviewer-flagged): the tie-breaker uses
+    // `a.amount` directly (NOT `paidAmount ?? amount`) — for overdue
+    // invoices, BE emits `paidAmount: 0` not null, so the ?? coalesce
+    // never falls through and both sides evaluate to 0, silently
+    // no-oping the sub-sort. `a.amount` is the billed amount (always
+    // present on an invoice) and is the right tie-breaker here.
+    const topOverdueInvoice: FreelanceEarning | null = useMemo(() => {
+        if (!dashboardData?.recentInvoices?.length) return null;
+        const overdues = dashboardData.recentInvoices.filter(
+            (inv) => inv.status === "overdue",
+        );
+        if (!overdues.length) return null;
+        // Sort: oldest first; tie-broken by largest INR-normalised amount.
+        const sorted = [...overdues].sort((a, b) => {
+            const dateDiff = a.date.localeCompare(b.date); // ISO strings
+            if (dateDiff !== 0) return dateDiff;
+            const aAmt = getINRConversion(a.amount, a.currency ?? "INR");
+            const bAmt = getINRConversion(b.amount, b.currency ?? "INR");
+            return bAmt - aAmt;
+        });
+        return sorted[0];
+    }, [dashboardData, getINRConversion]);
+
+    // ak-h8ab: generic agent-chat dispatcher — same shape as ak-inli /
+    // ak-v1f5. Fires `setCommand({type:"send_message", payload})` and
+    // opens the drawer with the payload pre-filled; agent's tool-use
+    // layer handles the composition / mutation step.
+    const dispatchAgent = useCallback((payload: string) => {
+        setAgentCommand({
+            type: "send_message",
+            payload,
+            timestamp: Date.now(),
+        });
+    }, [setAgentCommand]);
+
+    // ak-h8ab (FE-17): build the FY summary PDF for the CA. FE-side
+    // pdf-lib generation per lead's ruling (no new BE endpoint); same
+    // pattern as ak-cw3d's identity-doc watermarker. Save-to-download.
+    // The FY window is the CURRENT Indian FY (April 1 — March 31) —
+    // filters the dashboard's `earningsByMonth` + `recentInvoices` to
+    // that window so the CA sees the correct year even if the viewer's
+    // current Range filter is something else.
+    const [preparingFyPdf, setPreparingFyPdf] = useState<boolean>(false);
+    const prepareFyCaPdf = useCallback(async () => {
+        if (!dashboardData) return;
+        setPreparingFyPdf(true);
+        try {
+            const {PDFDocument, rgb, StandardFonts} = await import("pdf-lib");
+            const fy = getFYDates(0);
+            const fyStart = fy.start;
+            const fyEnd = fy.end;
+            const fyLabel = `FY ${fyStart.getFullYear()}-${String(fyEnd.getFullYear()).slice(2)}`;
+            // Rendered-date is IST per §23 #7 (matches PortfolioTrendChart /
+            // Home / InvestmentsLanding / WealthDigest).
+            const istDate = new Intl.DateTimeFormat("en-CA", {
+                timeZone: "Asia/Kolkata",
+            }).format(new Date());
+
+            const fyMonthKeys = (dashboardData.earningsByMonth ?? []).filter((m) => {
+                const [y, mm] = m.month.split("-").map(Number);
+                if (!Number.isFinite(y) || !Number.isFinite(mm)) return false;
+                const dt = new Date(y, mm - 1, 1);
+                return dt >= fyStart && dt <= fyEnd;
+            });
+            const fyEarnings = fyMonthKeys.reduce((s, m) => s + m.earnings, 0);
+
+            // ak-h8ab MAJOR fix (reviewer-flagged, tax-correctness):
+            // the pre-fix boundary compared against
+            // `fyStart.toISOString().slice(0, 10)` which emits UTC —
+            // for an IST-local-midnight Apr-1 Date this shifts back to
+            // `…-03-31` (prior-FY) and the Mar-31 end shifts back to
+            // `…-03-30` (current-FY). Result: prior-FY Mar-31 invoices
+            // leaked IN; current-FY Mar-31 invoices got DROPPED.
+            // Both are tax-document-level wrong for a CA-facing export.
+            //
+            // Fix: build literal YYYY-MM-DD strings from year integers
+            // directly. `inv.date` is already an ISO "YYYY-MM-DD" string
+            // (per FreelanceEarning interface), so string-compare is
+            // TZ-immune. The current-FY start-year = fyStart.getFullYear();
+            // the end-year is start+1 (Indian FY = Apr-1 → Mar-31).
+            const fyStartStr = `${fyStart.getFullYear()}-04-01`;
+            const fyEndStr = `${fyStart.getFullYear() + 1}-03-31`;
+            const fyInvoices = (dashboardData.recentInvoices ?? []).filter(
+                (inv) => inv.date >= fyStartStr && inv.date <= fyEndStr,
+            );
+            const paidCount = fyInvoices.filter((i) => i.status === "paid").length;
+            const pendingCount = fyInvoices.filter(
+                (i) => i.status !== "paid" && i.status !== "overdue",
+            ).length;
+            const overdueCount = fyInvoices.filter((i) => i.status === "overdue").length;
+            const avgInv = fyInvoices.length > 0
+                ? fyEarnings / Math.max(1, paidCount)
+                : 0;
+
+            const doc = await PDFDocument.create();
+            const page = doc.addPage([595.28, 841.89]); // A4
+            const regular = await doc.embedFont(StandardFonts.Helvetica);
+            const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+            let y = 800;
+            const left = 50;
+            const text = (s: string, size: number, isBold = false, color = rgb(0.1, 0.1, 0.15)) => {
+                page.drawText(s, {
+                    x: left, y, size,
+                    font: isBold ? bold : regular,
+                    color,
+                });
+                y -= size * 1.5;
+            };
+            const line = () => {
+                page.drawLine({
+                    start: {x: left, y: y + 6},
+                    end: {x: 545, y: y + 6},
+                    thickness: 0.5,
+                    color: rgb(0.85, 0.85, 0.9),
+                });
+                y -= 10;
+            };
+
+            text("Freelance FY Summary for CA", 18, true);
+            text(`${fyLabel}  ·  Prepared ${istDate} IST`, 10, false, rgb(0.4, 0.4, 0.5));
+            y -= 6;
+            line();
+
+            text("Earnings", 13, true);
+            text(`Total paid earnings (INR): Rs. ${fyEarnings.toFixed(2)}`, 11);
+            text(`Invoices (paid): ${paidCount}`, 11);
+            text(`Average invoice value (INR): Rs. ${avgInv.toFixed(2)}`, 11);
+            y -= 4;
+            line();
+
+            text("Invoice breakdown", 13, true);
+            text(`Paid: ${paidCount}`, 11);
+            text(`Pending: ${pendingCount}`, 11);
+            text(`Overdue: ${overdueCount}`, 11);
+            text(`Total invoices in FY: ${fyInvoices.length}`, 11);
+            y -= 4;
+            line();
+
+            text("Monthly breakdown", 13, true);
+            if (fyMonthKeys.length === 0) {
+                text("No month entries emitted for this FY.", 10, false, rgb(0.5, 0.5, 0.55));
+            } else {
+                page.drawText("Month", {
+                    x: left, y, size: 10, font: bold, color: rgb(0.3, 0.3, 0.4),
+                });
+                page.drawText("Earnings (INR)", {
+                    x: left + 220, y, size: 10, font: bold, color: rgb(0.3, 0.3, 0.4),
+                });
+                y -= 16;
+                for (const m of fyMonthKeys) {
+                    page.drawText(formatMonthLabel(m.month), {
+                        x: left, y, size: 10, font: regular,
+                    });
+                    page.drawText(`Rs. ${m.earnings.toFixed(2)}`, {
+                        x: left + 220, y, size: 10, font: regular,
+                    });
+                    y -= 14;
+                    if (y < 60) break;
+                }
+            }
+
+            const bytes = await doc.save();
+            const copy = new Uint8Array(bytes).buffer;
+            const blob = new Blob([copy], {type: "application/pdf"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `freelance-fy-${fyStart.getFullYear()}-${String(fyEnd.getFullYear()).slice(2)}-${istDate}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setPayload({type: "success", message: "FY summary PDF prepared"});
+        } catch {
+            setPayload({type: "error", message: "Failed to prepare FY summary PDF"});
+        } finally {
+            setPreparingFyPdf(false);
+        }
+    }, [dashboardData, setPayload]);
+
+    // ak-h8ab: Recurring card SAMPLE data per bead. BE recurring-
+    // detector pass pending; swap to a live list when it lands.
+    // Shape mirrors the ak-4qgd Transactions "Recurring" sample.
+    const SAMPLE_RECURRING_CLIENTS: {name: string; cadence: string; next: string; amount: number}[] = [
+        {name: "RDE Advisors", cadence: "Monthly", next: "5 Dec", amount: 85000},
+        {name: "SoulTalk", cadence: "Monthly", next: "12 Dec", amount: 42000},
+    ];
+
     if (loading && !dashboardData) {
         return <div className={styles.loadingSpinner}><div>Loading dashboard...</div></div>;
     }
@@ -472,28 +676,123 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                 )}
             </div>
 
-            {/* 1. Primary Metrics Row */}
-            <div className={ownStyles.primaryMetricsGrid}>
-                <div className={ownStyles.metricCardPrimary}>
-                    <div className={`${ownStyles.metricValue} ${ownStyles.metricValueGreen}`}>
+            {/* ak-h8ab Overdue hero card (new) — daily-action affordance
+                per brief 06 §6/§7. Orange-edge wrapper, oldest-overdue
+                invoice (tie-broken by amount) rendered with 3 actions
+                that dispatch via AgentChatBridge (except View which
+                routes through the existing in-page preview dialog). */}
+            {topOverdueInvoice && (
+                <div className={ownStyles.overdueHero}>
+                    <div className={ownStyles.overdueHeroSide} aria-hidden="true"/>
+                    <div className={ownStyles.overdueHeroBody}>
+                        <div className={ownStyles.overdueHeroKicker}>
+                            <i className="ph ph-warning" aria-hidden="true"/>
+                            <span>Overdue · action required</span>
+                        </div>
+                        <div className={ownStyles.overdueHeroTitle}>
+                            <span className={ownStyles.overdueHeroClient}>
+                                {topOverdueInvoice.clientName}
+                            </span>
+                            <span className={ownStyles.overdueHeroInvoice}>
+                                {" · "}{topOverdueInvoice.invoiceNumber}
+                            </span>
+                        </div>
+                        <div className={ownStyles.overdueHeroAmount}>
+                            {topOverdueInvoice.status === "paid"
+                                ? formatBaseCurrency(topOverdueInvoice.paidAmount || topOverdueInvoice.amount)
+                                : formatCurrency(topOverdueInvoice.amount, topOverdueInvoice.currency || "INR")}
+                            <span className={ownStyles.overdueHeroDate}>
+                                {" · due "}{new Date(topOverdueInvoice.date).toLocaleDateString()}
+                            </span>
+                        </div>
+                        <div className={ownStyles.overdueHeroActions}>
+                            <button
+                                type="button"
+                                className={`btn btn-primary ${ownStyles.overdueHeroBtn}`}
+                                onClick={() => {
+                                    dispatchAgent(
+                                        `Draft a polite follow-up email to ${topOverdueInvoice.clientName} about overdue invoice ${topOverdueInvoice.invoiceNumber} (due ${new Date(topOverdueInvoice.date).toLocaleDateString()}, amount ${formatCurrency(topOverdueInvoice.amount, topOverdueInvoice.currency || "INR")}). I will review and send it from my email client.`,
+                                    );
+                                }}
+                            >
+                                <i className="ph ph-envelope" aria-hidden="true"/>
+                                <span>Draft follow-up email</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`btn btn-secondary ${ownStyles.overdueHeroBtn}`}
+                                onClick={() => {
+                                    dispatchAgent(
+                                        `Mark invoice ${topOverdueInvoice.invoiceNumber} from ${topOverdueInvoice.clientName} as paid (was ${formatCurrency(topOverdueInvoice.amount, topOverdueInvoice.currency || "INR")}, due ${new Date(topOverdueInvoice.date).toLocaleDateString()}).`,
+                                    );
+                                }}
+                            >
+                                <i className="ph ph-check-circle" aria-hidden="true"/>
+                                <span>Mark paid…</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`btn btn-ghost ${ownStyles.overdueHeroBtn}`}
+                                onClick={() => handleInvoiceClick(topOverdueInvoice.invoiceNumber)}
+                            >
+                                <i className="ph ph-eye" aria-hidden="true"/>
+                                <span>View invoice</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ak-h8ab 4-KPI grid — Paid-this-FY (gradient hero) /
+                Monthly Avg / Avg Invoice / Collection Rate. Replaces
+                the pre-ak-h8ab 3-KPI (Total Paid / Unpaid / Monthly)
+                per brief 06 §6. Unpaid-Value replaced by Avg Invoice
+                (promoted from secondary); Collection Rate promoted
+                from secondary. Monthly-avg keeps its vs-prev-period
+                trend chip since it's the time-series KPI. */}
+            <div className={ownStyles.kpiGrid}>
+                <div className={`${ownStyles.kpiCard} ${ownStyles.kpiCardHero}`}>
+                    <div className={ownStyles.kpiLabel}>Paid this FY</div>
+                    <div className={ownStyles.kpiValue}>
                         {formatBaseCurrency(activePreset === "allTime" || (!startDate && !endDate) ? dashboardData.totalEarnings : filteredTotalEarnings)}
                     </div>
-                    <div className={ownStyles.metricLabel}>
-                        {activePreset === "allTime" || (!startDate && !endDate) ? "Total Paid Earnings" : "Paid Earnings (Filtered)"}
+                    <div className={ownStyles.kpiSub}>
+                        {activePreset === "allTime" || (!startDate && !endDate) ? "All time (FY filter unset)" : "Filtered to current range"}
                     </div>
                 </div>
-                <div className={ownStyles.metricCardPrimary}>
-                    <div className={`${ownStyles.metricValue} ${ownStyles.metricValueAmber}`}>
-                        {formatBaseCurrency(unpaidTotal)}
+                <div className={ownStyles.kpiCard}>
+                    <div className={ownStyles.kpiLabel}>
+                        Monthly avg ({filteredMonthlyData.length} mo)
                     </div>
-                    <div className={ownStyles.metricLabel}>Unpaid Value</div>
-                </div>
-                <div className={ownStyles.metricCardPrimary}>
-                    <div className={`${ownStyles.metricValue} ${ownStyles.metricValuePurple}`}>
+                    <div className={ownStyles.kpiValue}>
                         {formatBaseCurrency(filteredMonthlyData.length > 0 ? filteredTotalEarnings / filteredMonthlyData.length : 0)}
                     </div>
-                    <div className={ownStyles.metricLabel}>Monthly Avg ({filteredMonthlyData.length} mo)</div>
                     {renderTrend(monthlyTrend, "vs prev period")}
+                </div>
+                <div className={ownStyles.kpiCard}>
+                    <div className={ownStyles.kpiLabel}>Average invoice</div>
+                    <div className={ownStyles.kpiValue}>
+                        {formatBaseCurrency(avgInvoiceValue)}
+                    </div>
+                    <div className={ownStyles.kpiSub}>
+                        Across {dashboardData.completedProjects} projects
+                    </div>
+                </div>
+                <div className={ownStyles.kpiCard}>
+                    <div className={ownStyles.kpiLabel}>Collection rate</div>
+                    <div
+                        className={ownStyles.kpiValue}
+                        style={{color: collectionRate >= 80
+                            ? "oklch(0.80 0.13 155)"
+                            : collectionRate >= 50
+                                ? "oklch(0.82 0.12 75)"
+                                : "oklch(0.74 0.15 25)"}}
+                    >
+                        {collectionRate.toFixed(0)}%
+                    </div>
+                    <div className={ownStyles.kpiSub}>
+                        Paid vs billed · {dashboardData.activeClients} active clients
+                    </div>
                 </div>
             </div>
 
@@ -755,39 +1054,106 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
             )}
             </ErrorBoundary>
 
-            {/* 6. Secondary Metrics Row */}
-            <div className={ownStyles.dashboardGrid}>
-                <div className={ownStyles.metricCard}>
-                    <div className={ownStyles.metricValue}>{dashboardData.completedProjects}</div>
-                    <div className={ownStyles.metricLabel}>Completed Projects</div>
+            {/* ak-h8ab Recurring card (sample data). Lead ruling: BE
+                recurring-detector hasn't landed yet; surface the UX with
+                a sample list + "Save as templates" affordance so the
+                shape is carved out. Swap the array for a BE-fed list
+                when the detector lands; card chrome is unchanged. */}
+            <div className={ownStyles.sideCard}>
+                <div className={ownStyles.sideCardHeader}>
+                    <h4 className={ownStyles.sideCardTitle}>Recurring</h4>
+                    <span className={ownStyles.sampleChip}>Sample</span>
                 </div>
-                <div className={ownStyles.metricCard}>
-                    <div className={ownStyles.metricValue}>{dashboardData.activeClients}</div>
-                    <div className={ownStyles.metricLabel}>Active Clients</div>
-                </div>
-                <div className={ownStyles.metricCard}>
-                    <div className={ownStyles.metricValue}>{formatBaseCurrency(avgInvoiceValue)}</div>
-                    <div className={ownStyles.metricLabel}>Avg Invoice Value</div>
-                </div>
-                <div className={ownStyles.metricCard}>
-                    <div className={ownStyles.metricValue} style={{color: collectionRate >= 80 ? "#4ADE80" : collectionRate >= 50 ? "#F59E0B" : "#EF4444"}}>
-                        {collectionRate.toFixed(0)}%
-                    </div>
-                    <div className={ownStyles.metricLabel}>Collection Rate</div>
+                <ul className={ownStyles.recurList}>
+                    {SAMPLE_RECURRING_CLIENTS.map((r) => (
+                        <li key={r.name} className={ownStyles.recurItem}>
+                            <div className={ownStyles.recurLeft}>
+                                <span className={ownStyles.recurVendor}>{r.name}</span>
+                                <span className={ownStyles.recurMeta}>
+                                    {r.cadence} \u00b7 next {r.next}
+                                </span>
+                            </div>
+                            <span className={ownStyles.recurAmount}>
+                                {formatBaseCurrency(r.amount)}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+                <div className={ownStyles.sideCardFooter}>
+                    <button
+                        type="button"
+                        className={`btn btn-secondary ${ownStyles.sideCardBtn}`}
+                        onClick={() => dispatchAgent(
+                            "Save my recurring freelance clients as invoice templates so I can re-issue next month with a single click.",
+                        )}
+                    >
+                        <i className="ph ph-bookmark-simple" aria-hidden="true"/>
+                        <span>Save as templates</span>
+                    </button>
+                    <span className={ownStyles.sideCardHint}>
+                        BE detector pending
+                    </span>
                 </div>
             </div>
 
-            {/* 7. Recent Invoices Table (bottom) */}
+            {/* ak-h8ab FY-for-CA card with "Prepare PDF". FE-side
+                pdf-lib generation per lead's ruling \u2014 pdf-lib is
+                already a project dep (ak-cw3d / DocumentSigner).
+                Save-to-download (not Files vault for v1). FY window =
+                CURRENT Indian FY; \u00a77 IST timestamp on the rendered
+                PDF. */}
+            <div className={ownStyles.sideCard}>
+                <div className={ownStyles.sideCardHeader}>
+                    <h4 className={ownStyles.sideCardTitle}>
+                        {(() => {
+                            const fy = getFYDates(0);
+                            return `FY ${fy.start.getFullYear()}-${String(fy.end.getFullYear()).slice(2)} summary for your CA`;
+                        })()}
+                    </h4>
+                </div>
+                <p className={ownStyles.fyCaLead}>
+                    One-click PDF summarising this financial year's earnings,
+                    invoice breakdown, and monthly roll-up \u2014 ready to hand
+                    to your chartered accountant. Generated locally; nothing
+                    is uploaded.
+                </p>
+                <div className={ownStyles.sideCardFooter}>
+                    <button
+                        type="button"
+                        className={`btn btn-primary ${ownStyles.sideCardBtn}`}
+                        onClick={prepareFyCaPdf}
+                        disabled={preparingFyPdf}
+                    >
+                        {preparingFyPdf ? (
+                            <>
+                                <i className="ph ph-circle-notch" aria-hidden="true"/>
+                                <span>Preparing\u2026</span>
+                            </>
+                        ) : (
+                            <>
+                                <i className="ph ph-file-pdf" aria-hidden="true"/>
+                                <span>Prepare PDF</span>
+                            </>
+                        )}
+                    </button>
+                    <span className={ownStyles.sideCardHint}>
+                        Saved to downloads \u00b7 IST-dated filename
+                    </span>
+                </div>
+            </div>
+
+            {/* ak-h8ab: Recent Invoices with compact footer. Pre-redesign
+                had the "View All" affordance at the TOP of the card;
+                design per brief 06 \u00a76 wants a compact footer link "All
+                invoices \u2192" at the BOTTOM. Also removed the pre-ak-h8ab
+                secondary-metrics row entirely \u2014 Completed-Projects +
+                Active-Clients were low-signal; the 4-KPI grid above now
+                carries Avg-invoice + Collection-rate. */}
             <div className={ownStyles.chartContainer}>
-                <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px"}}>
+                <div className={ownStyles.recentInvoicesHeader}>
                     <h3 className={styles.sectionTitle} style={{marginBottom: 0, borderBottom: "none", paddingBottom: 0}}>
-                        Recent Invoices
+                        Recent invoices
                     </h3>
-                    {onNavigateToManage && (
-                        <button className={ownStyles.viewAllLink} onClick={onNavigateToManage}>
-                            View All {"\u2192"}
-                        </button>
-                    )}
                 </div>
                 <div style={{overflowX: "auto"}}>
                     <table className={styles.dataTable}>
@@ -824,6 +1190,18 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                         </tbody>
                     </table>
                 </div>
+                {onNavigateToManage && (
+                    <div className={ownStyles.recentInvoicesFooter}>
+                        <button
+                            type="button"
+                            className={`btn btn-ghost ${ownStyles.recentInvoicesLink}`}
+                            onClick={onNavigateToManage}
+                        >
+                            <span>All invoices</span>
+                            <i className="ph ph-arrow-right" aria-hidden="true"/>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Invoice Preview Dialog */}

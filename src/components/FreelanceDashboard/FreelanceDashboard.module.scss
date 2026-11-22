@@ -543,3 +543,299 @@
   font-size: 13px;
   text-align: center;
 }
+
+/* ───── ak-h8ab (FE-17) Freelance Dashboard redesign ───── */
+
+/* 1. Overdue hero card — orange-edge treatment per brief 06 §6/§7.
+ * The left-edge sidebar carries the amber signal; main body carries
+ * the kicker + client/invoice + amount + 3 action buttons. */
+.overdueHero {
+  display: flex;
+  background: color-mix(in srgb, oklch(0.82 0.12 75) 10%, var(--color-surface));
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, oklch(0.82 0.12 75) 35%, transparent);
+}
+
+.overdueHeroSide {
+  width: 6px;
+  flex: none;
+  background: oklch(0.82 0.12 75);
+}
+
+.overdueHeroBody {
+  flex: 1 1 auto;
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.overdueHeroKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(0.82 0.12 75);
+  font-weight: 500;
+
+  i {
+    font-size: 15px;
+  }
+}
+
+.overdueHeroTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.overdueHeroClient {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: var(--font-heading-weight);
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}
+
+.overdueHeroInvoice {
+  color: var(--color-neutral-400);
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Consolas, "Roboto Mono", monospace;
+}
+
+.overdueHeroAmount {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.overdueHeroDate {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-neutral-500);
+  font-family: var(--font-body);
+}
+
+.overdueHeroActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.overdueHeroBtn {
+  font-size: 12.5px !important;
+  padding: 6px 12px !important;
+
+  i {
+    font-size: 15px;
+  }
+}
+
+/* 2. 4-KPI grid — Paid-this-FY (gradient hero) / Monthly / Avg Invoice
+ * / Collection Rate. Grid collapses from 4-col → 2-col at 880px.
+ * Hero card spans the full row width on grid-column: 1 / -1 at narrow
+ * widths where the 4 cards would stack. */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.kpiCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  min-height: 92px;
+}
+
+.kpiCardHero {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)),
+    var(--color-surface) 70%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+.kpiLabel {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+  font-weight: 500;
+}
+
+.kpiValue {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiCardHero .kpiValue {
+  font-size: 26px;
+}
+
+.kpiSub {
+  font-size: 11.5px;
+  color: var(--color-neutral-500);
+}
+
+/* 3. Shared side-card (Recurring + FY-for-CA) + "Sample" chip
+ * convention (mirrors FE-3 ak-ff9r stub-chip + ak-4qgd Transactions
+ * cards + ak-015p Files access-log). */
+.sideCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  margin-bottom: 20px;
+}
+
+.sideCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sideCardTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.sideCardFooter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.sideCardBtn {
+  font-size: 12.5px !important;
+  padding: 7px 12px !important;
+
+  i {
+    font-size: 15px;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.sideCardHint {
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+.sampleChip {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--color-neutral-400);
+  border: 1px dashed var(--color-neutral-600);
+}
+
+/* 4. Recurring list items */
+.recurList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recurItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+}
+
+.recurLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.recurVendor {
+  font-size: 13px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recurMeta {
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+.recurAmount {
+  font-size: 13px;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* 5. FY-for-CA card lead copy */
+.fyCaLead {
+  margin: 0;
+  color: var(--color-neutral-300);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* 6. Recent invoices footer link */
+.recentInvoicesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.recentInvoicesFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.recentInvoicesLink {
+  font-size: 12.5px !important;
+  padding: 4px 10px !important;
+
+  i {
+    font-size: 15px;
+  }
+}
