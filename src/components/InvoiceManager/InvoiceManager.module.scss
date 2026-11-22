@@ -1,4 +1,35 @@
-// Bulk action bar for invoice manager
+/* ak-9aqn (ak-zyli N1): full Nocturne stylesheet for InvoiceManager.
+ * Pre-ak-9aqn the chrome was inline `style={{...}}` hex blocks in the
+ * TSX; this file is a fresh Nocturne-token sheet shaped like ak-c453
+ * CustomerManager + FE-10 Files vault. Zero hex, Nocturne tokens
+ * throughout, oklch for status accents per the project convention.
+ */
+
+/* ─── Secondary filter row offset ────────────────────────────────── */
+
+.secondaryFilterBar {
+  margin-top: -12px;
+}
+
+.filterTail {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filterCount {
+  color: var(--color-neutral-400);
+  font-size: 0.85rem;
+}
+
+.filterTailBtn {
+  padding: 6px 12px !important;
+  font-size: 0.85rem !important;
+}
+
+/* ─── Bulk action bar ─────────────────────────────────────────────── */
+
 .bulkActionBar {
   position: sticky;
   top: 0;
@@ -7,56 +38,55 @@
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background-color: rgba(123, 104, 238, 0.15);
-  border: 1px solid #7b68ee;
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  border: 1px solid var(--color-accent);
   border-radius: 6px;
   margin-bottom: 15px;
   flex-wrap: wrap;
 
-  .bulkInfo {
-    color: #fafafa;
-    font-weight: 500;
-    margin-right: auto;
-  }
-
   @media screen and (max-width: 600px) {
     padding: 8px 10px;
     gap: 6px;
-
-    .bulkInfo {
-      width: 100%;
-      margin-bottom: 4px;
-    }
   }
 }
 
-// Checkbox cell for table
-.checkboxCell {
-  width: 40px;
-  text-align: center;
+.bulkInfo {
+  color: var(--color-text);
+  font-weight: 500;
+  margin-right: auto;
 
-  input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: #7b68ee;
-    cursor: pointer;
+  @media screen and (max-width: 600px) {
+    width: 100%;
+    margin-bottom: 4px;
   }
 }
 
-// Download button
+.bulkBtn {
+  padding: 6px 12px !important;
+  font-size: 0.85rem !important;
+}
+
+/* ─── Download button (matches the pre-ak-9aqn downloadBtn semantic) ─ */
+
 .downloadBtn {
-  background-color: transparent;
-  color: #7b68ee;
-  border: 1px solid #7b68ee;
-  padding: 3px 6px;
-  border-radius: 4px;
+  all: unset;
   cursor: pointer;
-  font-size: 0.7rem;
-  transition: all 0.2s;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--color-accent);
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 0.85rem;
   white-space: nowrap;
+  transition: background-color 0.2s;
 
   &:hover:not(:disabled) {
-    background-color: rgba(123, 104, 238, 0.15);
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   &:disabled {
@@ -65,25 +95,678 @@
   }
 }
 
-// Quick payment dialog overlay
-.paymentOverlay {
+/* ─── ak-9aqn compact list (replaces the pre-9aqn <table>) ──────── */
+
+.listWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.listHeader,
+.listRow {
+  display: grid;
+  grid-template-columns: 24px 1.1fr 2fr 1fr 1fr 1fr 24px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+
+  @media screen and (max-width: 720px) {
+    grid-template-columns: 24px 1fr 1fr 1fr 24px;
+    gap: 6px;
+  }
+}
+
+.listHeader {
+  color: var(--color-neutral-500);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-divider);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+
+  @media screen and (max-width: 720px) {
+    /* Mobile hides Status + Due columns; drawer surfaces them. */
+    .listHeadCell:nth-child(4),
+    .listHeadCell:nth-child(6) {
+      display: none;
+    }
+  }
+}
+
+.listHeadCell {
+  display: inline-block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listRow {
+  background: var(--color-surface);
+  transition: background-color 0.15s;
+  position: relative;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface));
+
+    .chevron {
+      color: var(--color-accent);
+    }
+  }
+}
+
+.listRowSelected {
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+}
+
+/* Each row is a button so the whole row is clickable for the drawer;
+ * the checkbox sits outside the button so toggle doesn't open the drawer. */
+.listRowBtn {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1.1fr 2fr 1fr 1fr 1fr 24px;
+  align-items: center;
+  gap: 10px;
+  grid-column: 2 / -1;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @media screen and (max-width: 720px) {
+    grid-template-columns: 1fr 1fr 1fr 24px;
+    gap: 6px;
+
+    /* Mobile hides Status + Due columns in-row; drawer has them. */
+    > :nth-child(3), /* status */
+    > :nth-child(5)  /* due */ {
+      display: none;
+    }
+  }
+}
+
+.invoiceCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.invoiceNumber {
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customerCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.customerAvatar {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent-800);
+  color: var(--color-text);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.customerName {
+  color: var(--color-text);
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusCell {
+  display: flex;
+  align-items: center;
+}
+
+.amountCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.amountValue {
+  color: var(--color-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.dateCell {
+  color: var(--color-neutral-400);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chevron {
+  color: var(--color-neutral-600);
+  font-size: 15px;
+  justify-self: end;
+  transition: color 120ms ease;
+}
+
+.alignRight {
+  text-align: right;
+  justify-self: end;
+}
+
+/* ─── Status chips ─────────────────────────────────────────────────── */
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.chipDraft {
+  background: color-mix(in srgb, var(--color-neutral-500) 15%, transparent);
+  color: var(--color-neutral-300);
+}
+
+.chipSent {
+  background: color-mix(in srgb, oklch(0.80 0.13 85) 15%, transparent);
+  color: oklch(0.80 0.13 85);
+}
+
+.chipPartial {
+  background: color-mix(in srgb, oklch(0.78 0.12 185) 15%, transparent);
+  color: oklch(0.78 0.12 185);
+}
+
+.chipPaid {
+  background: color-mix(in srgb, oklch(0.80 0.13 155) 15%, transparent);
+  color: oklch(0.80 0.13 155);
+}
+
+.chipOverdue {
+  background: color-mix(in srgb, oklch(0.74 0.15 25) 15%, transparent);
+  color: oklch(0.74 0.15 25);
+}
+
+/* ─── Checkbox (shared with drawer bulk-action) ─────────────────── */
+
+.checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1.5px solid var(--color-neutral-500);
+  background: transparent;
+  position: relative;
+  transition: background-color 0.12s, border-color 0.12s;
+
+  &:hover {
+    border-color: var(--color-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+
+  &:checked {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--color-text);
+      clip-path: polygon(14% 50%, 10% 60%, 40% 90%, 90% 25%, 80% 15%, 40% 65%);
+    }
+  }
+}
+
+/* ─── Pagination ──────────────────────────────────────────────────── */
+
+.paginationStrip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.paginationLabel {
+  color: var(--color-text);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Icon-only button (drawer close + similar) ─────────────────── */
+
+.iconBtn {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* ─── §4 Detail drawer ────────────────────────────────────────────── */
+
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+}
+
+.drawer {
   position: fixed;
   top: 0;
-  left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  width: min(560px, calc(100vw - 32px));
+  background: var(--color-bg);
+  border-left: 1px solid var(--color-divider);
+  box-shadow: -10px 0 30px color-mix(in srgb, var(--color-bg) 70%, transparent);
+  z-index: 1010;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  color: var(--color-text);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-divider);
+  position: sticky;
+  top: 0;
+  background: var(--color-bg);
+  z-index: 1;
+}
+
+.drawerHeaderInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawerInvoiceNumber {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.drawerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.drawerActionBtn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--color-neutral-300);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  font-size: 0.82rem;
+
+  i { font-size: 14px; }
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.drawerActionBtnDestructive {
+  @extend .drawerActionBtn;
+  color: oklch(0.74 0.15 25);
+  background: color-mix(in srgb, oklch(0.74 0.15 25) 10%, transparent);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, oklch(0.74 0.15 25) 18%, transparent);
+    color: oklch(0.74 0.15 25);
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(0.74 0.15 25);
+    outline-offset: 2px;
+  }
+}
+
+.drawerSection {
+  padding: 16px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-divider) 60%, transparent);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.drawerSectionTitle {
+  display: block;
+  color: var(--color-neutral-500);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.drawerDL {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 0.86rem;
+
+  dt {
+    color: var(--color-neutral-500);
+  }
+
+  dd {
+    margin: 0;
+    color: var(--color-text);
+    word-break: break-word;
+  }
+}
+
+.drawerStatusSelect {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-divider);
+  font-size: 0.82rem;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  option {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+}
+
+.totalRow {
+  color: var(--color-text) !important;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-divider);
+  margin-top: 4px;
+}
+
+.balanceDue {
+  color: oklch(0.80 0.13 85) !important;
+  font-weight: 600;
+}
+
+.paymentFxDetail {
+  display: block;
+  color: var(--color-neutral-500);
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+
+.drawerNote {
+  margin: 0 0 8px 0;
+  color: var(--color-neutral-300);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.lineItemsTable {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.lineItemsHead,
+.lineItemsRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+
+.lineItemsHead {
+  color: var(--color-neutral-500);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.lineItemsRow {
+  color: var(--color-text);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-divider) 60%, transparent);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ─── Destructive confirm-gate (invoice delete / bulk delete) ──── */
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 1200;
+}
+
+.confirmDialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1210;
+  width: min(440px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: color-mix(in srgb, oklch(0.74 0.15 25) 10%, var(--color-surface));
+  box-shadow: inset 0 0 0 1px oklch(0.74 0.15 25),
+              0 10px 30px color-mix(in srgb, var(--color-bg) 70%, transparent);
+  color: var(--color-text);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.confirmKicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: oklch(0.74 0.15 25);
+
+  i { font-size: 15px; }
+}
+
+.confirmTitle {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.confirmBody {
+  font-size: 13px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
+}
+
+.confirmActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.confirmYesDestructive {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: oklch(0.74 0.15 25);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+
+  &:hover {
+    filter: brightness(1.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ─── Quick-payment dialog (preserved behavior, Nocturne skin) ───── */
+
+.paymentOverlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1100;
 }
 
 .paymentDialog {
-  background-color: #121c24;
-  border: 1px solid #2a3a50;
+  width: min(440px, calc(100vw - 32px));
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
   border-radius: 12px;
-  padding: 24px;
-  width: 90%;
-  max-width: 400px;
+  padding: 20px 22px;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.paymentTitle {
+  color: var(--color-text);
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.paymentForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paymentLabel {
+  color: var(--color-neutral-500);
+  font-size: 0.8rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.paymentFxHint {
+  color: var(--color-neutral-500);
+  font-size: 0.72rem;
+  margin-top: 4px;
+}
+
+.paymentActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: flex-end;
 }
