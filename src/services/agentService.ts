@@ -1,7 +1,5 @@
-import { auth } from "../components/FirebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { API_BASE_URL } from "./AxiosConfig.tsx";
+import { API_BASE_URL, getFirebaseAuthHeader } from "./AxiosConfig.tsx";
 
 export type AgentType = "investment" | "transaction" | "freelance";
 
@@ -123,12 +121,12 @@ export interface Attachment {
  * and the backend will reject the upload as malformed.
  */
 export async function uploadAttachment(file: File): Promise<Attachment> {
-  const uid = await getFirebaseUID();
+  const authHeader = await getFirebaseAuth();
   const form = new FormData();
   form.append("file", file);
   const response = await fetch(`${API_BASE_URL}agent/attach`, {
     method: "POST",
-    headers: { "X-Firebase-ID": uid },
+    headers: { "X-Firebase-ID": authHeader },
     body: form,
   });
   if (!response.ok) {
@@ -199,9 +197,9 @@ async function authedFetch(
   path: string,
   init: RequestInit = {}
 ): Promise<Response> {
-  const uid = await getFirebaseUID();
+  const authHeader = await getFirebaseAuth();
   const headers = new Headers(init.headers);
-  headers.set("X-Firebase-ID", uid);
+  headers.set("X-Firebase-ID", authHeader);
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -266,20 +264,14 @@ export async function deleteConversation(id: number): Promise<void> {
   }
 }
 
-async function getFirebaseUID(): Promise<string> {
-  const user = auth.currentUser;
-  if (user) return user.uid;
-
-  return new Promise((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(auth, (loggedInUser) => {
-      unsubscribe();
-      if (loggedInUser) {
-        resolve(loggedInUser.uid);
-      } else {
-        reject(new Error("User not authenticated"));
-      }
-    });
-  });
+// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken,
+// raw-uid fallback on SDK error) via the shared AxiosConfig helper.
+// Rejects if no user is authenticated — matches the pre-ak-t7ax contract
+// so the caller's existing error-path (401 / login redirect) still fires.
+async function getFirebaseAuth(): Promise<string> {
+  const header = await getFirebaseAuthHeader();
+  if (!header) throw new Error("User not authenticated");
+  return header;
 }
 
 /**
@@ -313,14 +305,14 @@ export async function streamAgentChat(
   attachments?: string[],
   conversationId?: number
 ): Promise<void> {
-  const uid = await getFirebaseUID();
+  const authHeader = await getFirebaseAuth();
 
   try {
     await fetchEventSource(`${API_BASE_URL}agent/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Firebase-ID": uid,
+        "X-Firebase-ID": authHeader,
       },
       body: JSON.stringify({
         agent_type: agentType,

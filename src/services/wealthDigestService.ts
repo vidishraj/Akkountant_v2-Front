@@ -1,6 +1,4 @@
-import { auth } from "../components/FirebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
-import { API_BASE_URL } from "./AxiosConfig.tsx";
+import { API_BASE_URL, getFirebaseAuthHeader } from "./AxiosConfig.tsx";
 
 /**
  * Structured action item that WealthDigestTask emits. Backend produces these
@@ -103,25 +101,22 @@ export class WealthDigestError extends Error {
   }
 }
 
-async function getFirebaseUID(): Promise<string> {
-  const user = auth.currentUser;
-  if (user) return user.uid;
-  return new Promise((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(auth, (loggedInUser) => {
-      unsubscribe();
-      if (loggedInUser) resolve(loggedInUser.uid);
-      else reject(new Error("User not authenticated"));
-    });
-  });
+// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken,
+// raw-uid fallback on SDK error) via the shared AxiosConfig helper.
+// Rejects if no user is authenticated — matches the pre-ak-t7ax contract.
+async function getFirebaseAuth(): Promise<string> {
+  const header = await getFirebaseAuthHeader();
+  if (!header) throw new Error("User not authenticated");
+  return header;
 }
 
 async function authedFetch(
   path: string,
   init: RequestInit = {}
 ): Promise<Response> {
-  const uid = await getFirebaseUID();
+  const authHeader = await getFirebaseAuth();
   const headers = new Headers(init.headers);
-  headers.set("X-Firebase-ID", uid);
+  headers.set("X-Firebase-ID", authHeader);
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
