@@ -153,6 +153,16 @@ const Files = () => {
     //     session-scoped "I'm alone, show everything" affordance.
     const [coversOff, setCoversOff] = useState(false);
 
+    // ak-cw3d (FE-20): watermark-on-download modal for identity docs.
+    // When the overseer clicks Download on an identity-category file
+    // (passport / aadhaar / pan / DL / travel-identity), intercept the
+    // normal downloadVaultFile path and open a modal that offers:
+    //   - "Download with watermark" (FE-only pdf-lib / canvas overlay)
+    //   - "Download original without watermark" (opt-out)
+    // Non-identity files download unchanged (no modal).
+    const [downloadWatermarkFile, setDownloadWatermarkFile] = useState<UserFileData | null>(null);
+    const [watermarking, setWatermarking] = useState<boolean>(false);
+
     // (4) Peek dialog: lightweight "glance" at a file's first-page
     //     thumbnail. Opened by clicking the card body (not an action
     //     icon). Never cached across modal closes — state resets on
@@ -327,21 +337,170 @@ const Files = () => {
         }
     };
 
-    // Download
-    const handleDownload = async (file: UserFileData) => {
+    // ak-cw3d: push an arbitrary blob into the browser's download chute.
+    // Factored out so the watermark + opt-out + non-identity paths all
+    // share the same anchor-click trick without duplicating it.
+    const triggerBlobDownload = (blob: Blob, filename: string) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    // ak-cw3d: raw / "opt-out" download — the pre-ak-cw3d behavior.
+    // Fetches the vault blob and pushes it to the browser unchanged.
+    const downloadOriginal = async (file: UserFileData) => {
         try {
             const blob = await downloadVaultFile(file.id);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = file.original_filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            triggerBlobDownload(blob, file.original_filename);
         } catch {
             setPayload({type: 'error', message: 'Download failed'});
         }
+    };
+
+    // ak-cw3d (MINOR-1 fix): the watermark date is the overseer's local
+    // (IST) calendar date, not UTC. Pre-fix used `new Date().toISOString().
+    // slice(0, 10)` which is UTC-formatted — any download between 00:00
+    // and 05:30 IST would stamp yesterday's date, weakening the
+    // provenance claim the watermark exists to assert. 'en-CA' locale
+    // emits ISO-shape YYYY-MM-DD; Asia/Kolkata timezone follows the
+    // established convention from PortfolioTrendChart / Home /
+    // InvestmentsLanding / WealthDigest.
+    const watermarkDateIst = (): string =>
+        new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Kolkata'}).format(new Date());
+
+    // ak-cw3d: watermark a PDF via pdf-lib. Draws a diagonal translucent
+    // banner across every page carrying:
+    //   "COPY FOR OVERSEER · {IST date} · not for re-share"
+    // Returns a Uint8Array of the new PDF bytes. The source PDF is never
+    // mutated (pdf-lib clones page content streams on draw).
+    const buildWatermarkedPdf = async (bytes: ArrayBuffer): Promise<Uint8Array> => {
+        const {PDFDocument, rgb, StandardFonts, degrees} = await import('pdf-lib');
+        const doc = await PDFDocument.load(bytes);
+        const font = await doc.embedFont(StandardFonts.HelveticaBold);
+        const stamp = `COPY FOR OVERSEER · ${watermarkDateIst()} · not for re-share`;
+        for (const page of doc.getPages()) {
+            const {width, height} = page.getSize();
+            page.drawText(stamp, {
+                x: width * 0.08,
+                y: height * 0.5,
+                size: Math.max(16, width / 28),
+                font,
+                color: rgb(0.57, 0.52, 0.85), // Nocturne accent-ish; low-opacity
+                opacity: 0.22,
+                rotate: degrees(-28),
+            });
+        }
+        return doc.save();
+    };
+
+    // ak-cw3d: watermark a raster image via canvas. Draws the original
+    // bitmap to a canvas, overlays the same diagonal banner translucent
+    // text, and re-encodes via canvas.toBlob. Preserves source dimensions.
+    const buildWatermarkedImage = (blob: Blob, mime: string): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(blob);
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) throw new Error('No 2D context');
+                    ctx.drawImage(img, 0, 0);
+                    ctx.save();
+                    ctx.globalAlpha = 0.22;
+                    ctx.fillStyle = '#9184d9';
+                    ctx.translate(canvas.width * 0.5, canvas.height * 0.5);
+                    ctx.rotate(-0.49); // ~ -28deg
+                    const fontSize = Math.max(16, canvas.width / 24);
+                    ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(
+                        `COPY FOR OVERSEER · ${watermarkDateIst()} · not for re-share`,
+                        0,
+                        0,
+                    );
+                    ctx.restore();
+                    URL.revokeObjectURL(url);
+                    canvas.toBlob(
+                        (out) => (out ? resolve(out) : reject(new Error('toBlob returned null'))),
+                        mime || 'image/png',
+                        0.95,
+                    );
+                } catch (err) {
+                    URL.revokeObjectURL(url);
+                    reject(err);
+                }
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Image load failed'));
+            };
+            img.src = url;
+        });
+    };
+
+    // ak-cw3d: watermarked download. Fetches the vault blob, dispatches
+    // by file type to the PDF or image watermark pipeline, then triggers
+    // the browser download. Unsupported types (e.g. docx) fall back to
+    // the original download with an info toast — watermark can't be
+    // reliably applied client-side to those formats.
+    const downloadWithWatermark = async (file: UserFileData) => {
+        setWatermarking(true);
+        try {
+            const blob = await downloadVaultFile(file.id);
+            const ext = (file.file_extension || '').toLowerCase();
+            const mime = file.file_type || '';
+            if (ext === 'pdf' || mime === 'application/pdf') {
+                const bytes = await blob.arrayBuffer();
+                const out = await buildWatermarkedPdf(bytes);
+                // Wrap in a fresh ArrayBuffer so the Blob constructor sees
+                // a plain BlobPart (avoids SharedArrayBuffer issues).
+                const copy = new Uint8Array(out).buffer;
+                triggerBlobDownload(
+                    new Blob([copy], {type: 'application/pdf'}),
+                    file.original_filename,
+                );
+            } else if (isImage(mime)) {
+                const out = await buildWatermarkedImage(blob, mime);
+                triggerBlobDownload(out, file.original_filename);
+            } else {
+                // Unsupported for client-side watermark — fall back and
+                // tell the overseer so they can decide whether to pick
+                // "original" or re-think the share.
+                triggerBlobDownload(blob, file.original_filename);
+                setPayload({
+                    type: 'info',
+                    message: `Watermark not supported for .${ext} — downloaded original.`,
+                });
+            }
+        } catch {
+            setPayload({type: 'error', message: 'Watermarked download failed'});
+        } finally {
+            setWatermarking(false);
+            setDownloadWatermarkFile(null);
+        }
+    };
+
+    // ak-cw3d: entry point. Identity-category files (passport / aadhaar /
+    // PAN / driving license / travel-identity) open the watermark modal;
+    // everything else downloads directly as before. CATEGORY_META owns
+    // the isIdentity flag used by both this gate and the per-card lock
+    // affordance.
+    const handleDownload = async (file: UserFileData) => {
+        const cat = CATEGORY_META[classifyFile(file)];
+        if (cat.isIdentity) {
+            setDownloadWatermarkFile(file);
+            return;
+        }
+        return downloadOriginal(file);
     };
 
     // Delete file (FE-10): NEVER call deleteVaultFile directly. Open the
@@ -562,6 +721,20 @@ const Files = () => {
         window.addEventListener('click', handler);
         return () => window.removeEventListener('click', handler);
     }, []);
+
+    // ak-cw3d: Esc-to-cancel on the watermark modal. Blocked while a
+    // watermark render is in flight so the user doesn't accidentally
+    // drop a half-rendered PDF to the floor.
+    useEffect(() => {
+        if (!downloadWatermarkFile) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !watermarking) {
+                setDownloadWatermarkFile(null);
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [downloadWatermarkFile, watermarking]);
 
     // Drag and drop
     const handleDragOver = (e: React.DragEvent) => {
@@ -1464,6 +1637,111 @@ const Files = () => {
                                     </div>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ak-cw3d (FE-20): identity-doc download watermark modal.
+                Intercepts identity-category downloads (CATEGORY_META
+                `isIdentity=true` → passport / aadhaar / pan / DL / travel
+                identity). Primary action applies a translucent diagonal
+                watermark banner via pdf-lib (PDFs) or canvas (images);
+                secondary action opts out and ships the original. §4
+                PII posture: watermark is DOCUMENTARY (purpose-tagged
+                copy), not security-enforcing — this is the overseer's
+                own doc + the overseer's own choice; the modal provides
+                deliberate-share friction + opt-out at the same affordance. */}
+            {downloadWatermarkFile && (
+                <div
+                    className={style.previewOverlay}
+                    onClick={() => !watermarking && setDownloadWatermarkFile(null)}
+                    role="presentation"
+                >
+                    <div
+                        className={style.watermarkDialog}
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="ak-cw3d-title"
+                    >
+                        <div className={style.previewHeader}>
+                            <span id="ak-cw3d-title">Download with watermark?</span>
+                            <button
+                                className={style.closeBtn}
+                                onClick={() => !watermarking && setDownloadWatermarkFile(null)}
+                                aria-label="Cancel download"
+                                disabled={watermarking}
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div className={style.watermarkBody}>
+                            <p className={style.watermarkLead}>
+                                This is an identity document. Share-safely
+                                best practice: stamp every downloaded copy
+                                with a purpose tag so a leaked file is
+                                traceable back to this download.
+                            </p>
+                            <ul className={style.watermarkPoints}>
+                                <li>
+                                    <i className="ph ph-stamp" aria-hidden/>
+                                    <span>
+                                        Diagonal translucent banner reading
+                                        "COPY FOR OVERSEER · {watermarkDateIst()} · not for re-share"
+                                        (date in IST)
+                                    </span>
+                                </li>
+                                <li>
+                                    <i className="ph ph-image-square" aria-hidden/>
+                                    <span>PDFs stamped page-by-page via pdf-lib; images re-encoded with a canvas overlay.</span>
+                                </li>
+                                <li>
+                                    <i className="ph ph-shield-check" aria-hidden/>
+                                    <span>
+                                        Advisory, not security-enforcing — the
+                                        original is still available via the
+                                        secondary button below.
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div className={style.watermarkActions}>
+                            <button
+                                type="button"
+                                className={`btn btn-secondary ${style.watermarkBtn}`}
+                                onClick={async () => {
+                                    const f = downloadWatermarkFile;
+                                    if (!f) return;
+                                    setDownloadWatermarkFile(null);
+                                    await downloadOriginal(f);
+                                }}
+                                disabled={watermarking}
+                            >
+                                Download original without watermark
+                            </button>
+                            <button
+                                type="button"
+                                className={`btn btn-primary ${style.watermarkBtn}`}
+                                onClick={() => {
+                                    if (downloadWatermarkFile) {
+                                        void downloadWithWatermark(downloadWatermarkFile);
+                                    }
+                                }}
+                                disabled={watermarking}
+                            >
+                                {watermarking ? (
+                                    <>
+                                        <i className="ph ph-circle-notch" aria-hidden/>
+                                        <span>Stamping…</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="ph ph-stamp" aria-hidden/>
+                                        <span>Download with watermark</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
