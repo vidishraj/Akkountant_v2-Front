@@ -1046,3 +1046,317 @@
   padding: 5px 12px !important;
 }
 
+/* ─────────────── ak-015p (FE-22) Files polish bundle ─────────────── */
+
+/* (2) Grid / List view-mode toggle — compact segment pair in the header */
+.viewToggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.viewToggleBtn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--color-neutral-400);
+  transition: background 120ms ease, color 120ms ease;
+
+  i {
+    font-size: 16px;
+  }
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.viewToggleBtnActive {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+/* (3) Covers on/off toggle button */
+.coversToggleBtn {
+  font-size: 12.5px !important;
+  padding: 6px 12px !important;
+
+  i {
+    font-size: 15px;
+  }
+
+  &[aria-pressed="true"] {
+    color: var(--color-accent) !important;
+    box-shadow: inset 0 0 0 1px var(--color-accent) !important;
+  }
+}
+
+/* (2) File grid list-view variant — flex column rows instead of grid
+ * of cards. The individual `.fileCard` already has reasonable row-
+ * compatible structure, so we just override the parent grid-template
+ * and adjust the inner flex direction. */
+.fileGridList {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+
+  .fileCard {
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 14px;
+    gap: 14px;
+
+    > :nth-child(1) { /* thumbnailContainer */
+      flex: 0 0 48px;
+      width: 48px;
+      height: 48px;
+      min-height: 48px;
+    }
+
+    > :nth-child(2) { /* fileInfo */
+      flex: 1 1 auto;
+      min-width: 0;
+      align-items: flex-start;
+    }
+
+    > :nth-child(3) { /* fileActions */
+      flex: none;
+    }
+  }
+}
+
+/* (4) Peek dialog — reuses `.previewOverlay` as backdrop */
+.peekPanel {
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.peekBody {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  flex: 1 1 auto;
+  background: var(--color-bg);
+}
+
+.peekImg {
+  max-width: 100%;
+  max-height: 60vh;
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-900);
+}
+
+.peekNoThumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-neutral-400);
+  padding: 32px;
+
+  i {
+    font-size: 48px;
+    color: var(--color-neutral-600);
+  }
+}
+
+.peekNoThumbSub {
+  color: var(--color-neutral-500);
+  font-size: 12px;
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* ak-015p MAJOR fix: in-Peek locked-state action row for identity
+ * documents. Reuses the shared `.btn`/`.btn-primary`/`.btn-secondary`
+ * classes from nocturne.css so no bespoke button styling. */
+.peekLockedActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.peekLockedBtn {
+  font-size: 12.5px !important;
+  padding: 7px 12px !important;
+  justify-content: center !important;
+
+  i {
+    font-size: 15px;
+  }
+}
+
+/* (1) Scan-from-phone dialog */
+.scanFromPhoneDialog {
+  width: min(440px, 92vw);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scanFromPhoneBody {
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  text-align: center;
+}
+
+.scanFromPhoneLead {
+  margin: 0;
+  color: var(--color-neutral-300);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.scanFromPhoneQrPlaceholder {
+  width: 180px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+  border: 2px dashed var(--color-neutral-700);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-500);
+  font-size: 11.5px;
+
+  i {
+    font-size: 48px;
+    color: var(--color-neutral-600);
+  }
+}
+
+.scanFromPhoneHint {
+  color: var(--color-neutral-500);
+  font-size: 11.5px;
+  max-width: 320px;
+  line-height: 1.4;
+}
+
+/* (5) Access-log sample section — static mock rows per bead */
+.accessLogSection {
+  margin-top: 32px;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.accessLogHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+
+  i {
+    font-size: 16px;
+    color: var(--color-neutral-400);
+  }
+}
+
+.accessLogList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accessLogItem {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+  padding: 6px 2px;
+  font-size: 13px;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-divider);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  code {
+    font-family: ui-monospace, "SF Mono", Consolas, "Roboto Mono", monospace;
+    font-size: 12px;
+    color: var(--color-accent-300);
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  }
+}
+
+.accessLogAt {
+  color: var(--color-neutral-500);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.accessLogText {
+  color: var(--color-neutral-300);
+
+  strong {
+    color: var(--color-text);
+    font-weight: 500;
+  }
+}
+
+.accessLogHint {
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  margin-top: 4px;
+}
+
+/* Shared Sample chip — mirrors the FE-3 (ak-ff9r) stub-chip convention */
+.sampleChip {
+  display: inline-block;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--color-neutral-400);
+  border: 1px dashed var(--color-neutral-600);
+}
+

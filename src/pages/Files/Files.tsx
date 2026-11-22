@@ -135,6 +135,31 @@ const Files = () => {
     // Context menu
     const [contextMenu, setContextMenu] = useState<{x: number; y: number; file?: UserFileData; folder?: UserFolderData} | null>(null);
 
+    // ─── FE-22 (ak-015p) polish-bundle state ─────────────────────────────
+    // (1) Scan-from-phone dialog: stub UX surface that explains the
+    //     planned email-to-vault OTP+QR flow. Button in header; no BE wire
+    //     until a dedicated endpoint lands.
+    const [showScanFromPhone, setShowScanFromPhone] = useState(false);
+
+    // (2) View-mode toggle: 'grid' (current default) vs 'list'. Persists
+    //     only for the session; no localStorage yet (overseer may want
+    //     different defaults per device later).
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+    // (3) Covers on/off: SECOND gate on identity-document reveal. When
+    //     ON (the default), identity thumbnails stay hidden until the
+    //     per-card eye reveal fires. When OFF ("covers off"), ALL
+    //     identity thumbnails render by default — effectively a
+    //     session-scoped "I'm alone, show everything" affordance.
+    const [coversOff, setCoversOff] = useState(false);
+
+    // (4) Peek dialog: lightweight "glance" at a file's first-page
+    //     thumbnail. Opened by clicking the card body (not an action
+    //     icon). Never cached across modal closes — state resets on
+    //     close. This is DIFFERENT from the full Preview below, which
+    //     fetches the full file bytes via `viewVaultFile`.
+    const [peekFile, setPeekFile] = useState<UserFileData | null>(null);
+
     // ─── FE-10 (ak-2o3x) PII state ────────────────────────────────────────
     // Search over filename/label — brief 07 critical for 100+ item vaults.
     const [searchTerm, setSearchTerm] = useState('');
@@ -640,6 +665,65 @@ const Files = () => {
                     )}
                 </label>
                 <div className={style.headerActions}>
+                    {/* ak-015p (2): Grid / List view-mode segment. Compact
+                        icon-only pair so it shares space with the other
+                        header actions. Defaults to Grid. */}
+                    <div
+                        className={style.viewToggle}
+                        role="tablist"
+                        aria-label="View mode"
+                    >
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={viewMode === 'grid'}
+                            onClick={() => setViewMode('grid')}
+                            className={`${style.viewToggleBtn} ${viewMode === 'grid' ? style.viewToggleBtnActive : ''}`}
+                            title="Grid view"
+                            aria-label="Grid view"
+                        >
+                            <i className="ph ph-squares-four" aria-hidden/>
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={viewMode === 'list'}
+                            onClick={() => setViewMode('list')}
+                            className={`${style.viewToggleBtn} ${viewMode === 'list' ? style.viewToggleBtnActive : ''}`}
+                            title="List view"
+                            aria-label="List view"
+                        >
+                            <i className="ph ph-list" aria-hidden/>
+                        </button>
+                    </div>
+                    {/* ak-015p (3): Covers on/off second-gate. Default
+                        off (i.e. covers ON = identity thumbnails hidden
+                        until per-card reveal). Flipping ON reveals ALL
+                        identity thumbnails for the current session. */}
+                    <button
+                        type="button"
+                        onClick={() => setCoversOff((v) => !v)}
+                        className={`btn btn-secondary ${style.coversToggleBtn}`}
+                        aria-pressed={coversOff}
+                        title={coversOff
+                            ? 'Covers off — identity thumbnails revealed'
+                            : 'Covers on — identity thumbnails hidden by default'}
+                    >
+                        <i className={`ph ${coversOff ? 'ph-eye' : 'ph-eye-slash'}`} aria-hidden/>
+                        <span>{coversOff ? 'Covers off' : 'Covers on'}</span>
+                    </button>
+                    {/* ak-015p (1): Scan from phone — stub button that
+                        opens a dialog explaining the planned email-to-
+                        vault OTP+QR flow. Hooks up to an endpoint once
+                        BE wires it. */}
+                    <button
+                        type="button"
+                        onClick={() => setShowScanFromPhone(true)}
+                        className={`btn btn-secondary ${style.folderBtn}`}
+                    >
+                        <i className="ph ph-device-mobile-camera" aria-hidden/>
+                        <span>Scan from phone</span>
+                    </button>
                     <button
                         type="button"
                         className={`btn btn-secondary ${style.folderBtn}`}
@@ -723,10 +807,16 @@ const Files = () => {
                                 <span>{group.label}</span>
                                 <span className={style.categoryCount}>{group.files.length}</span>
                             </h3>
-                            <div className={style.fileGrid}>
+                            <div className={`${style.fileGrid} ${viewMode === 'list' ? style.fileGridList : ''}`}>
                                 {group.files.map((file) => {
                                     const cat = CATEGORY_META[classifyFile(file)];
-                                    const revealed = revealedIds.has(file.id);
+                                    // ak-015p (3): `coversOff` is a SECOND gate — when the
+                                    // overseer flips the header toggle, ALL identity
+                                    // thumbnails read as revealed. Still OR-ed with the
+                                    // per-card `revealedIds` set so the eye-click path is
+                                    // untouched (one-shot 5s reveal still works even when
+                                    // covers-off is false).
+                                    const revealed = revealedIds.has(file.id) || (cat.isIdentity && coversOff);
                                     const iconClass = cat.key === 'other'
                                         ? iconForExtension(file.file_extension)
                                         : cat.icon;
@@ -735,6 +825,21 @@ const Files = () => {
                                             key={file.id}
                                             className={`${style.fileCard} ${cat.isIdentity ? style.fileCardIdentity : ''}`}
                                             onContextMenu={(e) => handleContextMenu(e, file)}
+                                            onClick={(e) => {
+                                                // ak-015p (4): clicking the card body opens the Peek
+                                                // dialog with the file's first-page thumbnail (never
+                                                // cached). Ignore clicks that originated from an
+                                                // action button / label-edit — those have their own
+                                                // handlers and shouldn't double-fire Peek.
+                                                //
+                                                // ak-015p fix (MINOR, reviewer-flagged):
+                                                // broaden the suppression selector so a future
+                                                // <a>, [role="button"], or [tabindex] card action
+                                                // doesn't bypass this guard.
+                                                const target = e.target as HTMLElement;
+                                                if (target.closest('button, input, a, [role="button"], [tabindex]')) return;
+                                                setPeekFile(file);
+                                            }}
                                         >
                                             <div className={style.thumbnailContainer}>
                                                 {/* §4 CRITICAL: thumbnail defaults to type icon.
@@ -835,6 +940,38 @@ const Files = () => {
                             </div>
                         </section>
                     ))}
+
+                    {/* ak-015p (5): Access-log sample section. Static mock
+                        rows per bead ("Sample for future audit surface").
+                        Flagged with the shared `.sampleChip` convention so
+                        the overseer can distinguish mock from live at a
+                        glance; swap the array for a BE-fed list when the
+                        audit endpoint lands. */}
+                    <section className={style.accessLogSection}>
+                        <h3 className={style.accessLogHeading}>
+                            <i className="ph ph-clock-counter-clockwise" aria-hidden/>
+                            <span>Access log</span>
+                            <span className={style.sampleChip}>Sample</span>
+                        </h3>
+                        <ul className={style.accessLogList}>
+                            {[
+                                {at: 'Today · 10:12', actor: 'You', action: 'downloaded', target: 'passport.pdf'},
+                                {at: 'Today · 09:48', actor: 'You', action: 'peeked at', target: 'aadhaar.pdf'},
+                                {at: 'Yesterday · 17:30', actor: 'You', action: 'uploaded', target: 'pan-card.pdf'},
+                                {at: 'Yesterday · 14:05', actor: 'You', action: 'previewed', target: 'rental-agreement.pdf'},
+                            ].map((e, i) => (
+                                <li key={`sample-log-${i}`} className={style.accessLogItem}>
+                                    <span className={style.accessLogAt}>{e.at}</span>
+                                    <span className={style.accessLogText}>
+                                        <strong>{e.actor}</strong> {e.action} <code>{e.target}</code>
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                        <span className={style.accessLogHint}>
+                            Live audit log pending BE wire · entries here are illustrative
+                        </span>
+                    </section>
                 </>
             )}
 
@@ -1206,6 +1343,175 @@ const Files = () => {
                             >
                                 {uploading ? 'Uploading...' : uploadMode === 'folder' ? `Upload ${selectedFiles.length} files` : 'Upload'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ak-015p (4): Peek dialog. Lightweight "glance" at the
+                file's first-page thumbnail (already fetched with the list).
+                NEVER cached — modal close drops the reference by clearing
+                `peekFile` state. Distinct from the full Preview below,
+                which fetches `viewVaultFile(id)` bytes. If the file has
+                no thumbnail (non-paginated / BE hasn't generated one),
+                falls back to a type-icon placeholder + explanation. */}
+            {peekFile && (
+                <div
+                    className={style.previewOverlay}
+                    onClick={() => setPeekFile(null)}
+                    role="presentation"
+                >
+                    <div
+                        className={style.peekPanel}
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="File peek"
+                    >
+                        <div className={style.previewHeader}>
+                            <span>Peek · {peekFile.original_filename}</span>
+                            <div className={style.previewActions}>
+                                <button
+                                    onClick={() => {
+                                        const f = peekFile;
+                                        setPeekFile(null);
+                                        handlePreview(f);
+                                    }}
+                                >
+                                    Open full
+                                </button>
+                                <button
+                                    className={style.closeBtn}
+                                    onClick={() => setPeekFile(null)}
+                                    aria-label="Close peek"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        </div>
+                        <div className={style.peekBody}>
+                            {(() => {
+                                // ak-015p MAJOR fix (reviewer-flagged): identity-
+                                // category files MUST respect the §4 cover gate
+                                // inside Peek just like they do on the card.
+                                // Rules (OR-gated, matches the row-level
+                                // revealed= computation above):
+                                //   covers-off ON  → treat identity as revealed
+                                //   per-card eye  → explicit reveal stays valid
+                                // When the file is identity AND neither reveal
+                                // path has fired, show a lock placeholder with
+                                // an in-modal "Reveal preview" button that
+                                // routes through the existing `toggleReveal`
+                                // (one-shot 5s auto-hide semantics preserved).
+                                const peekCat = CATEGORY_META[classifyFile(peekFile)];
+                                const peekRevealed =
+                                    revealedIds.has(peekFile.id) ||
+                                    (peekCat.isIdentity && coversOff);
+                                const peekLocked = peekCat.isIdentity && !peekRevealed;
+
+                                if (peekLocked) {
+                                    return (
+                                        <div className={style.peekNoThumb}>
+                                            <i className="ph ph-lock" aria-hidden/>
+                                            <span>Identity document — thumbnail hidden by default</span>
+                                            <span className={style.peekNoThumbSub}>
+                                                Reveal to glance (auto-hides in 5s), or open the
+                                                full preview — both require an explicit click.
+                                            </span>
+                                            <div className={style.peekLockedActions}>
+                                                <button
+                                                    type="button"
+                                                    className={`btn btn-secondary ${style.peekLockedBtn}`}
+                                                    onClick={() => toggleReveal(peekFile.id)}
+                                                >
+                                                    <i className="ph ph-eye" aria-hidden/>
+                                                    <span>Reveal preview</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`btn btn-primary ${style.peekLockedBtn}`}
+                                                    onClick={() => {
+                                                        const f = peekFile;
+                                                        setPeekFile(null);
+                                                        handlePreview(f);
+                                                    }}
+                                                >
+                                                    <i className="ph ph-arrows-out" aria-hidden/>
+                                                    <span>Open full</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                if (peekFile.thumbnail) {
+                                    return (
+                                        <img
+                                            src={`data:image/png;base64,${peekFile.thumbnail}`}
+                                            alt=""
+                                            className={style.peekImg}
+                                        />
+                                    );
+                                }
+
+                                return (
+                                    <div className={style.peekNoThumb}>
+                                        <i className="ph ph-image-square" aria-hidden/>
+                                        <span>No first-page thumbnail available</span>
+                                        <span className={style.peekNoThumbSub}>
+                                            Use "Open full" for the complete file view.
+                                        </span>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ak-015p (1): Scan-from-phone dialog. Stub UX surface for the
+                planned email-to-vault flow (send OTP + QR to phone, scan a
+                document, OTP-upload returns the file into this vault).
+                No BE endpoint exists yet — the dialog explains intent +
+                leaves a QR placeholder so the overseer can see the shape. */}
+            {showScanFromPhone && (
+                <div
+                    className={style.previewOverlay}
+                    onClick={() => setShowScanFromPhone(false)}
+                    role="presentation"
+                >
+                    <div
+                        className={style.scanFromPhoneDialog}
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Scan from phone"
+                    >
+                        <div className={style.previewHeader}>
+                            <span>Scan from phone</span>
+                            <button
+                                className={style.closeBtn}
+                                onClick={() => setShowScanFromPhone(false)}
+                                aria-label="Close scan from phone"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div className={style.scanFromPhoneBody}>
+                            <p className={style.scanFromPhoneLead}>
+                                Send a one-time code + QR to your phone to
+                                upload documents directly from the camera.
+                                The scanned file lands in this vault.
+                            </p>
+                            <div className={style.scanFromPhoneQrPlaceholder} aria-hidden>
+                                <i className="ph ph-qr-code"/>
+                                <span>QR appears after BE wire</span>
+                            </div>
+                            <span className={style.sampleChip}>Coming soon</span>
+                            <span className={style.scanFromPhoneHint}>
+                                Backend endpoint pending — we'll flip this on
+                                once the email-to-vault handshake lands.
+                            </span>
                         </div>
                     </div>
                 </div>
