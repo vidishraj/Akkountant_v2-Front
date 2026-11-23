@@ -1081,3 +1081,81 @@ export interface TrashListResponse {
     files: TrashedFileData[];
     count: number;
 }
+
+// ────────────────── ak-i0zq / ak-v55t + ak-05af ──────────────────
+// Instruments search + watchlist. Both consume Kite-sourced BE
+// surfaces; shapes match the BE commit comments on those beads.
+
+// ak-v55t: GET /kite/instruments/search → one result per matching
+// instrument. All F&O-ish fields are optional because equity rows
+// don't carry them (BE emits DECIMAL columns as nullable).
+export interface KiteInstrumentSearchResult {
+    instrument_token: number;
+    tradingsymbol: string;
+    name: string | null;
+    exchange: string | null;
+    segment: string | null;
+    instrument_type: string | null;
+    lot_size: number | null;
+    tick_size: number | null;
+    last_price: number | null;
+    expiry: string | null;    // ISO date or null
+    strike: number | null;
+}
+
+export interface KiteInstrumentSearchResponse {
+    results: KiteInstrumentSearchResult[];
+    count: number;
+    query: string;
+    exchange: string | null;
+}
+
+// ak-05af: watchlist CRUD + LTP batch. One row per watched
+// instrument_token. Note is user-editable, truncated to 500 chars
+// server-side.
+export interface WatchlistItem {
+    id: number;
+    instrument_token: number | null;
+    tradingsymbol: string;
+    exchange: string;
+    added_at: string | null;   // ISO datetime
+    note: string | null;
+}
+
+export interface WatchlistListResponse {
+    items: WatchlistItem[];
+    count: number;
+}
+
+export interface WatchlistAddResponse {
+    item: WatchlistItem;
+    idempotent: boolean;
+}
+
+export interface WatchlistRemoveResponse {
+    id: number;
+    removed: boolean;
+}
+
+// ak-05af: /watchlist/ltp batch. Key is "EXCHANGE:TRADINGSYMBOL"
+// (BE builds the Kite-native key form so the response is
+// self-describing). Kite's .ltp() emits `{instrument_token,
+// last_price}`; some SDK versions also embed an `ohlc` block
+// with previous-day close — rendered through the day-change
+// fallback when present. All inner fields optional for drift
+// safety.
+export interface WatchlistLtpTick {
+    instrument_token?: number;
+    last_price?: number;
+    ohlc?: {
+        open?: number;
+        high?: number;
+        low?: number;
+        close?: number;
+    };
+}
+
+export interface WatchlistLtpResponse {
+    ltp: Record<string, WatchlistLtpTick>;
+    count: number;
+}

@@ -7,6 +7,7 @@ import {getKiteLoginUrl} from "../../services/investmentService.ts";
 import {getRowDayChangeAmount} from "../../utils/holdings.ts";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import KiteMonitoring from "../../components/KiteMonitoring/KiteMonitoring.tsx";
+import Watchlist from "../../components/Watchlist/Watchlist.tsx";
 import type {KiteTrade, MSNListResponse} from "../../utils/interfaces.ts";
 import style from "./InvestmentsLanding.module.scss";
 
@@ -971,6 +972,14 @@ const InvestmentsLanding = () => {
                 isn't connected (handled inside KiteMonitoring). Lazy
                 fetches per sub-tab activation. */}
             <KiteMonitoring/>
+
+            {/* ── Watchlist (ak-i0zq / ak-05af BE / ak-v55t BE) ──
+                Persistent symbol list with 30s LTP polling fallback
+                until the WebSocket bead (ak-vue6) lands. Hidden entirely
+                when Kite isn't connected (same posture as monitoring
+                above). Mounted between monitoring and Fixed-return so
+                the live-price surfaces group together visually. */}
+            <Watchlist/>
 
             {/* ── Fixed-return & physical (EPF / PPF / Gold) ── */}
             <section className={style.cardsSection}>
