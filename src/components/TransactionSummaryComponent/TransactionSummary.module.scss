@@ -160,3 +160,57 @@
     background-color: #243340 !important;
   }
 }
+
+/* ak-dngn (ak-tik FE companion): degraded-dedup banner. Mirrors the
+ * FreelanceDashboard overdue-hero treatment — warn-oklch tinted
+ * surface + warn-oklch inset ring + warn-oklch kicker icon — kept
+ * to a single compact strip below the metrics row. Session-level
+ * visibility only; dismiss removes the strip until a fresh scan
+ * replaces the count. */
+.degradedDedupBanner {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, oklch(0.82 0.12 75) 10%, var(--color-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, oklch(0.82 0.12 75) 35%, transparent);
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+
+  i {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
+
+.degradedDedupText {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text);
+
+  strong {
+    color: oklch(0.82 0.12 75);
+    font-weight: 600;
+    margin-right: 2px;
+  }
+}
+
+.degradedDedupDismiss {
+  flex-shrink: 0;
+  height: 28px !important;
+  padding: 0 10px !important;
+  min-width: auto !important;
+  border-radius: 6px !important;
+  color: var(--color-text) !important;
+  font-size: 11px !important;
+  text-transform: none !important;
+  background: color-mix(in srgb, oklch(0.82 0.12 75) 14%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, oklch(0.82 0.12 75) 45%, transparent) !important;
+
+  &:hover {
+    background: color-mix(in srgb, oklch(0.82 0.12 75) 22%, transparent) !important;
+  }
+}
