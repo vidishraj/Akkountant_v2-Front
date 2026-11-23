@@ -744,6 +744,46 @@ export interface KiteTradesResponse {
     trades: KiteTrade[];
 }
 
+// ak-ws2q / ak-zi54 (BE 2026-11-22): today's full order book from Kite
+// — complements /kite/trades (filled only) with every order placed
+// today across all statuses. BE passthrough of `k.orders()` wrapped
+// as `{orders: [...]}`. Every field defensive-optional (same posture
+// as KiteTrade — Kite SDK drift reaches FE uncoerced).
+export interface KiteOrder {
+    order_id?: string;
+    exchange_order_id?: string | null;
+    parent_order_id?: string | null;
+    tradingsymbol?: string;
+    exchange?: string;
+    status?: string;                 // OPEN / COMPLETE / CANCELLED / REJECTED / TRIGGER_PENDING ...
+    status_message?: string | null;
+    status_message_raw?: string | null;
+    transaction_type?: string;       // BUY / SELL
+    order_type?: string;             // MARKET / LIMIT / SL / SL-M
+    product?: string;                // CNC / MIS / NRML
+    variety?: string;                // regular / amo / co / bo / iceberg / auction
+    validity?: string;
+    quantity?: number;
+    filled_quantity?: number;
+    pending_quantity?: number;
+    cancelled_quantity?: number;
+    disclosed_quantity?: number;
+    price?: number;
+    trigger_price?: number;
+    average_price?: number;
+    instrument_token?: number;
+    order_timestamp?: string;
+    exchange_timestamp?: string | null;
+    exchange_update_timestamp?: string | null;
+    guid?: string;
+    tag?: string | null;
+    placed_by?: string;
+}
+
+export interface KiteOrdersResponse {
+    orders: KiteOrder[];
+}
+
 // ak-oc5s: GET /kite/margins payload from ak-zai2 (Kite Bundle 2).
 // Thin wrap of Kite's user-margins API — equity + commodity segments,
 // each with available + utilised breakdowns. All numeric fields are

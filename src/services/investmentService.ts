@@ -25,6 +25,7 @@ import {
     KiteMFHoldingsResponse,
     KiteMFOrdersResponse,
     KiteMFSipsResponse,
+    KiteOrdersResponse,
     RealizedPnLResponse,
     FOSummaryResponse,
     FOTrade,
@@ -438,6 +439,28 @@ export async function fetchKiteTrades(
     );
 
     const response = await queueRequest(() => axios.get('/kite/trades', options));
+    return response.data;
+}
+
+/**
+ * ak-ws2q / ak-zi54 (BE 2026-11-22): GET /kite/orders — today's full
+ * order book from Kite (every order placed today across all statuses
+ * OPEN / COMPLETE / CANCELLED / REJECTED / TRIGGER_PENDING ...).
+ * Complements /kite/trades (filled only).
+ *
+ * BE passthrough of Kite SDK's `k.orders()`, wrapped as
+ * `{orders: [...]}`. Read-only, idempotent. LAZY FE consumer: fired
+ * on "Today's orders" section expand (default collapsed), not on
+ * provider mount.
+ */
+export async function fetchKiteOrders(
+    clearCache = false
+): Promise<KiteOrdersResponse> {
+    const options = withRequestId(
+        'kite/orders',
+        clearCache ? withCacheCleared() : {}
+    );
+    const response = await queueRequest(() => axios.get('/kite/orders', options));
     return response.data;
 }
 

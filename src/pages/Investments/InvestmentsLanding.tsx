@@ -8,7 +8,7 @@ import {getRowDayChangeAmount} from "../../utils/holdings.ts";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import KiteMonitoring from "../../components/KiteMonitoring/KiteMonitoring.tsx";
 import Watchlist from "../../components/Watchlist/Watchlist.tsx";
-import type {KiteTrade, MSNListResponse} from "../../utils/interfaces.ts";
+import type {KiteOrder, KiteTrade, MSNListResponse} from "../../utils/interfaces.ts";
 import style from "./InvestmentsLanding.module.scss";
 
 /**
@@ -295,10 +295,59 @@ function readTradeNums(t: KiteTrade): {qty: number; px: number; value: number} {
     return {qty, px: rawPx, value: qty * rawPx};
 }
 
+/**
+ * ak-ws2q: Classify a Kite order status chip color. Mirrors the
+ * palette convention used in MFOrders / KiteMonitoring.
+ *
+ * - COMPLETE                       → gain (filled)
+ * - CANCELLED / REJECTED           → loss (dead)
+ * - OPEN / TRIGGER_PENDING / AMO_… → warn (live / pending)
+ * - everything else                → neutral
+ */
+function orderStatusColor(status: string | undefined): string {
+    const s = (status || "").toUpperCase();
+    if (s === "COMPLETE") return CLR_GAIN;
+    if (s === "CANCELLED" || s === "REJECTED") return CLR_LOSS;
+    if (
+        s === "OPEN" ||
+        s === "TRIGGER_PENDING" ||
+        s === "AMO_REQ_RECEIVED" ||
+        s === "VALIDATED" ||
+        s === "PUT ORDER REQ RECEIVED" ||
+        s === "RECEIVED"
+    ) return CLR_WARN;
+    return "var(--color-neutral-500)";
+}
+
+/**
+ * ak-ws2q: Read defensive numeric fields from a Kite order row. Every
+ * price field can be missing / non-finite per the drift-safe posture
+ * of KiteOrder; the UI should never render "NaN" for an edge case.
+ */
+function readOrderNums(o: KiteOrder): {
+    qty: number;
+    filled: number;
+    pending: number;
+    limit: number | null;
+    trigger: number | null;
+    avg: number | null;
+} {
+    const num = (v: unknown): number | null =>
+        typeof v === "number" && Number.isFinite(v) ? v : null;
+    return {
+        qty: num(o.quantity) ?? 0,
+        filled: num(o.filled_quantity) ?? 0,
+        pending: num(o.pending_quantity) ?? 0,
+        limit: num(o.price),
+        trigger: num(o.trigger_price),
+        avg: num(o.average_price),
+    };
+}
+
 const InvestmentsLanding = () => {
     const navigate = useNavigate();
     const {state, dispatch, globalInvestmentRefresh} = useMSNContext();
-    const {state: kiteState, refreshTrades} = useKite();
+    const {state: kiteState, refreshTrades, refreshOrders} = useKite();
 
     useEffect(() => {
         dispatch({type: "ResetCardSelector"});
@@ -321,6 +370,36 @@ const InvestmentsLanding = () => {
             return next;
         });
     }, [kiteState.trades.checked, kiteState.trades.loading, refreshTrades]);
+
+    // ak-ws2q: Today's orders section — mirrors the trades pattern
+    // (default collapsed, lazy fetch on expand edge, Kite-connected
+    // gated). /kite/orders returns every order placed today across
+    // every status; /kite/trades only returns FILLED orders — so
+    // Today's orders is a STRICT SUPERSET of Today's trades. The two
+    // surfaces are both shown because the status chip and
+    // filled/pending breakdown are only meaningful on the orders view.
+    const [ordersExpanded, setOrdersExpanded] = useState<boolean>(false);
+    const handleToggleOrders = useCallback(() => {
+        setOrdersExpanded((prev) => {
+            const next = !prev;
+            // Re-fire on the OPEN edge when we're either (a) never
+            // fetched (checked=false) or (b) in the terminal-fail state
+            // (checked=true + data=null after SET_ORDERS_FAILED). (b) is
+            // what makes the body's "close and reopen to retry" copy
+            // actually honest: without it the guard short-circuits on
+            // `checked`, the user clicks away and back, and nothing
+            // happens — only a Kite disconnect→reconnect would clear
+            // the slice. (ak-ws2q reviewer MINOR.)
+            if (
+                next
+                && (!kiteState.orders.checked || kiteState.orders.data === null)
+                && !kiteState.orders.loading
+            ) {
+                void refreshOrders(false);
+            }
+            return next;
+        });
+    }, [kiteState.orders.checked, kiteState.orders.data, kiteState.orders.loading, refreshOrders]);
 
     const [rangeDays, setRangeDays] = useState<number>(90);
     const [trend, setTrend] = useState<PortfolioTrendPoint[] | null>(null);
@@ -894,6 +973,145 @@ const InvestmentsLanding = () => {
                                                             </td>
                                                             <td className={style.tradesTd_num}>
                                                                 ₹{formatCompact(value)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </section>
+                );
+            })()}
+
+            {/* ── ak-ws2q: Today's orders (/kite/orders — ak-zi54 BE) ──
+                Full order book across all statuses (OPEN / COMPLETE /
+                CANCELLED / REJECTED / TRIGGER_PENDING), strict superset
+                of Today's trades (filled only). Mirrors the trades
+                section pattern: default-collapsed, LAZY fetch on expand
+                edge, hidden entirely when !kite.isAuthenticated,
+                silent transport errors (SET_ORDERS_FAILED flips the
+                `checked` flag so the body renders "Orders unavailable"
+                instead of a spinner). */}
+            {kiteState.isAuthenticated && (() => {
+                const ordersState = kiteState.orders;
+                const orders = ordersState.data ?? [];
+                const countLabel = ordersState.checked ? String(orders.length) : "—";
+                return (
+                    <section className={style.tradesSection}>
+                        <button
+                            type="button"
+                            onClick={handleToggleOrders}
+                            aria-expanded={ordersExpanded}
+                            className={style.tradesHeader}
+                        >
+                            <h4 className={style.sectionTitle}>Today's orders</h4>
+                            <span className={style.tradesCount}>{countLabel}</span>
+                            <span className={style.spacer}/>
+                            <i
+                                className={`ph ${ordersExpanded ? "ph-caret-up" : "ph-caret-down"}`}
+                                style={{fontSize: 16, color: "var(--color-neutral-400)"}}
+                            />
+                        </button>
+                        {ordersExpanded && (
+                            <div className={style.tradesBody}>
+                                {ordersState.loading ? (
+                                    <div className={style.tradesEmpty}>Loading orders…</div>
+                                ) : !ordersState.checked ? (
+                                    <div className={style.tradesEmpty}>—</div>
+                                ) : ordersState.data === null ? (
+                                    <div className={style.tradesEmpty}>
+                                        Orders unavailable. Retry by closing and reopening this section.
+                                    </div>
+                                ) : orders.length === 0 ? (
+                                    <div className={style.tradesEmpty}>No orders today.</div>
+                                ) : (
+                                    <div className={style.tradesTableWrap}>
+                                        <table className={style.tradesTable}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Time</th>
+                                                    <th>Symbol</th>
+                                                    <th>Side</th>
+                                                    <th>Type</th>
+                                                    <th>Status</th>
+                                                    <th className={style.tradesTh_num}>Qty</th>
+                                                    <th className={style.tradesTh_num}>Price</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {orders.map((o, i) => {
+                                                    const {qty, filled, pending, limit, trigger, avg} = readOrderNums(o);
+                                                    const side = (o.transaction_type || "").toUpperCase();
+                                                    const isBuy = side === "BUY";
+                                                    const isSell = side === "SELL";
+                                                    const sideColor = isBuy ? CLR_GAIN : isSell ? CLR_LOSS : "var(--color-neutral-400)";
+                                                    const status = (o.status || "—").toUpperCase();
+                                                    const statusColor = orderStatusColor(o.status);
+                                                    const ts = o.order_timestamp
+                                                        || o.exchange_timestamp
+                                                        || o.exchange_update_timestamp
+                                                        || "";
+                                                    const rowKey = o.order_id ?? `order-${i}`;
+                                                    // Prefer avg_price (when FILLED gives a real fill price),
+                                                    // else the limit price, else the trigger (for SL / SL-M
+                                                    // orders where there's no limit set). Never NaN.
+                                                    const displayPx =
+                                                        avg !== null ? avg :
+                                                        limit !== null && limit !== 0 ? limit :
+                                                        trigger !== null ? trigger :
+                                                        null;
+                                                    // Qty breakdown: "N" for fully-matched, "F/N" when partial,
+                                                    // to surface progress at a glance for OPEN orders.
+                                                    const qtyLabel =
+                                                        filled > 0 && filled < qty
+                                                            ? `${filled}/${qty}`
+                                                            : qty > 0 ? String(qty) : (filled || pending || "—").toString();
+                                                    return (
+                                                        <tr key={rowKey}>
+                                                            <td>{formatTradeTime(ts)}</td>
+                                                            <td>
+                                                                <span className={style.tradesSymbol}>
+                                                                    {o.tradingsymbol ?? "—"}
+                                                                </span>
+                                                                {o.exchange && (
+                                                                    <span className={style.tradesExch}>
+                                                                        {" · "}{o.exchange}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    className={style.sideChip}
+                                                                    style={{
+                                                                        color: sideColor,
+                                                                        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${sideColor} 35%, transparent)`,
+                                                                    }}
+                                                                >
+                                                                    {side || "—"}
+                                                                </span>
+                                                            </td>
+                                                            <td className={style.orderTypeCell}>
+                                                                {o.order_type ?? "—"}
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    className={style.sideChip}
+                                                                    style={{
+                                                                        color: statusColor,
+                                                                        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${statusColor} 35%, transparent)`,
+                                                                    }}
+                                                                    title={o.status_message || undefined}
+                                                                >
+                                                                    {status}
+                                                                </span>
+                                                            </td>
+                                                            <td className={style.tradesTd_num}>{qtyLabel}</td>
+                                                            <td className={style.tradesTd_num}>
+                                                                {displayPx !== null ? `₹${formatCurrency(displayPx)}` : "—"}
                                                             </td>
                                                         </tr>
                                                     );

@@ -1,10 +1,11 @@
 import React, {createContext, useCallback, useContext, useEffect, useReducer, useRef, ReactNode} from 'react';
-import {KiteAlert, KiteGtt, KiteHolding, KiteMarginsResponse, KitePosition, KiteTrade} from '../utils/interfaces';
+import {KiteAlert, KiteGtt, KiteHolding, KiteMarginsResponse, KiteOrder, KitePosition, KiteTrade} from '../utils/interfaces';
 import {
     fetchKiteAlerts,
     fetchKiteGtts,
     fetchKiteHoldings,
     fetchKiteMargins,
+    fetchKiteOrders,
     fetchKitePositions,
     fetchKiteTrades,
     syncKiteHoldings,
@@ -47,6 +48,18 @@ interface MarginsInfo {
 // surviving a session change.
 interface TradesInfo {
     data: KiteTrade[] | null;
+    loading: boolean;
+    checked: boolean;
+}
+
+// ak-ws2q: Today's Kite orders state slice. Parallel to trades
+// (ak-2k93) with identical `{data, loading, checked}` shape so the
+// error-path discipline carries over. LAZY — fired on "Today's
+// orders" section expand, not on provider mount. Cleared on
+// disconnect (true→false edge) so a stale list doesn't survive a
+// reconnect into a different Kite account.
+interface OrdersInfo {
+    data: KiteOrder[] | null;
     loading: boolean;
     checked: boolean;
 }
@@ -97,6 +110,8 @@ interface KiteState {
     margins: MarginsInfo;
     // ak-2k93: Today's trades slice. LAZY — not fetched on provider mount.
     trades: TradesInfo;
+    // ak-ws2q: Today's orders slice. LAZY — not fetched on provider mount.
+    orders: OrdersInfo;
     // ak-166j: Monitoring surfaces — both LAZY, both cleared on disconnect.
     gtts: GttsInfo;
     alerts: AlertsInfo;
@@ -122,6 +137,11 @@ type KiteAction =
     | {type: 'SET_TRADES'; payload: KiteTrade[]}
     | {type: 'SET_TRADES_FAILED'}  // transport error — mark checked without data
     | {type: 'CLEAR_TRADES'}
+    // ak-ws2q: Today's orders actions
+    | {type: 'SET_ORDERS_LOADING'; payload: boolean}
+    | {type: 'SET_ORDERS'; payload: KiteOrder[]}
+    | {type: 'SET_ORDERS_FAILED'}
+    | {type: 'CLEAR_ORDERS'}
     // ak-166j: GTT actions
     | {type: 'SET_GTTS_LOADING'; payload: boolean}
     | {type: 'SET_GTTS'; payload: KiteGtt[]}
@@ -152,6 +172,13 @@ const initialMargins: MarginsInfo = {
 
 // ak-2k93: initial Today's trades state — not yet checked.
 const initialTrades: TradesInfo = {
+    data: null,
+    loading: false,
+    checked: false,
+};
+
+// ak-ws2q: initial Today's orders state — not yet checked.
+const initialOrders: OrdersInfo = {
     data: null,
     loading: false,
     checked: false,
@@ -188,6 +215,7 @@ const initialState: KiteState = {
     reconnect: initialReconnect,
     margins: initialMargins,
     trades: initialTrades,
+    orders: initialOrders,
     gtts: initialGtts,
     alerts: initialAlerts,
 };
@@ -303,6 +331,30 @@ const kiteReducer = (state: KiteState, action: KiteAction): KiteState => {
                 ...state,
                 trades: initialTrades,
             };
+        // ak-ws2q: Today's orders reducer handlers — same discipline
+        // as trades (SET_ORDERS_FAILED flips checked:true so the
+        // consumer renders a terminal "Orders unavailable" fallback
+        // rather than spinning forever).
+        case 'SET_ORDERS_LOADING':
+            return {
+                ...state,
+                orders: {...state.orders, loading: action.payload},
+            };
+        case 'SET_ORDERS':
+            return {
+                ...state,
+                orders: {data: action.payload, loading: false, checked: true},
+            };
+        case 'SET_ORDERS_FAILED':
+            return {
+                ...state,
+                orders: {data: null, loading: false, checked: true},
+            };
+        case 'CLEAR_ORDERS':
+            return {
+                ...state,
+                orders: initialOrders,
+            };
         // ak-166j: GTT reducer handlers
         case 'SET_GTTS_LOADING':
             return {
@@ -369,6 +421,8 @@ interface KiteContextType {
     refreshMargins: (clearCache?: boolean) => Promise<void>;
     // ak-2k93: refresh Today's trades (lazy — called on section expand).
     refreshTrades: (clearCache?: boolean) => Promise<void>;
+    // ak-ws2q: refresh Today's orders (lazy — called on section expand).
+    refreshOrders: (clearCache?: boolean) => Promise<void>;
     // ak-166j: monitoring surfaces (lazy — called on sub-tab activation).
     refreshGtts: (clearCache?: boolean) => Promise<void>;
     refreshAlerts: (clearCache?: boolean) => Promise<void>;
@@ -558,6 +612,35 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
         prevAuthForTradesRef.current = is;
         if (was && !is) {
             dispatch({type: 'CLEAR_TRADES'});
+        }
+    }, [state.isAuthenticated]);
+
+    // ak-ws2q: fetch Today's orders. LAZY — Investments landing calls
+    // this on section expand, mirroring the trades pattern. Idempotent
+    // on `checked`; transport errors silent (SET_ORDERS_FAILED flips
+    // checked:true so the consumer renders "Orders unavailable" rather
+    // than a spinner).
+    const refreshOrders = useCallback(async (clearCache = false) => {
+        try {
+            dispatch({type: 'SET_ORDERS_LOADING', payload: true});
+            const res = await fetchKiteOrders(clearCache);
+            const orders = Array.isArray(res?.orders) ? res.orders : [];
+            dispatch({type: 'SET_ORDERS', payload: orders});
+        } catch {
+            dispatch({type: 'SET_ORDERS_FAILED'});
+        }
+    }, []);
+
+    // ak-ws2q: clear orders on disconnect — same edge-detection pattern
+    // as trades/margins so a true→false transition clears stale state
+    // but repeated false renders don't re-dispatch.
+    const prevAuthForOrdersRef = useRef<boolean>(false);
+    useEffect(() => {
+        const was = prevAuthForOrdersRef.current;
+        const is = state.isAuthenticated;
+        prevAuthForOrdersRef.current = is;
+        if (was && !is) {
+            dispatch({type: 'CLEAR_ORDERS'});
         }
     }, [state.isAuthenticated]);
 
@@ -762,6 +845,7 @@ export const KiteProvider: React.FC<{children: ReactNode}> = ({children}) => {
         beginReconnect,
         refreshMargins,
         refreshTrades,
+        refreshOrders,
         refreshGtts,
         refreshAlerts,
         getTotalPortfolioValue,
