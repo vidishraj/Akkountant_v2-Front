@@ -746,12 +746,15 @@ const Home = () => {
                                 canonical `fyEarnings` field (same
                                 aggregation as the Freelance dashboard
                                 "PAID THIS FY" tile — divergence is now
-                                impossible by construction). Fallback to
-                                `totalEarnings` on pre-ak-p3id BE responses
-                                (defensive against a BE rollback; `??`
-                                drops back through to `totalEarnings` then
-                                0). */}
-                            {money(freelance?.fyEarnings ?? freelance?.totalEarnings ?? 0, hide, true)}
+                                impossible by construction). NO
+                                `totalEarnings` fallback: it is the stale
+                                all-time aggregation that produced the
+                                §2 divergence this arc kills; falling
+                                back to it would silently re-open the
+                                divergence on any future BE regression
+                                that drops/nulls fyEarnings. `?? 0` is
+                                the correct no-data rendering. */}
+                            {money(freelance?.fyEarnings ?? 0, hide, true)}
                         </span>
                         <span className={style.kpiSub}>
                             Monthly avg {money(freelance?.monthlyEarnings ?? 0, hide, true)}
