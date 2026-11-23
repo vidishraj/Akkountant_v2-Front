@@ -8,7 +8,9 @@ import {getRowDayChangeAmount} from "../../utils/holdings.ts";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import KiteMonitoring from "../../components/KiteMonitoring/KiteMonitoring.tsx";
 import OrderDrillDownModal from "../../components/OrderDrillDownModal/OrderDrillDownModal.tsx";
+import ReconciliationDialog from "../../components/ReconciliationDialog/ReconciliationDialog.tsx";
 import Watchlist from "../../components/Watchlist/Watchlist.tsx";
+import {getReconciliationIssues} from "../../services/reconciliationService.ts";
 import type {KiteOrder, KiteTrade, MSNListResponse} from "../../utils/interfaces.ts";
 import style from "./InvestmentsLanding.module.scss";
 
@@ -420,6 +422,13 @@ const InvestmentsLanding = () => {
 
     const [rangeDays, setRangeDays] = useState<number>(90);
     const [trend, setTrend] = useState<PortfolioTrendPoint[] | null>(null);
+    // ak-j8tc (ak-cipj companion): open-reconciliation-issue count +
+    // dialog open flag for the status-strip tile. Null until first
+    // fetch resolves so we can distinguish "not yet checked" from
+    // "checked, nothing to review" (0 case suppresses the tile per
+    // bead design — same posture as the Home card).
+    const [reconIssuesCount, setReconIssuesCount] = useState<number | null>(null);
+    const [reconDialogOpen, setReconDialogOpen] = useState<boolean>(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -431,6 +440,16 @@ const InvestmentsLanding = () => {
             })
             .catch(() => {
                 if (!cancelled) setTrend([]);
+            });
+        // ak-j8tc: fetch reconciliation count (CONSUMEd verbatim from
+        // BE `response.count`). Failure → null, which suppresses the
+        // tile rather than flashing a false 0.
+        getReconciliationIssues("open")
+            .then((res) => {
+                if (!cancelled) setReconIssuesCount(Number(res?.count) || 0);
+            })
+            .catch(() => {
+                if (!cancelled) setReconIssuesCount(null);
             });
         return () => {
             cancelled = true;
@@ -852,21 +871,32 @@ const InvestmentsLanding = () => {
                     );
                 })()}
 
-                <button
-                    type="button"
-                    onClick={() => navigate("/investments/stocks")}
-                    className={`${style.statusTile} ${style.statusTileButton}`}
-                >
-                    <div className={style.statusKicker}>
-                        <i className="ph ph-arrows-left-right" style={{fontSize: 15}}/>
-                        <span>Reconciliation</span>
-                        <span className={style.sampleChip}>Sample</span>
-                    </div>
-                    <div className={style.statusValue}>3 trades unmatched</div>
-                    <span className={style.statusHint} style={{color: "var(--color-accent-300)"}}>
-                        Zerodha vs statement · Review →
-                    </span>
-                </button>
+                {/* ak-j8tc (ak-cipj companion): real-data Reconciliation
+                    tile. Suppressed when `reconIssuesCount` is null
+                    (not-yet-checked / transport failure) OR zero
+                    (nothing to review) — honest empty state per bead
+                    design. Click opens the review drawer in place
+                    instead of navigating. */}
+                {reconIssuesCount !== null && reconIssuesCount > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setReconDialogOpen(true)}
+                        className={`${style.statusTile} ${style.statusTileButton}`}
+                    >
+                        <div className={style.statusKicker}>
+                            <i className="ph ph-arrows-left-right" style={{fontSize: 15}}/>
+                            <span>Reconciliation</span>
+                        </div>
+                        <div className={style.statusValue}>
+                            {reconIssuesCount === 1
+                                ? "1 trade to review"
+                                : `${reconIssuesCount} trades to review`}
+                        </div>
+                        <span className={style.statusHint} style={{color: "var(--color-accent-300)"}}>
+                            Zerodha vs statement · Review →
+                        </span>
+                    </button>
+                )}
 
                 <div className={style.statusTile}>
                     <div className={style.statusKicker}>
@@ -1308,6 +1338,21 @@ const InvestmentsLanding = () => {
                 open={drillOrder !== null}
                 order={drillOrder}
                 onClose={() => setDrillOrder(null)}
+            />
+
+            {/* ak-j8tc: reconciliation review drawer. Opened from the
+                status-strip Reconciliation tile above. onResolved
+                decrements the local count so the tile updates
+                without a round-trip; auto-disappears at 0 per the
+                "honest empty state" design. */}
+            <ReconciliationDialog
+                open={reconDialogOpen}
+                onClose={() => setReconDialogOpen(false)}
+                onResolved={() => {
+                    setReconIssuesCount((prev) =>
+                        prev === null ? null : Math.max(0, prev - 1),
+                    );
+                }}
             />
         </div>
     );

@@ -1219,3 +1219,39 @@ export interface WatchlistLtpResponse {
     ltp: Record<string, WatchlistLtpTick>;
     count: number;
 }
+
+// ────────────────── ak-j8tc / ak-cipj (BE) ──────────────────
+// Reconciliation issues — Overseer's trade-reconcile delta surface.
+// BE (ak-cipj) writes rows to `ReconciliationIssue` when the daily
+// ReconcileTradesTask (ak-zai2) finds a Kite trade that doesn't
+// match any local TradeAssociation.
+//
+// `discrepancy_detail` is JSON-parsed BE-side so the FE reads a
+// plain object (not a string). Shape varies by discrepancy_type —
+// kept as `Record<string, unknown>` so UI renders defensively via
+// per-field null-checks rather than depending on a brittle schema.
+
+export interface ReconciliationIssue {
+    id: number;
+    kite_trade_id: string;
+    discrepancy_type: string;
+    discrepancy_detail: Record<string, unknown> | null;
+    detected_at: string;                  // ISO
+    resolved_at: string | null;           // ISO or null
+    resolution_note: string | null;       // free-text, <= 500 chars server-side
+}
+
+export type ReconciliationIssueStatus = "open" | "resolved" | "all";
+
+export interface ReconciliationIssuesResponse {
+    issues: ReconciliationIssue[];
+    count: number;
+    status: ReconciliationIssueStatus;
+}
+
+export interface ReconciliationResolveResponse {
+    id: number;
+    idempotent: boolean;
+    resolved_at: string | null;
+    resolution_note: string | null;
+}

@@ -11,6 +11,8 @@ import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext.tsx";
 import {fetchFreelanceDashboard} from "../../services/freelanceService.ts";
 import {fetchTransactions} from "../../services/transactionService.ts";
 import {fetchPortfolioTrend} from "../../services/wealthDigestService.ts";
+import {getReconciliationIssues} from "../../services/reconciliationService.ts";
+import ReconciliationDialog from "../../components/ReconciliationDialog/ReconciliationDialog.tsx";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import {getRowDayChangeAmount} from "../../utils/holdings.ts";
 import type {FreelanceDashboard, FreelanceEarning, MSNListResponse, Transaction} from "../../utils/interfaces.ts";
@@ -258,6 +260,15 @@ const Home = () => {
     const [ledgerOut, setLedgerOut] = useState<number>(0);
     const [ledgerNetFromBe, setLedgerNetFromBe] = useState<number>(0);
     const [trend, setTrend] = useState<{date: string; value: number}[] | null>(null);
+    // ak-j8tc (FE companion to ak-cipj BE): open-reconciliation-issues
+    // count powers the alerts-strip 4th slot (replacing the pre-
+    // ak-j8tc `sample: true` placeholder). CONSUMEd verbatim from
+    // BE's `response.count` — never re-derived from `issues.length`.
+    // Null until the first fetch resolves so we can distinguish
+    // "haven't checked yet" from "checked, count = 0" (suppress
+    // the card entirely in the 0 case per bead design).
+    const [reconIssuesCount, setReconIssuesCount] = useState<number | null>(null);
+    const [reconDialogOpen, setReconDialogOpen] = useState<boolean>(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -293,6 +304,18 @@ const Home = () => {
             })
             .catch(() => {
                 if (!cancelled) setTrend([]);
+            });
+        // ak-j8tc: fetch open-reconciliation-issue count. CONSUMEd
+        // verbatim from BE's `response.count` — never recomputed from
+        // the list length. Transport failure leaves count at null so
+        // the alerts strip stays empty rather than flashing a false
+        // "0 issues" state.
+        getReconciliationIssues("open")
+            .then((res) => {
+                if (!cancelled) setReconIssuesCount(Number(res?.count) || 0);
+            })
+            .catch(() => {
+                if (!cancelled) setReconIssuesCount(null);
             });
         return () => {
             cancelled = true;
@@ -389,21 +412,30 @@ const Home = () => {
                 href: "/freelance",
             });
         }
-        // 4th slot: reconciliation sample — no BE wire yet; design calls for
-        // a dashed-sample chip so the card visibly carries the empty state.
-        out.push({
-            key: "recon-sample",
-            icon: "ph-arrows-left-right",
-            color: "var(--color-accent)",
-            edge: "var(--color-accent-800)",
-            title: "Reconciliation",
-            sub: "Zerodha vs statement",
-            cta: "Review",
-            href: "/investments",
-            sample: true,
-        });
+        // ak-j8tc (ak-cipj companion): 4th slot is now real-data.
+        // Suppress the card entirely when there's nothing to review
+        // (count === 0 OR count === null meaning "haven't checked /
+        // transport failure" — either way we show nothing rather
+        // than the pre-ak-j8tc sample placeholder).
+        if (reconIssuesCount !== null && reconIssuesCount > 0) {
+            const label = reconIssuesCount === 1
+                ? "1 issue to review"
+                : `${reconIssuesCount} issues to review`;
+            out.push({
+                key: "recon-open",
+                icon: "ph-arrows-left-right",
+                color: CLR_WARN,
+                edge: `color-mix(in srgb, ${CLR_WARN} 30%, transparent)`,
+                title: "Reconciliation",
+                sub: label,
+                cta: "Review",
+                // href is unused when the card has its own click
+                // handler (opens the drawer instead of navigating).
+                href: "#recon",
+            });
+        }
         return out;
-    }, [digestStale, digestStaleSinceLabel, kiteState.isAuthenticated, overdueInvoices]);
+    }, [digestStale, digestStaleSinceLabel, kiteState.isAuthenticated, overdueInvoices, reconIssuesCount]);
 
     const attentionCount = alerts.filter((a) => !a.sample).length;
     const attentionLabel = ((): string => {
@@ -639,28 +671,39 @@ const Home = () => {
 
                 {/* ── alerts strip ── */}
                 <section className={style.alerts}>
-                    {alerts.map((a) => (
-                        <a
-                            key={a.key}
-                            href={a.href}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                navigate(a.href);
-                            }}
-                            className={style.alertCard}
-                            style={{boxShadow: `inset 0 0 0 1px ${a.edge}`}}
-                        >
-                            <i className={`ph-fill ${a.icon} ${style.alertIcon}`} style={{color: a.color}}/>
-                            <span className={style.alertBody}>
-                                <span className={style.alertTitle}>
-                                    {a.title}
-                                    {a.sample && <span className={style.sampleChip}>Sample</span>}
+                    {alerts.map((a) => {
+                        // ak-j8tc: the reconciliation alert opens the
+                        // review drawer in place instead of navigating;
+                        // every other alert keeps the legacy href +
+                        // navigate(href) behaviour.
+                        const isRecon = a.key === "recon-open";
+                        return (
+                            <a
+                                key={a.key}
+                                href={isRecon ? "#recon" : a.href}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    if (isRecon) {
+                                        setReconDialogOpen(true);
+                                    } else {
+                                        navigate(a.href);
+                                    }
+                                }}
+                                className={style.alertCard}
+                                style={{boxShadow: `inset 0 0 0 1px ${a.edge}`}}
+                            >
+                                <i className={`ph-fill ${a.icon} ${style.alertIcon}`} style={{color: a.color}}/>
+                                <span className={style.alertBody}>
+                                    <span className={style.alertTitle}>
+                                        {a.title}
+                                        {a.sample && <span className={style.sampleChip}>Sample</span>}
+                                    </span>
+                                    <span className={style.alertSub}>{a.sub}</span>
                                 </span>
-                                <span className={style.alertSub}>{a.sub}</span>
-                            </span>
-                            <span className={style.alertCta}>{a.cta}</span>
-                        </a>
-                    ))}
+                                <span className={style.alertCta}>{a.cta}</span>
+                            </a>
+                        );
+                    })}
                 </section>
 
                 {/* ── KPI grid ── */}
@@ -969,6 +1012,22 @@ const Home = () => {
                     </aside>
                 </div>
             </div>
+            {/* ak-j8tc: reconciliation review drawer. Opened by the
+                alerts-strip "Reconciliation · N issues to review"
+                card. On successful resolve the dialog fires
+                onResolved(id) which decrements the local count so
+                the alert strip updates without a round-trip; the
+                card auto-disappears when count hits 0 (per bead's
+                "honest empty state" design). */}
+            <ReconciliationDialog
+                open={reconDialogOpen}
+                onClose={() => setReconDialogOpen(false)}
+                onResolved={() => {
+                    setReconIssuesCount((prev) =>
+                        prev === null ? null : Math.max(0, prev - 1),
+                    );
+                }}
+            />
         </div>
     );
 };
