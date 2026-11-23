@@ -15,6 +15,7 @@ import {
 } from "../../services/agentService";
 import styles from "./AgentChat.module.scss";
 import { useAgentChatBridge } from "../../contexts/AgentChatBridgeContext";
+import { useMessage } from "../../contexts/MessageContext";
 import FileAttachmentCard from "./FileAttachmentCard";
 import useModalA11y from "../../hooks/useModalA11y";
 
@@ -122,6 +123,13 @@ interface ConfirmState {
   // pre-ak-npdf payloads; when absent, the render falls back to the
   // legacy startsWith("delete") name heuristic at the compute site.
   destructiveness?: "destructive" | "mutation" | "read";
+  // ak-z8uc / ak-dixt (BE): server-signed HMAC confirm token minted
+  // per tool-use that the FE echoes back on the retry turn as
+  // `confirmed_calls: [confirmId, …]`. Undefined on pre-ak-dixt
+  // payloads — the arming step then pushes the tool NAME into the
+  // legacy `confirmedTools` safety-net list instead (one-release
+  // fallback per bead).
+  confirmId?: string;
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -248,7 +256,13 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
   const [streamedText, setStreamedText] = useState("");
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
+  // ak-z8uc / ak-dixt: `confirmedTools` stays as the legacy
+  // name-list safety-net (used when a confirm SSE arrives without a
+  // `confirm_id` — pre-ak-dixt BE or a transient drop). The new
+  // preferred path lives in `confirmedCalls`, which carries the
+  // server-signed HMAC tokens the BE mints per tool-use.
   const [confirmedTools, setConfirmedTools] = useState<string[]>([]);
+  const [confirmedCalls, setConfirmedCalls] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [conversationsLoading, setConversationsLoading] = useState(false);
@@ -266,6 +280,10 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
     upsertConversation,
     removeConversation,
   } = useAgentChatBridge();
+  // ak-z8uc: toast surface for the token-expired recovery path —
+  // used by the onError handler when the BE rejects a stale confirm
+  // token so the overseer gets a one-liner nudge to re-confirm.
+  const { setPayload } = useMessage();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -323,6 +341,12 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
     setActiveConversationId(null);
     setMessages([]);
     setConfirmedTools([]);
+    // ak-z8uc m1: mirror confirmedTools reset for parity. Benign at
+    // runtime (BE enforces one-time-use + 300s TTL + args/user
+    // binding so stale tokens just fail verify) but keeps the two
+    // slices in lockstep + stops consumed tokens from accumulating
+    // across agent-type / conversation switches.
+    setConfirmedCalls([]);
     partialAssistantRef.current = null;
     setPendingAttachments([]);
     void refreshConversations(agentType);
@@ -333,6 +357,7 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
     setActiveConversationId(null);
     setMessages([]);
     setConfirmedTools([]);
+    setConfirmedCalls([]);  // ak-z8uc m1
     partialAssistantRef.current = null;
     setPendingAttachments([]);
   }, [isLoading]);
@@ -347,6 +372,7 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
       setActiveConversationId(id);
       setMessages([]);
       setConfirmedTools([]);
+      setConfirmedCalls([]);  // ak-z8uc m1
       partialAssistantRef.current = null;
       setPendingAttachments([]);
       setConversationsError(null);
@@ -380,6 +406,7 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
         setActiveConversationId(null);
         setMessages([]);
         setConfirmedTools([]);
+        setConfirmedCalls([]);  // ak-z8uc m1
         partialAssistantRef.current = null;
         setPendingAttachments([]);
       }
@@ -563,7 +590,20 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
   }, [messages]);
 
   const sendMessage = useCallback(
-    async (text?: string) => {
+    async (
+      text?: string,
+      // ak-z8uc MAJOR: explicit per-turn override for the just-
+      // confirmed token/name. Threaded past the useCallback closure
+      // so the retry POST body contains the token even on the SAME
+      // tick as the setState that persists it for later turns.
+      // Pre-fix the arming step relied on React batching the
+      // setConfirmedCalls BEFORE the sendMessage closure read —
+      // which was never guaranteed and MAY have been eating the
+      // first-confirm click (BE then re-prompts; token lands on the
+      // second click). The override argument closes the timing gap
+      // deterministically. Reviewer-suggested shape.
+      overrides?: { confirmCall?: string; confirmTool?: string },
+    ) => {
       const messageText = text || inputText.trim();
       // Block sends while uploads are still in flight; lets a user with only
       // attachments-and-no-text fire as soon as the upload(s) finish.
@@ -640,11 +680,25 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
         }
       };
 
+      // ak-z8uc MAJOR: build the effective per-turn lists. The
+       // `overrides` arg lets handleConfirm inject the just-confirmed
+       // token/name directly into THIS turn's POST body, independent
+       // of whether the setState that persists it for subsequent
+       // turns has landed yet. State setters still fire for the
+       // multi-turn confirm history; the override only guarantees
+       // the FIRST retry carries the arming result.
+      const effectiveCalls = overrides?.confirmCall
+        ? [...confirmedCalls, overrides.confirmCall]
+        : confirmedCalls;
+      const effectiveTools = overrides?.confirmTool
+        ? [...confirmedTools, overrides.confirmTool]
+        : confirmedTools;
+
       try {
         await streamAgentChat(
           agentType,
           apiMessages,
-          confirmedTools,
+          effectiveTools,
           {
           onConversationId: (id) => {
             // Pin the id for this turn + any follow-ups in this session. If
@@ -682,9 +736,9 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
           onToolExec: (tool) => {
             setActiveTool(tool);
           },
-          onConfirm: (tool, input, message, destructiveness) => {
+          onConfirm: (tool, input, message, destructiveness, confirmId) => {
             setActiveTool(null);
-            setConfirmDialog({ tool, input, message, destructiveness });
+            setConfirmDialog({ tool, input, message, destructiveness, confirmId });
           },
           onPartialAssistant: (content) => {
             partialAssistantRef.current = content;
@@ -728,6 +782,28 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
             setActiveTool(null);
             setIsLoading(false);
             setStreamedText("");
+            // ak-z8uc: detect token-expired / token-rejected rejections
+            // from ak-dixt's HMAC verify so we can surface a short toast
+            // + clear the stale token list. Loose substring match on
+            // "confirm" + ("expired" OR "token") to be robust across BE
+            // phrasings without coupling to the exact error string.
+            const lower = String(message || "").toLowerCase();
+            const isConfirmTokenReject =
+              lower.includes("confirm") &&
+              (lower.includes("expired") ||
+                lower.includes("token") ||
+                lower.includes("verify"));
+            if (isConfirmTokenReject) {
+              // Drop the stale token(s) so the retry path re-prompts
+              // the user from scratch rather than echoing a dead token
+              // on the next send.
+              setConfirmedCalls([]);
+              setPayload({
+                type: "error",
+                message:
+                  "Confirmation expired. Please re-confirm the action to continue.",
+              });
+            }
             setMessages((prev) => [
               ...prev,
               { role: "assistant", content: `Error: ${message}` },
@@ -745,7 +821,14 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
           },
           },
           attachmentIds.length > 0 ? attachmentIds : undefined,
-          activeConversationId ?? undefined
+          activeConversationId ?? undefined,
+          // ak-z8uc: preferred server-signed-token path. BE dual-
+          // accepts `confirmed_tools` (legacy name-list) and
+          // `confirmed_calls` (tokens). `effectiveCalls` merges any
+          // `overrides.confirmCall` from the arming step with the
+          // persisted-tokens list so the first retry doesn't rely on
+          // the setState landing before this closure reads it.
+          effectiveCalls.length > 0 ? effectiveCalls : undefined,
         );
       } catch (err) {
         setIsLoading(false);
@@ -769,6 +852,7 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
       activeConversationId,
       agentType,
       confirmedTools,
+      confirmedCalls,
       buildMessagesForAPI,
       onMutation,
       refreshConversations,
@@ -781,9 +865,38 @@ const AgentChat = ({ agentType, onMutation }: AgentChatProps) => {
       if (!confirmDialog) return;
 
       if (approved) {
-        setConfirmedTools((prev) => [...prev, confirmDialog.tool]);
-        // Re-send with the tool confirmed
-        sendMessage(`Yes, proceed with ${confirmDialog.tool}`);
+        // ak-z8uc / ak-dixt: prefer the server-signed token path
+        // when the confirm SSE event carried a `confirm_id`. Fall
+        // back to the legacy name-list only when the token is
+        // missing (pre-ak-dixt BE or a transient drop) — logged
+        // loudly so a persistent regression surfaces on inspection.
+        //
+        // ak-z8uc MAJOR (reviewer): pass the just-confirmed value as
+        // an explicit `overrides` arg to sendMessage so the retry's
+        // POST body contains it regardless of whether the setState
+        // for persistence has landed under this render. The setState
+        // still fires for subsequent turns in the same conversation.
+        const token = confirmDialog.confirmId;
+        if (token && token.length > 0) {
+          setConfirmedCalls((prev) => [...prev, token]);
+          sendMessage(`Yes, proceed with ${confirmDialog.tool}`, {
+            confirmCall: token,
+          });
+        } else {
+          // Safety-net: one-release fallback per bead scope. BE
+          // dual-accepts `confirmed_tools` with [AK-DIXT-LEGACY]
+          // WARN logs; we log on FE too so the gap is visible on
+          // both sides until the dual-accept path is retired.
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[ak-z8uc] Confirm SSE event missing confirm_id; falling back to legacy confirmed_tools name-list for",
+            confirmDialog.tool,
+          );
+          setConfirmedTools((prev) => [...prev, confirmDialog.tool]);
+          sendMessage(`Yes, proceed with ${confirmDialog.tool}`, {
+            confirmTool: confirmDialog.tool,
+          });
+        }
       } else {
         sendMessage("No, cancel that operation.");
       }

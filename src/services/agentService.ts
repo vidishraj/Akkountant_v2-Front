@@ -23,6 +23,14 @@ export interface SSEEvent {
   input?: Record<string, unknown>;
   message?: string;
   mutations?: string[];
+  // ak-z8uc / ak-dixt (BE 2026-11-23): server-signed HMAC confirm token
+  // minted per tool-use that lands in a `confirm` SSE event. FE echoes
+  // this back on the retry turn as `confirmed_calls: [confirm_id, …]`
+  // (instead of the legacy `confirmed_tools: [name, …]` names-list the
+  // BE still dual-accepts with an [AK-DIXT-LEGACY] WARN tag). Absent on
+  // pre-ak-dixt BE payloads; the FE then falls back to the legacy
+  // name-list path as a one-release safety net.
+  confirm_id?: string;
   // Set only on the LEADING "conversation_id" event the backend emits before
   // any work; FE captures this to pin the id for subsequent turns in the same chat.
   id?: number;
@@ -160,11 +168,16 @@ export interface StreamedFileAttachment {
 interface StreamCallbacks {
   onText: (content: string) => void;
   onToolExec: (tool: string, input: Record<string, unknown>) => void;
+  // ak-z8uc: `confirmId` is the ak-dixt server-signed token from the
+  // confirm SSE event's `confirm_id` field. Undefined on pre-ak-dixt
+  // BE payloads; the caller falls back to the legacy name-list path
+  // as a one-release safety net (per ak-z8uc scope).
   onConfirm: (
     tool: string,
     input: Record<string, unknown>,
     message: string,
     destructiveness?: "destructive" | "mutation" | "read",
+    confirmId?: string,
   ) => void;
   onDone: (mutations: string[]) => void;
   onError: (message: string) => void;
@@ -303,7 +316,12 @@ export async function streamAgentChat(
   confirmedTools: string[],
   callbacks: StreamCallbacks,
   attachments?: string[],
-  conversationId?: number
+  conversationId?: number,
+  // ak-z8uc / ak-dixt (BE): server-signed confirm tokens echoed back
+  // from prior confirm SSE events. Preferred path post-ak-dixt. When
+  // absent/empty the BE falls through to the legacy `confirmed_tools`
+  // name-list (same wire envelope — dual-accept during migration).
+  confirmedCalls?: string[],
 ): Promise<void> {
   const authHeader = await getFirebaseAuth();
 
@@ -317,7 +335,15 @@ export async function streamAgentChat(
       body: JSON.stringify({
         agent_type: agentType,
         messages,
+        // ak-z8uc: `confirmed_tools` is kept for the one-release
+        // safety net described in the bead — the FE only populates
+        // it when a confirm SSE event arrived without a `confirm_id`
+        // (pre-ak-dixt BE or a transient drop). `confirmed_calls` is
+        // the preferred path.
         confirmed_tools: confirmedTools,
+        ...(confirmedCalls && confirmedCalls.length > 0
+          ? { confirmed_calls: confirmedCalls }
+          : {}),
         // Only include attachments when present — keeps the wire format clean and
         // lets older backends ignore the field entirely.
         ...(attachments && attachments.length > 0 ? { attachments } : {}),
@@ -375,6 +401,10 @@ export async function streamAgentChat(
               event.input || {},
               event.message || "",
               event.destructiveness,
+              // ak-z8uc: pass the server-signed confirm token through.
+              // Undefined on pre-ak-dixt payloads; the AgentChat consumer
+              // falls back to the legacy name-list path when absent.
+              event.confirm_id,
             );
             break;
           case "partial_assistant":
