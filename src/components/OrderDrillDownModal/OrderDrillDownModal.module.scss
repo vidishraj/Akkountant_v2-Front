@@ -1,0 +1,323 @@
+/* ak-ue5q: Order drill-down modal — Nocturne token-driven.
+ * Mirrors the AlertHistoryModal (ak-166j) backdrop/panel/header
+ * shell so dialogs across Investments read visually consistent.
+ * Signed-money oklch triples stay inline in the TSX (shared palette
+ * with MSNHome hero + KiteMonitoring); every other color is a
+ * var(--color-*) token. Zero hardcoded hex/px/font.
+ */
+
+.modalBackdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.modalPanel {
+    width: 100%;
+    max-width: 720px;
+    max-height: 85vh;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    outline: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--color-text);
+}
+
+.modalHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--color-divider);
+}
+
+.headerLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.modalKicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-neutral-500);
+}
+
+.modalTitle {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: var(--font-heading-weight);
+    letter-spacing: -0.015em;
+    word-break: break-word;
+}
+
+.titleExch {
+    color: var(--color-neutral-500);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.headerChips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.chip {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+    background: transparent;
+    white-space: nowrap;
+}
+
+.chipGhost {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: var(--color-neutral-400);
+    box-shadow: inset 0 0 0 1px var(--color-divider);
+    background: color-mix(in srgb, var(--color-text) 3%, transparent);
+    white-space: nowrap;
+}
+
+.headerMeta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+    font-variant-numeric: tabular-nums;
+}
+
+.modalCloseBtn {
+    flex: none;
+}
+
+.modalBody {
+    overflow-y: auto;
+    flex: 1;
+    padding: 18px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+/* ─────────── sections ─────────── */
+
+.sectionBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sectionHeading {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--color-text);
+}
+
+.fillsHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.fillsSummary {
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+    font-variant-numeric: tabular-nums;
+}
+
+.empty {
+    font-size: 13px;
+    color: var(--color-neutral-500);
+    padding: 16px 16px;
+    text-align: center;
+    border: 1px dashed var(--color-divider);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+
+/* ─────────── timeline ─────────── */
+
+.timeline {
+    all: unset;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.timelineRow {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 10px;
+    padding: 8px 0;
+    list-style: none;
+    position: relative;
+
+    &::before {
+        /* Vertical connector — one continuous line down the dot column.
+         * Drawn behind the dot so each entry's dot sits on top. */
+        content: "";
+        position: absolute;
+        left: 11px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--color-divider);
+    }
+
+    &:first-child::before {
+        top: 14px;
+    }
+
+    &:last-child::before {
+        bottom: 14px;
+    }
+}
+
+.timelineDotCol {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 4px;
+    position: relative;
+    z-index: 1;
+}
+
+.timelineDot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--color-surface);
+}
+
+.timelineContent {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.timelineTopLine {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.timelineTs {
+    font-size: 12px;
+    color: var(--color-neutral-400);
+    font-variant-numeric: tabular-nums;
+}
+
+.timelineMeta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 11.5px;
+    color: var(--color-neutral-500);
+    font-variant-numeric: tabular-nums;
+}
+
+.timelineMsg {
+    color: var(--color-neutral-400);
+    font-style: italic;
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ─────────── fills table ─────────── */
+
+.tableWrap {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+
+    th,
+    td {
+        padding: 9px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--color-divider);
+        vertical-align: middle;
+    }
+
+    thead th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-neutral-500);
+        font-weight: 500;
+        background: color-mix(in srgb, var(--color-text) 3%, transparent);
+    }
+
+    tbody tr:last-child td {
+        border-bottom: none;
+    }
+}
+
+.numCol {
+    text-align: right !important;
+}
+
+.tradeId {
+    color: var(--color-neutral-400);
+    font-size: 11.5px;
+    font-family: var(--font-body);
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+    .modalBackdrop {
+        padding: 10px;
+    }
+    .modalHeader {
+        padding: 14px 16px 10px;
+    }
+    .modalBody {
+        padding: 14px 16px 16px;
+    }
+}

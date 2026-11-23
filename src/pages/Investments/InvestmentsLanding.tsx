@@ -7,6 +7,7 @@ import {getKiteLoginUrl} from "../../services/investmentService.ts";
 import {getRowDayChangeAmount} from "../../utils/holdings.ts";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import KiteMonitoring from "../../components/KiteMonitoring/KiteMonitoring.tsx";
+import OrderDrillDownModal from "../../components/OrderDrillDownModal/OrderDrillDownModal.tsx";
 import Watchlist from "../../components/Watchlist/Watchlist.tsx";
 import type {KiteOrder, KiteTrade, MSNListResponse} from "../../utils/interfaces.ts";
 import style from "./InvestmentsLanding.module.scss";
@@ -379,6 +380,22 @@ const InvestmentsLanding = () => {
     // surfaces are both shown because the status chip and
     // filled/pending breakdown are only meaningful on the orders view.
     const [ordersExpanded, setOrdersExpanded] = useState<boolean>(false);
+    // ak-ue5q: order drill-down modal. Non-null when open; order_id
+    // drives the fetches inside OrderDrillDownModal (scoped to modal
+    // lifetime — no context state for a per-id drill-down).
+    const [drillOrder, setDrillOrder] = useState<KiteOrder | null>(null);
+    // ak-ue5q reviewer MINOR: parent-level reset — auto-close the
+    // modal on a mid-view Kite disconnect so the dialog doesn't
+    // linger over a disconnected backdrop. The Today's Orders
+    // section is gated by `kiteState.isAuthenticated` and unmounts on
+    // disconnect (correct), but OrderDrillDownModal is mounted at the
+    // landing's top level and would otherwise stay open with stale
+    // `drillOrder`. Clearing here keeps parent + modal in sync.
+    useEffect(() => {
+        if (!kiteState.isAuthenticated && drillOrder) {
+            setDrillOrder(null);
+        }
+    }, [kiteState.isAuthenticated, drillOrder]);
     const handleToggleOrders = useCallback(() => {
         setOrdersExpanded((prev) => {
             const next = !prev;
@@ -1070,8 +1087,37 @@ const InvestmentsLanding = () => {
                                                         filled > 0 && filled < qty
                                                             ? `${filled}/${qty}`
                                                             : qty > 0 ? String(qty) : (filled || pending || "—").toString();
+                                                    // ak-ue5q: order rows are clickable → drill-down
+                                                    // modal. Guarded by order_id presence (Kite rows
+                                                    // without an id can't be drilled). Keyboard-
+                                                    // accessible via tabIndex + Enter/Space handler.
+                                                    const drillable = typeof o.order_id === "string" && o.order_id.length > 0;
+                                                    const openDrill = () => {
+                                                        if (drillable) setDrillOrder(o);
+                                                    };
                                                     return (
-                                                        <tr key={rowKey}>
+                                                        <tr
+                                                            key={rowKey}
+                                                            className={drillable ? style.rowDrillable : undefined}
+                                                            tabIndex={drillable ? 0 : undefined}
+                                                            role={drillable ? "button" : undefined}
+                                                            aria-label={
+                                                                drillable
+                                                                    ? `Open drill-down for order ${o.order_id}`
+                                                                    : undefined
+                                                            }
+                                                            onClick={drillable ? openDrill : undefined}
+                                                            onKeyDown={
+                                                                drillable
+                                                                    ? (ev) => {
+                                                                        if (ev.key === "Enter" || ev.key === " ") {
+                                                                            ev.preventDefault();
+                                                                            openDrill();
+                                                                        }
+                                                                    }
+                                                                    : undefined
+                                                            }
+                                                        >
                                                             <td>{formatTradeTime(ts)}</td>
                                                             <td>
                                                                 <span className={style.tradesSymbol}>
@@ -1252,6 +1298,17 @@ const InvestmentsLanding = () => {
                     ))}
                 </div>
             </section>
+
+            {/* ak-ue5q: per-order drill-down modal. Opened from a
+                clickable row in Today's orders. Renders null when
+                closed; parent discards the order object on close so
+                the next open re-fetches history + trades from scratch
+                (same no-cache drill-down posture as AlertHistoryModal). */}
+            <OrderDrillDownModal
+                open={drillOrder !== null}
+                order={drillOrder}
+                onClose={() => setDrillOrder(null)}
+            />
         </div>
     );
 };

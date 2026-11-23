@@ -474,6 +474,23 @@
     white-space: nowrap;
 }
 
+/* ak-ue5q: order-row drill-down affordance. Only rows with a Kite
+ * order_id are interactive — the base trades-table hover is already
+ * applied at `.tradesTable tbody tr:hover`; this adds cursor + focus
+ * ring + a slightly stronger hover tint to signal clickability. */
+.rowDrillable {
+    cursor: pointer;
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-accent) 8%, transparent) !important;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -2px;
+    }
+}
+
 .sideChip {
     display: inline-block;
     font-size: 11px;

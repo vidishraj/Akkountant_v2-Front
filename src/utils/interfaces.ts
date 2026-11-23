@@ -784,6 +784,26 @@ export interface KiteOrdersResponse {
     orders: KiteOrder[];
 }
 
+// ak-ue5q / ak-l8a7 (BE 2026-11-22): per-order drill-down shapes.
+//
+// `order_history` returns an ARRAY of state snapshots (one row per
+// status transition — placed → open → trigger_pending → complete
+// etc.). Each row is shaped like `KiteOrder` but represents a point
+// in time; the `order_timestamp` moves forward across rows while
+// identifying fields (order_id, tradingsymbol) stay constant.
+//
+// `order_trades` returns an array of the individual fills that
+// matched against the order — same shape as `KiteTrade`.
+export type KiteOrderHistoryEntry = KiteOrder;
+
+export interface KiteOrderHistoryResponse {
+    history: KiteOrderHistoryEntry[];
+}
+
+export interface KiteOrderTradesResponse {
+    trades: KiteTrade[];
+}
+
 // ak-oc5s: GET /kite/margins payload from ak-zai2 (Kite Bundle 2).
 // Thin wrap of Kite's user-margins API — equity + commodity segments,
 // each with available + utilised breakdowns. All numeric fields are

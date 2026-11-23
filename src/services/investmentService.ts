@@ -26,6 +26,8 @@ import {
     KiteMFOrdersResponse,
     KiteMFSipsResponse,
     KiteOrdersResponse,
+    KiteOrderHistoryResponse,
+    KiteOrderTradesResponse,
     RealizedPnLResponse,
     FOSummaryResponse,
     FOTrade,
@@ -461,6 +463,50 @@ export async function fetchKiteOrders(
         clearCache ? withCacheCleared() : {}
     );
     const response = await queueRequest(() => axios.get('/kite/orders', options));
+    return response.data;
+}
+
+/**
+ * ak-ue5q / ak-l8a7 (BE 2026-11-22): GET /kite/orders/<order_id>/history
+ * — status transition timeline for a single order. Kite SDK's
+ * `k.order_history(order_id)`; BE passthrough wrapped as
+ * `{history: [...]}`. No cache — the drill-down surface wants fresh
+ * data each open (BE-side also skips cache; mirrors AlertHistoryModal
+ * / fetchKiteAlertHistory posture).
+ *
+ * `orderId` is URL-encoded defensively even though Kite's ids are
+ * numeric strings.
+ */
+export async function fetchKiteOrderHistory(
+    orderId: string
+): Promise<KiteOrderHistoryResponse> {
+    const options = withRequestId(
+        `kite/orders/${orderId}/history`,
+        {}
+    );
+    const response = await queueRequest(() =>
+        axios.get(`/kite/orders/${encodeURIComponent(orderId)}/history`, options)
+    );
+    return response.data;
+}
+
+/**
+ * ak-ue5q / ak-l8a7 (BE 2026-11-22): GET /kite/orders/<order_id>/trades
+ * — per-fill trade breakdown for a single order (sliced orders match
+ * against multiple trades). Kite SDK's `k.order_trades(order_id)`;
+ * BE passthrough wrapped as `{trades: [...]}`. Same `KiteTrade` shape
+ * as /kite/trades; no cache for the same drill-down freshness reason.
+ */
+export async function fetchKiteOrderTrades(
+    orderId: string
+): Promise<KiteOrderTradesResponse> {
+    const options = withRequestId(
+        `kite/orders/${orderId}/trades`,
+        {}
+    );
+    const response = await queueRequest(() =>
+        axios.get(`/kite/orders/${encodeURIComponent(orderId)}/trades`, options)
+    );
     return response.data;
 }
 
