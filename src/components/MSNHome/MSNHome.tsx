@@ -5,6 +5,8 @@ import MSNList from "./MSNList.tsx";
 import MSNDetails from "./MSNDetails.tsx";
 import RealizedPnL from "./RealizedPnL.tsx";
 import FOSection from "./FOSection.tsx";
+import MFOrders from "./MFOrders.tsx";
+import MFSips from "./MFSips.tsx";
 import ObjectDetailsDialog from "./ObjectDetailsDialog.tsx";
 import InvestmentEmails from "../InvestmentEmails/InvestmentEmails.tsx";
 import ConfirmationDialog from "../ConfirmationDialogComponent.tsx";
@@ -49,6 +51,20 @@ const tabsFor = (asset: "stocks" | "mf" | "nps"): {label: string; key: number}[]
             {label: "Equity History", key: 1},
             {label: "F&O History", key: 2},
             {label: "Emails", key: 3},
+        ];
+    }
+    // ak-ktf4 (FE companion to ak-h1mq BE): MF detail view gains two
+    // Kite-sourced read-only tabs — Orders (7-day /kite/mf/orders) and
+    // SIPs (/kite/mf/sips). NPS stays at the legacy Holdings + Emails
+    // pair (Kite has no equivalent NPS surface). Tab keys preserved:
+    // Holdings=0, Emails=1 for NPS; MF inserts Orders=2 + SIPs=3 and
+    // keeps Emails on its own key so the old handler stays correct.
+    if (asset === "mf") {
+        return [
+            {label: "Holdings", key: 0},
+            {label: "Orders", key: 2},
+            {label: "SIPs", key: 3},
+            {label: "Emails", key: 1},
         ];
     }
     return [
@@ -213,7 +229,17 @@ const MSNHome = () => {
             if (activeTab === 3)
                 return <InvestmentEmails category={emailCategory} serviceTypeFilter={emailServiceTypeFilter}/>;
         }
-        // MF / NPS — only Holdings + Emails
+        // ak-ktf4: MF gets Orders (key=2) + SIPs (key=3) inserted between
+        // Holdings and Emails. Keys are reused from stocks so the shared
+        // activeTab state doesn't need a per-asset reset beyond the
+        // existing assetKey useEffect.
+        if (assetKey === "mf") {
+            if (activeTab === 0) return <MSNList list={list || []} onClick={handleRowClick}/>;
+            if (activeTab === 2) return <MFOrders/>;
+            if (activeTab === 3) return <MFSips/>;
+            return <InvestmentEmails category={emailCategory} serviceTypeFilter={emailServiceTypeFilter}/>;
+        }
+        // NPS — only Holdings + Emails
         if (activeTab === 0) return <MSNList list={list || []} onClick={handleRowClick}/>;
         return <InvestmentEmails category={emailCategory} serviceTypeFilter={emailServiceTypeFilter}/>;
     };

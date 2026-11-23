@@ -22,6 +22,9 @@ import {
     KitePositionsResponse,
     KiteSyncResponse,
     KiteTradesResponse,
+    KiteMFHoldingsResponse,
+    KiteMFOrdersResponse,
+    KiteMFSipsResponse,
     RealizedPnLResponse,
     FOSummaryResponse,
     FOTrade,
@@ -451,6 +454,59 @@ export async function fetchKiteGtts(
         clearCache ? withCacheCleared() : {}
     );
     const response = await queueRequest(() => axios.get('/kite/gtts', options));
+    return response.data;
+}
+
+/**
+ * ak-ktf4 / ak-h1mq (BE): GET /kite/mf/holdings — current MF holdings
+ * from Kite (Coin). Thin passthrough of Kite SDK's `k.mf_holdings()`
+ * wrapped as `{holdings: [...]}`. Read-only, idempotent.
+ *
+ * Lazy fetch: FE fires once per tab mount (component-local state, no
+ * context cache for this bead). Cache-cleared toggle supports a manual
+ * refresh affordance if the MF Holdings tab adds one later.
+ */
+export async function fetchKiteMFHoldings(
+    clearCache = false
+): Promise<KiteMFHoldingsResponse> {
+    const options = withRequestId(
+        'kite/mf/holdings',
+        clearCache ? withCacheCleared() : {}
+    );
+    const response = await queueRequest(() => axios.get('/kite/mf/holdings', options));
+    return response.data;
+}
+
+/**
+ * ak-ktf4 / ak-h1mq (BE): GET /kite/mf/orders — MF buy/sell orders
+ * placed within Kite's 7-day `mf_orders()` window. One row per order
+ * with status / amount / units / NAV / timestamp. Status flows
+ * RECEIVED → VALIDATED → OPEN → COMPLETE (or CANCELLED / REJECTED).
+ */
+export async function fetchKiteMFOrders(
+    clearCache = false
+): Promise<KiteMFOrdersResponse> {
+    const options = withRequestId(
+        'kite/mf/orders',
+        clearCache ? withCacheCleared() : {}
+    );
+    const response = await queueRequest(() => axios.get('/kite/mf/orders', options));
+    return response.data;
+}
+
+/**
+ * ak-ktf4 / ak-h1mq (BE): GET /kite/mf/sips — active + completed MF
+ * SIPs for the user. READ-ONLY per bead scope; SIP pause / edit /
+ * cancel actions deferred to a separate SIP-management bead.
+ */
+export async function fetchKiteMFSips(
+    clearCache = false
+): Promise<KiteMFSipsResponse> {
+    const options = withRequestId(
+        'kite/mf/sips',
+        clearCache ? withCacheCleared() : {}
+    );
+    const response = await queueRequest(() => axios.get('/kite/mf/sips', options));
     return response.data;
 }
 

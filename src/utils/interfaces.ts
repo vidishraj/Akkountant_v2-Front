@@ -881,6 +881,91 @@ export interface KiteAlertHistoryResponse {
     history: KiteAlertHistoryEntry[];
 }
 
+// ak-ktf4 / ak-h1mq (BE 2026-11-22): mutual-fund page BE passthroughs.
+// BE wraps as `{holdings: [...]}` / `{orders: [...]}` / `{sips: [...]}`
+// with Kite's native MF shapes forwarded unmodified (§23 #2 CONSUME).
+// Every field is defensive-optional — Kite SDK drift reaches FE
+// uncoerced (same posture as KiteTrade / KiteGtt / KiteAlert). Readers
+// null-check before formatting.
+
+// Kite `k.mf_holdings()` — one row per scheme the user currently holds.
+// `pnl`/`last_price`/`quantity` power the Holdings render; `fund` is
+// the display name, `tradingsymbol` the Kite ISIN-like identifier.
+export interface KiteMFHolding {
+    folio?: string;
+    fund?: string;
+    tradingsymbol?: string;
+    average_price?: number;
+    last_price?: number;
+    last_price_date?: string;
+    pledged_quantity?: number;
+    quantity?: number;
+    pnl?: number;
+}
+
+// Kite `k.mf_orders()` — 7-day window per Kite API. One row per
+// placed order; status flows "RECEIVED" → "VALIDATED" → "OPEN" →
+// "COMPLETE" (or "CANCELLED" / "REJECTED"). Both `amount` and
+// `quantity` can be present depending on `purchase_type` (SIP
+// installments typically have `amount`, lumpsum buys can have either).
+export interface KiteMFOrder {
+    order_id?: string;
+    exchange_order_id?: string;
+    tradingsymbol?: string;
+    status?: string;                  // "COMPLETE" | "OPEN" | "CANCELLED" | "REJECTED" | ...
+    status_message?: string;
+    folio?: string;
+    fund?: string;
+    order_timestamp?: string;
+    exchange_timestamp?: string;
+    settlement_id?: string;
+    transaction_type?: string;        // "BUY" | "SELL"
+    variety?: string;                 // "regular" | "amo"
+    purchase_type?: string;           // "FRESH" | "ADDITIONAL" | ...
+    quantity?: number;
+    amount?: number;
+    last_price?: number;
+    average_price?: number;
+    placed_by?: string;
+    tag?: string | null;
+}
+
+// Kite `k.mf_sips()` — active + completed SIP schedules. The bead
+// scope is READ-ONLY; Pause/Edit/Cancel are deferred to a separate
+// SIP-management bead (see ak-h1mq FE scope). `status` is typically
+// "ACTIVE" | "PAUSED" | "CANCELLED" (raw string for drift safety).
+export interface KiteMFSip {
+    sip_id?: string;
+    tradingsymbol?: string;
+    fund?: string;
+    dividend_type?: string;
+    transaction_type?: string;
+    status?: string;                  // "ACTIVE" | "PAUSED" | "CANCELLED" | ...
+    sip_type?: string;
+    created?: string;                 // ISO-ish start timestamp
+    frequency?: string;               // "weekly" | "monthly" | ...
+    instalment_amount?: number;
+    instalments?: number;             // target total; -1 is "until cancelled" in Kite
+    last_instalment?: string;
+    pending_instalments?: number;
+    next_instalment?: string;         // next scheduled debit date
+    trigger_price?: number;
+    step_up?: unknown;                // opaque config block
+    tag?: string | null;
+}
+
+export interface KiteMFHoldingsResponse {
+    holdings: KiteMFHolding[];
+}
+
+export interface KiteMFOrdersResponse {
+    orders: KiteMFOrder[];
+}
+
+export interface KiteMFSipsResponse {
+    sips: KiteMFSip[];
+}
+
 // F&O Interfaces
 export interface FOContract {
     symbol: string;
