@@ -279,6 +279,20 @@ const Files = () => {
         panelRef: deleteFolderDialogRef as React.RefObject<HTMLElement>,
     });
 
+    // ak-ncfr MINOR 1 (ak-iqa6 follow-up): wire useModalA11y + panel
+    // ref for the HARD-delete dialog so Tab stays trapped inside the
+    // modal and focus restores to the trigger on close — the two
+    // sibling destructive dialogs on this page already do this, and
+    // §5's destructive-gate precedent (ak-9aqn / ak-c453 / ak-17w0 /
+    // ak-phfs) always traps focus. Esc / autoFocus-on-input / the
+    // guarded Cancel already worked; this closes the a11y
+    // consistency gap.
+    const hardDeleteDialogRef = useRef<HTMLDivElement>(null);
+    useModalA11y({
+        open: hardDeleteFile !== null,
+        panelRef: hardDeleteDialogRef as React.RefObject<HTMLElement>,
+    });
+
     const loadFiles = useCallback(async (folderId: string | null = currentFolderId, clearCache = false) => {
         try {
             const data = await listVaultFiles(folderId, clearCache);
@@ -299,29 +313,53 @@ const Files = () => {
     // transition + after any restore / hard-delete so the counts +
     // list stay in sync. `clearCache=true` on refresh paths so the
     // axios-cache-interceptor doesn't serve a stale list.
-    const loadTrash = useCallback(async (clearCache = false) => {
-        setTrashLoading(true);
-        try {
-            const data = await listTrash(clearCache);
-            setTrashedFiles(data.files);
-            setTrashCount(data.count);
-        } catch {
-            setPayload({type: 'error', message: 'Failed to load trash'});
-        } finally {
-            setTrashLoading(false);
-        }
-    }, [setPayload]);
+    //
+    // ak-ncfr MINOR 2 (ak-iqa6 follow-up): `isActive` optional
+    // predicate lets the auto-fire useEffect gate the setState
+    // calls on an unmount / vaultView-flip cancelled flag. Same
+    // cancelled-flag pattern as ak-oc5s / ak-2k93. Missing predicate
+    // = always apply, which keeps future callers (manual refresh
+    // button etc) working unchanged.
+    const loadTrash = useCallback(
+        async (clearCache = false, isActive?: () => boolean) => {
+            setTrashLoading(true);
+            try {
+                const data = await listTrash(clearCache);
+                if (isActive && !isActive()) return;
+                setTrashedFiles(data.files);
+                setTrashCount(data.count);
+            } catch {
+                if (isActive && !isActive()) return;
+                setPayload({type: 'error', message: 'Failed to load trash'});
+            } finally {
+                if (!isActive || isActive()) {
+                    setTrashLoading(false);
+                }
+            }
+        },
+        [setPayload],
+    );
 
     // Auto-fire on first transition to the trash view. We don't
     // pre-fetch the trash list on mount since the common case is
     // the overseer staying in the active view; one-shot lazy fetch
     // keeps cold-page-load traffic lean. Same pattern as the Kite
     // margins / trades edge-detected auto-fires in ak-oc5s / ak-2k93.
+    //
+    // ak-ncfr MINOR 2: cancelled-flag unmount guard — passes an
+    // `isActive` predicate into loadTrash so an in-flight fetch
+    // that resolves after unmount / vaultView flip doesn't
+    // setState into the dead component. Matches the same guard
+    // ak-oc5s / ak-2k93 use in their auto-fire effects.
     const trashLoadedForViewRef = useRef<boolean>(false);
     useEffect(() => {
         if (vaultView === 'trash' && !trashLoadedForViewRef.current) {
             trashLoadedForViewRef.current = true;
-            void loadTrash(false);
+            let cancelled = false;
+            void loadTrash(false, () => !cancelled);
+            return () => {
+                cancelled = true;
+            };
         }
     }, [vaultView, loadTrash]);
 
@@ -2098,6 +2136,7 @@ const Files = () => {
                         role="presentation"
                     >
                         <div
+                            ref={hardDeleteDialogRef}
                             className={style.hardDeleteDialog}
                             onClick={(e) => e.stopPropagation()}
                             role="alertdialog"
