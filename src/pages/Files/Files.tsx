@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import style from './Files.module.scss';
-import {UserFileData, UserFolderData} from '../../utils/interfaces';
+import {TrashedFileData, UserFileData, UserFolderData} from '../../utils/interfaces';
 import {
     uploadVaultFile,
     listVaultFiles,
@@ -12,6 +12,9 @@ import {
     createFolder,
     renameFolder,
     deleteFolder,
+    listTrash,
+    restoreTrashedFile,
+    hardDeleteTrashedFile,
 } from '../../services/fileStorageService';
 import {useMessage} from '../../contexts/MessageContext';
 import useModalA11y from '../../hooks/useModalA11y';
@@ -163,6 +166,26 @@ const Files = () => {
     const [downloadWatermarkFile, setDownloadWatermarkFile] = useState<UserFileData | null>(null);
     const [watermarking, setWatermarking] = useState<boolean>(false);
 
+    // ak-iqa6 (ak-kxdr companion FE): Trash surface state.
+    // `vaultView` toggles between the active-files surface (default
+    // 'active') and the trashed-files surface ('trash'). The trash
+    // view is a sibling list (not a nested folder) — it has its own
+    // fetch path, its own card shape, and its own action set
+    // (Restore + Hard-delete). No overlap with the active-view
+    // upload / folder / reveal flows.
+    const [vaultView, setVaultView] = useState<'active' | 'trash'>('active');
+    const [trashedFiles, setTrashedFiles] = useState<TrashedFileData[]>([]);
+    const [trashLoading, setTrashLoading] = useState<boolean>(false);
+    const [trashCount, setTrashCount] = useState<number>(0);
+    // Hard-delete confirmation modal — EXACT-match required on the
+    // file id (destructive-gate pattern; precedent GitHub's "type
+    // the repo name"). BE additionally enforces the match server-
+    // side, but UX gate stops the call from firing at all unless
+    // the overseer has typed the full id.
+    const [hardDeleteFile, setHardDeleteFile] = useState<TrashedFileData | null>(null);
+    const [hardDeleteConfirmInput, setHardDeleteConfirmInput] = useState<string>("");
+    const [hardDeleting, setHardDeleting] = useState<boolean>(false);
+
     // (4) Peek dialog: lightweight "glance" at a file's first-page
     //     thumbnail. Opened by clicking the card body (not an action
     //     icon). Never cached across modal closes — state resets on
@@ -271,6 +294,96 @@ const Files = () => {
     useEffect(() => {
         loadFiles(currentFolderId);
     }, [currentFolderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ak-iqa6: load trashed files. Called on vaultView=='trash'
+    // transition + after any restore / hard-delete so the counts +
+    // list stay in sync. `clearCache=true` on refresh paths so the
+    // axios-cache-interceptor doesn't serve a stale list.
+    const loadTrash = useCallback(async (clearCache = false) => {
+        setTrashLoading(true);
+        try {
+            const data = await listTrash(clearCache);
+            setTrashedFiles(data.files);
+            setTrashCount(data.count);
+        } catch {
+            setPayload({type: 'error', message: 'Failed to load trash'});
+        } finally {
+            setTrashLoading(false);
+        }
+    }, [setPayload]);
+
+    // Auto-fire on first transition to the trash view. We don't
+    // pre-fetch the trash list on mount since the common case is
+    // the overseer staying in the active view; one-shot lazy fetch
+    // keeps cold-page-load traffic lean. Same pattern as the Kite
+    // margins / trades edge-detected auto-fires in ak-oc5s / ak-2k93.
+    const trashLoadedForViewRef = useRef<boolean>(false);
+    useEffect(() => {
+        if (vaultView === 'trash' && !trashLoadedForViewRef.current) {
+            trashLoadedForViewRef.current = true;
+            void loadTrash(false);
+        }
+    }, [vaultView, loadTrash]);
+
+    // ak-iqa6: restore a trashed file. On success, remove from the
+    // local trash list optimistically + refresh the active list so
+    // the restored file re-appears in the grid. Toast the result.
+    const handleRestore = useCallback(async (file: TrashedFileData) => {
+        try {
+            await restoreTrashedFile(file.id);
+            setTrashedFiles((prev) => prev.filter((f) => f.id !== file.id));
+            setTrashCount((n) => Math.max(0, n - 1));
+            // Refresh the active-grid list behind the trash view
+            // so the restored card is there when the overseer
+            // flips back.
+            await loadFiles(currentFolderId, true);
+            setPayload({type: 'success', message: `Restored ${file.original_filename}`});
+        } catch {
+            setPayload({type: 'error', message: `Failed to restore ${file.original_filename}`});
+        }
+    }, [setPayload, loadFiles, currentFolderId]);
+
+    // ak-iqa6: hard-delete from trash — EXACT-match confirm_id
+    // required BY BE AND enforced in the modal below. Modal's
+    // "Delete permanently" button only fires this when the typed
+    // input === file.id (so a mis-type can never reach the wire).
+    const handleHardDelete = useCallback(async () => {
+        if (!hardDeleteFile) return;
+        if (hardDeleteConfirmInput !== hardDeleteFile.id) return; // UX gate
+        setHardDeleting(true);
+        try {
+            await hardDeleteTrashedFile(hardDeleteFile.id, hardDeleteConfirmInput);
+            setTrashedFiles((prev) => prev.filter((f) => f.id !== hardDeleteFile.id));
+            setTrashCount((n) => Math.max(0, n - 1));
+            setPayload({
+                type: 'success',
+                message: `Permanently deleted ${hardDeleteFile.original_filename}`,
+            });
+            setHardDeleteFile(null);
+            setHardDeleteConfirmInput("");
+        } catch {
+            setPayload({
+                type: 'error',
+                message: `Failed to hard-delete ${hardDeleteFile.original_filename}`,
+            });
+        } finally {
+            setHardDeleting(false);
+        }
+    }, [hardDeleteFile, hardDeleteConfirmInput, setPayload]);
+
+    // Esc-to-cancel on the hard-delete modal. Blocked mid-flight so
+    // the user doesn't accidentally drop a half-sent DELETE.
+    useEffect(() => {
+        if (!hardDeleteFile) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !hardDeleting) {
+                setHardDeleteFile(null);
+                setHardDeleteConfirmInput("");
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [hardDeleteFile, hardDeleting]);
 
     // Navigate into folder
     const navigateToFolder = (folder: UserFolderData) => {
@@ -838,6 +951,53 @@ const Files = () => {
                     )}
                 </label>
                 <div className={style.headerActions}>
+                    {/* ak-iqa6 (ak-kxdr companion FE): Active / Trash
+                        vault-view toggle. Default 'active'. Trash view
+                        is a sibling list (not a nested folder); its
+                        own fetch (/files/trash), own card shape, own
+                        actions (Restore + Hard-delete with confirm_id
+                        modal). Count pill on the Trash side comes
+                        from the list response envelope. */}
+                    <div
+                        className={style.viewToggle}
+                        role="tablist"
+                        aria-label="Vault view"
+                    >
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={vaultView === 'active'}
+                            onClick={() => setVaultView('active')}
+                            className={`${style.viewToggleBtn} ${vaultView === 'active' ? style.viewToggleBtnActive : ''}`}
+                            title="Active files"
+                            aria-label="Active files"
+                        >
+                            <i className="ph ph-folders" aria-hidden/>
+                            <span className={style.vaultViewBtnLabel}>Active</span>
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={vaultView === 'trash'}
+                            onClick={() => setVaultView('trash')}
+                            className={`${style.viewToggleBtn} ${vaultView === 'trash' ? style.viewToggleBtnActive : ''}`}
+                            title="Trash"
+                            aria-label="Trash"
+                        >
+                            <i className="ph ph-trash" aria-hidden/>
+                            <span className={style.vaultViewBtnLabel}>Trash</span>
+                            {vaultView === 'trash' && trashCount > 0 && (
+                                <span className={style.vaultViewCount}>{trashCount}</span>
+                            )}
+                        </button>
+                    </div>
+                    {/* ak-iqa6: hide active-view-only actions when the
+                        Trash view is on — Grid/List toggle, Covers,
+                        Scan from phone, Folder, Upload all have no
+                        effect on trashed rows. Vault-view toggle +
+                        search stay visible so the overseer can get
+                        back out. */}
+                    {vaultView === 'active' && (<>
                     {/* ak-015p (2): Grid / List view-mode segment. Compact
                         icon-only pair so it shares space with the other
                         header actions. Defaults to Grid. */}
@@ -914,10 +1074,128 @@ const Files = () => {
                         <i className="ph ph-upload-simple"/>
                         <span>Upload</span>
                     </button>
+                    </>)}
                 </div>
             </div>
 
-            {loading ? (
+            {/* ak-iqa6: Trash view — sibling list of soft-deleted files.
+                Each row shows name + size + a `days_remaining` chip
+                (BE-computed) + two actions: Restore + Delete
+                permanently (opens the confirm_id modal). Covers /
+                Upload / Folder affordances are hidden inside this
+                branch since none of them apply to a trashed row. */}
+            {vaultView === 'trash' ? (
+                <section className={style.trashView}>
+                    <div className={style.trashHeader}>
+                        <h3 className={style.trashTitle}>
+                            <i className="ph ph-trash" aria-hidden/>
+                            <span>Trash</span>
+                            <span className={style.trashCountChip}>{trashCount}</span>
+                        </h3>
+                        <span className={style.trashHint}>
+                            Files here are restorable until the retention
+                            window expires — then they're purged
+                            permanently. Use "Delete permanently" to
+                            remove a file now (requires typing the id).
+                        </span>
+                    </div>
+                    {trashLoading ? (
+                        <div className={style.loadingState}>Loading trash…</div>
+                    ) : trashedFiles.length === 0 ? (
+                        <div className={style.emptyState}>
+                            <span>Trash is empty.</span>
+                            <button
+                                type="button"
+                                className={`btn btn-secondary ${style.folderBtn}`}
+                                onClick={() => setVaultView('active')}
+                            >
+                                Back to files
+                            </button>
+                        </div>
+                    ) : (
+                        <ul className={style.trashList}>
+                            {trashedFiles.map((file) => {
+                                // Days-remaining band: 0 = terminal (purge imminent);
+                                // 1-3 = warning (amber); 4+ = healthy (neutral).
+                                // Zero chosen as the explicit terminal because BE
+                                // clamps to [0, VAULT_RETENTION_DAYS] and reports 0
+                                // when retention has expired but the sweep hasn't
+                                // run yet.
+                                const dr = typeof file.days_remaining === 'number'
+                                    ? file.days_remaining
+                                    : null;
+                                const chipColor = dr === null
+                                    ? 'var(--color-neutral-500)'
+                                    : dr === 0
+                                        ? 'oklch(0.74 0.15 25)'
+                                        : dr <= 3
+                                            ? 'oklch(0.82 0.12 75)'
+                                            : 'var(--color-neutral-400)';
+                                const chipText = dr === null
+                                    ? 'retention unknown'
+                                    : dr === 0
+                                        ? '0 days · awaiting purge'
+                                        : dr === 1
+                                            ? '1 day left'
+                                            : `${dr} days left`;
+                                return (
+                                    <li key={file.id} className={style.trashItem}>
+                                        <div className={style.trashItemIcon}>
+                                            <i className={`ph ${iconForExtension(file.file_extension)}`} aria-hidden/>
+                                        </div>
+                                        <div className={style.trashItemBody}>
+                                            <div className={style.trashItemName} title={file.original_filename}>
+                                                {file.original_filename}
+                                            </div>
+                                            <div className={style.trashItemMeta}>
+                                                {formatFileSize(file.file_size)}
+                                                {file.label && (
+                                                    <>
+                                                        {" · "}
+                                                        <span className={style.trashItemLabel}>{file.label}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <span
+                                            className={style.trashDaysChip}
+                                            style={{
+                                                color: chipColor,
+                                                boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${chipColor} 35%, transparent)`,
+                                            }}
+                                        >
+                                            {chipText}
+                                        </span>
+                                        <div className={style.trashItemActions}>
+                                            <button
+                                                type="button"
+                                                className={`btn btn-secondary ${style.trashActionBtn}`}
+                                                onClick={() => handleRestore(file)}
+                                                title="Restore file"
+                                            >
+                                                <i className="ph ph-arrow-counter-clockwise" aria-hidden/>
+                                                <span>Restore</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`btn btn-ghost ${style.trashActionBtn} ${style.trashHardDeleteBtn}`}
+                                                onClick={() => {
+                                                    setHardDeleteFile(file);
+                                                    setHardDeleteConfirmInput("");
+                                                }}
+                                                title="Delete permanently"
+                                            >
+                                                <i className="ph ph-x-circle" aria-hidden/>
+                                                <span>Delete permanently</span>
+                                            </button>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
+            ) : loading ? (
                 <div className={style.loadingState}>Loading files...</div>
             ) : isEmpty ? (
                 <div className={style.emptyState}>
@@ -1794,6 +2072,126 @@ const Files = () => {
                     </div>
                 </div>
             )}
+
+            {/* ak-iqa6 (ak-kxdr companion FE): hard-delete confirmation
+                modal with EXACT-match confirm_id gate (destructive-gate
+                pattern — precedent GitHub's "type the repo name").
+                The "Delete permanently" button is disabled until the
+                typed input === file.id, AND the handler re-checks the
+                equality before firing so a race (eg a focus event
+                flushing default input) can't bypass the gate. BE
+                enforces the same match server-side as defense in
+                depth. Backdrop click + Esc cancel (BOTH guarded while
+                a hard-delete is in flight so the overseer can't drop
+                a half-sent DELETE on the floor). */}
+            {hardDeleteFile && (() => {
+                const matches = hardDeleteConfirmInput === hardDeleteFile.id;
+                return (
+                    <div
+                        className={style.previewOverlay}
+                        onClick={() => {
+                            if (!hardDeleting) {
+                                setHardDeleteFile(null);
+                                setHardDeleteConfirmInput("");
+                            }
+                        }}
+                        role="presentation"
+                    >
+                        <div
+                            className={style.hardDeleteDialog}
+                            onClick={(e) => e.stopPropagation()}
+                            role="alertdialog"
+                            aria-modal="true"
+                            aria-labelledby="ak-iqa6-title"
+                        >
+                            <div className={style.previewHeader}>
+                                <span id="ak-iqa6-title">
+                                    <i className="ph ph-warning" aria-hidden/>
+                                    {" "}Delete permanently?
+                                </span>
+                                <button
+                                    className={style.closeBtn}
+                                    onClick={() => {
+                                        if (!hardDeleting) {
+                                            setHardDeleteFile(null);
+                                            setHardDeleteConfirmInput("");
+                                        }
+                                    }}
+                                    aria-label="Cancel delete"
+                                    disabled={hardDeleting}
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                            <div className={style.hardDeleteBody}>
+                                <p className={style.hardDeleteLead}>
+                                    <span className={style.hardDeleteFilename}>
+                                        {hardDeleteFile.original_filename}
+                                    </span>
+                                    {" "}will be removed from the vault immediately
+                                    and cannot be restored.
+                                </p>
+                                <p className={style.hardDeleteExplainer}>
+                                    To confirm, type the file id below exactly
+                                    (this is the destructive-gate pattern —
+                                    it prevents stray clicks from reaching
+                                    the hard-delete endpoint):
+                                </p>
+                                <div className={style.hardDeleteIdBlock}>
+                                    <code className={style.hardDeleteId}>{hardDeleteFile.id}</code>
+                                </div>
+                                <label className={style.hardDeleteInputLabel}>
+                                    Type the id to confirm
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        value={hardDeleteConfirmInput}
+                                        onChange={(e) => setHardDeleteConfirmInput(e.target.value)}
+                                        className={`input ${style.hardDeleteInput}`}
+                                        disabled={hardDeleting}
+                                        spellCheck={false}
+                                        autoComplete="off"
+                                    />
+                                </label>
+                            </div>
+                            <div className={style.hardDeleteActions}>
+                                <button
+                                    type="button"
+                                    className={`btn btn-secondary ${style.hardDeleteCancelBtn}`}
+                                    onClick={() => {
+                                        if (!hardDeleting) {
+                                            setHardDeleteFile(null);
+                                            setHardDeleteConfirmInput("");
+                                        }
+                                    }}
+                                    disabled={hardDeleting}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn ${style.hardDeleteConfirmBtn}`}
+                                    onClick={handleHardDelete}
+                                    disabled={!matches || hardDeleting}
+                                    aria-disabled={!matches || hardDeleting}
+                                >
+                                    {hardDeleting ? (
+                                        <>
+                                            <i className="ph ph-circle-notch" aria-hidden/>
+                                            <span>Deleting…</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="ph ph-trash" aria-hidden/>
+                                            <span>Delete permanently</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Preview Modal */}
             {previewFile && (

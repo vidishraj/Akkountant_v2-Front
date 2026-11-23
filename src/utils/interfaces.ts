@@ -956,3 +956,20 @@ export interface UserFolderData {
     created_at: string;
     updated_at: string;
 }
+
+// ak-iqa6 (ak-kxdr companion FE): trashed file surface. Extends
+// `UserFileData` with the `days_remaining` counter BE computes as
+// `VAULT_RETENTION_DAYS - (now - deleted_at).days`, clamped to
+// [0, VAULT_RETENTION_DAYS]. 0 = retention expired (BE sweeps it
+// next); the FE renders a terminal "0 days — awaiting purge" chip.
+// Also carries `deleted_at` (ISO string) so the card can show
+// "Trashed {N days ago}" where useful.
+export interface TrashedFileData extends UserFileData {
+    days_remaining: number;
+    deleted_at?: string | null;
+}
+
+export interface TrashListResponse {
+    files: TrashedFileData[];
+    count: number;
+}
