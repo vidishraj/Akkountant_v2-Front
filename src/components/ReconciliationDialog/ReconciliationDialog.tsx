@@ -22,12 +22,14 @@ import styles from "./ReconciliationDialog.module.scss";
  * the BE's parsed `discrepancy_detail` JSON + a Resolve action.
  *
  * Posture:
- *   - §4 — trade-level data is Overseer's own. Low PII sensitivity
- *     but kite_trade_id + nested payload amounts carry the same
+ *   - §4 — trade-level data is Overseer's own. Low PII sensitivity;
+ *     the collapsed row shows discrepancy_type + kite_trade_id +
+ *     an absolute IST datetime (via `fmtTs`), while the nested
+ *     discrepancy_detail payload (including any monetary amounts)
+ *     stays behind the row-expand per the same
  *     restraint-on-default-display convention as the rest of
- *     Investments: full payload is in the expand drawer, not the
- *     collapsed row (collapsed row shows discrepancy_type + a short
- *     relative timestamp only).
+ *     Investments. kite_trade_id is an opaque Kite reference, not
+ *     a PII amount — fine to surface at the row level.
  *   - §5 — resolve is a MUTATION, not a destructive hard-delete.
  *     Guarded by a click-to-confirm inline confirm (second click
  *     fires the POST). BE is idempotent so a double-fire is a 200
@@ -184,6 +186,19 @@ const ReconciliationDialog = ({open, onClose, onResolved}: ReconciliationDialogP
             try {
                 const note = noteDrafts[issue.id] ?? "";
                 await resolveReconciliationIssue(issue.id, note.length > 0 ? note : undefined);
+                // ak-ymhz m2 (accepted cosmetic): on resolve → immediate
+                // tab-switch to Resolved before the POST returns, the
+                // just-resolved row momentarily drops from the Resolved
+                // list view (this optimistic filter runs against the
+                // freshly-reloaded Resolved list). Self-heals on the
+                // next fetch; count stays correct via onResolved's
+                // parent decrement. A ref-based status guard was
+                // considered (ak-ymhz pass 1) but adds +useRef + sync
+                // effect + closure cost for a user-invisible glitch
+                // that always self-repairs within one poll, so the
+                // minor is accepted here rather than defended
+                // against. If a future bead re-raises this, the
+                // ref-based option is the shape to reach for.
                 setIssues((prev) => prev.filter((it) => it.id !== issue.id));
                 setExpandedId(null);
                 setArmedIds((prev) => {
