@@ -232,14 +232,36 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
     }, [isActive, loadDashboardData]);
 
     // Auto-apply "Current FY" filter on first data load
+    // ak-5rg0 (ak-p3id companion) MINOR-1 fix: TZ-immune
+    // `YYYY-MM-DD` formatter for the date-picker. Pre-fix used
+    // `Date.toISOString().split("T")[0]` which emits UTC — for a
+    // local-midnight Date constructed via `new Date(year, month,
+    // day)` in IST (UTC+5:30), `toISOString()` shifts back onto
+    // the prior calendar day. Specifically for `currentFY`'s
+    // `new Date(fyStartYear, 3, 1)` (local Apr-1 IST), toISOString
+    // emits `YYYY-03-31T18:30:00.000Z` and `.split("T")[0]` yields
+    // "YYYY-03-31" — a full day before the correct FY start.
+    //
+    // Fix: read `.getFullYear()` / `.getMonth()+1` / `.getDate()`
+    // off the Date — those are local-calendar components, so a
+    // Date constructed via `new Date(y, m, d)` round-trips through
+    // this formatter without a TZ shift. Same discipline ak-h8ab
+    // used for the FY-for-CA PDF boundary.
+    const formatDateLocal = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+    };
+
     useEffect(() => {
         if (dashboardData && !initialFilterApplied) {
             setInitialFilterApplied(true);
             const now = new Date();
             const fy = getFYDates(0);
             const end = fy.end > now ? now : fy.end;
-            setStartDate(fy.start.toISOString().split("T")[0]);
-            setEndDate(end.toISOString().split("T")[0]);
+            setStartDate(formatDateLocal(fy.start));
+            setEndDate(formatDateLocal(end));
             setActivePreset("currentFY");
         }
     }, [dashboardData, initialFilterApplied]);
@@ -275,8 +297,8 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                 return;
         }
 
-        setStartDate(start.toISOString().split("T")[0]);
-        setEndDate(end.toISOString().split("T")[0]);
+        setStartDate(formatDateLocal(start));
+        setEndDate(formatDateLocal(end));
         setActivePreset(preset);
     };
 

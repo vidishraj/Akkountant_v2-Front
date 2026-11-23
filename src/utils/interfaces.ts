@@ -50,8 +50,20 @@ export interface Transaction {
 export interface TransactionResponse {
     results: Transaction[];
     page: number;
-    credit_sum: number;
-    debit_sum: number;
+    // ak-p3id (BE) / ak-5rg0 (FE): canonical positive-magnitude money
+    // fields. `in_sum` (≥ 0) + `out_sum` (≥ 0) + signed `net`
+    // (in_sum − out_sum). Pre-ak-p3id the FE would re-derive
+    // `net = credit_sum - debit_sum`, but `credit_sum` was a
+    // signed (NEGATIVE) magnitude of inflows — the subtraction
+    // flipped the sign and rendered "+In" as negative on the Home
+    // ledger + Transactions header. Legacy `credit_sum` /
+    // `debit_sum` kept as backcompat fields; FE CONSUMEs the new
+    // canonical fields verbatim.
+    in_sum: number;
+    out_sum: number;
+    net: number;
+    credit_sum: number;  // Legacy backcompat; do not use for new code
+    debit_sum: number;   // Legacy backcompat; do not use for new code
     total_count: number;
 }
 
@@ -412,6 +424,17 @@ export interface UnpaidByCurrency {
 export interface FreelanceDashboard {
     totalEarnings: number; // Total paid earnings in base currency (INR)
     monthlyEarnings: number; // Monthly paid earnings in base currency (INR)
+    // ak-p3id (BE) / ak-5rg0 (FE): canonical FY-scoped earnings +
+    // FY bounds. Home "Freelance paid · this FY" tile + Freelance
+    // dashboard "PAID THIS FY" tile both bind `fyEarnings` so the
+    // two surfaces agree by construction (same BE aggregation,
+    // same INR normalization via `get_earnings_in_inr`). Pre-
+    // ak-p3id the Home tile was pulling from `totalEarnings` (all-
+    // time) and the Freelance dashboard computed its own FY sum —
+    // the ~70% divergence that triggered this bead.
+    fyEarnings?: number;
+    fyStart?: string; // YYYY-MM-DD, Asia/Kolkata-canonical FY start
+    fyEnd?: string;   // YYYY-MM-DD, Asia/Kolkata-canonical FY end
     completedProjects: number;
     activeClients: number;
     earningsByMonth: { month: string; earnings: number }[]; // Paid earnings by month in INR

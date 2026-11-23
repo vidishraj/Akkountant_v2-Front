@@ -247,8 +247,16 @@ const Home = () => {
     // ── async wiring (mounts once; services cached via AxiosQueueManager) ──
     const [freelance, setFreelance] = useState<FreelanceDashboard | null>(null);
     const [recentTx, setRecentTx] = useState<Transaction[]>([]);
-    const [ledgerCredit, setLedgerCredit] = useState<number>(0);
-    const [ledgerDebit, setLedgerDebit] = useState<number>(0);
+    // ak-5rg0 (ak-p3id companion): rebound to the new canonical BE
+    // fields `in_sum` (≥ 0) + `out_sum` (≥ 0) + signed `net`
+    // (in_sum − out_sum). Pre-ak-p3id the Home ledger tile read raw
+    // `credit_sum` / `debit_sum` where `credit_sum` was signed-
+    // negative magnitude of inflows, so the FE-side subtraction
+    // flipped the sign — "+In > Out" rendered as negative. Now
+    // CONSUMEd verbatim from BE.
+    const [ledgerIn, setLedgerIn] = useState<number>(0);
+    const [ledgerOut, setLedgerOut] = useState<number>(0);
+    const [ledgerNetFromBe, setLedgerNetFromBe] = useState<number>(0);
     const [trend, setTrend] = useState<{date: string; value: number}[] | null>(null);
 
     useEffect(() => {
@@ -264,14 +272,19 @@ const Home = () => {
             .then((res) => {
                 if (cancelled) return;
                 setRecentTx(res.results || []);
-                setLedgerCredit(Number(res.credit_sum) || 0);
-                setLedgerDebit(Number(res.debit_sum) || 0);
+                // ak-5rg0: CONSUME ak-p3id canonical fields verbatim.
+                // No FE-side subtraction / sign-flip; the BE's `net`
+                // is already `in_sum - out_sum` with the correct sign.
+                setLedgerIn(Number(res.in_sum) || 0);
+                setLedgerOut(Number(res.out_sum) || 0);
+                setLedgerNetFromBe(Number(res.net) || 0);
             })
             .catch(() => {
                 if (!cancelled) {
                     setRecentTx([]);
-                    setLedgerCredit(0);
-                    setLedgerDebit(0);
+                    setLedgerIn(0);
+                    setLedgerOut(0);
+                    setLedgerNetFromBe(0);
                 }
             });
         fetchPortfolioTrend(90)
@@ -511,7 +524,11 @@ const Home = () => {
         return out.sort((a, b) => b.when - a.when).slice(0, 7);
     }, [recentTx, freelance, hide]);
 
-    const ledgerNet = ledgerCredit - ledgerDebit;
+    // ak-5rg0: `ledgerNet` is now BE-authoritative — the signed
+    // `net = in_sum - out_sum` field directly, no FE re-derivation.
+    // Keeps CLAUDE.md money-math invariant: "No FE-side math on
+    // these fields — CONSUME verbatim from BE."
+    const ledgerNet = ledgerNetFromBe;
 
     const quickStart = [
         {icon: "ph-file-plus", label: "Create invoice", sub: "Freelance", href: "/freelance"},
@@ -725,7 +742,16 @@ const Home = () => {
                     >
                         <span className={style.kpiKicker}>Freelance paid · this FY</span>
                         <span className={style.kpiValue}>
-                            {money(freelance?.totalEarnings ?? 0, hide, true)}
+                            {/* ak-5rg0 (ak-p3id companion): bind to BE's
+                                canonical `fyEarnings` field (same
+                                aggregation as the Freelance dashboard
+                                "PAID THIS FY" tile — divergence is now
+                                impossible by construction). Fallback to
+                                `totalEarnings` on pre-ak-p3id BE responses
+                                (defensive against a BE rollback; `??`
+                                drops back through to `totalEarnings` then
+                                0). */}
+                            {money(freelance?.fyEarnings ?? freelance?.totalEarnings ?? 0, hide, true)}
                         </span>
                         <span className={style.kpiSub}>
                             Monthly avg {money(freelance?.monthlyEarnings ?? 0, hide, true)}
@@ -767,7 +793,7 @@ const Home = () => {
                                 : `${ledgerNet >= 0 ? "+" : "−"}₹${formatCompact(Math.abs(ledgerNet))}`}
                         </span>
                         <span className={style.kpiSub}>
-                            In {money(ledgerCredit, hide, true)} · Out {money(ledgerDebit, hide, true)}
+                            In {money(ledgerIn, hide, true)} · Out {money(ledgerOut, hide, true)}
                         </span>
                     </a>
                 </section>

@@ -603,8 +603,17 @@ const Transactions = () => {
                     type: "SET_TRANSACTIONS",
                     payload: {
                         transaction: result.results,
-                        credits: result.credit_sum,
-                        debits: result.debit_sum,
+                        // ak-5rg0 (ak-p3id companion): bind to BE's
+                        // canonical positive-magnitude fields instead
+                        // of the legacy signed credit_sum/debit_sum.
+                        // Pre-ak-p3id the Transactions header rendered
+                        // "+In > Out" as a NEGATIVE net because
+                        // credit_sum was signed-negative; the BE now
+                        // emits `in_sum` (≥ 0), `out_sum` (≥ 0), and
+                        // a signed `net = in_sum - out_sum`.
+                        credits: result.in_sum,
+                        debits: result.out_sum,
+                        net: result.net,
                     },
                 });
                 dispatch({type: "SET_TRANSACTION_COUNT", payload: result.total_count});
@@ -683,10 +692,15 @@ const Transactions = () => {
     }, [user]);
 
     // Hero numbers — CONSUME directly from context; no FE re-derivation.
-    // Convention preserved from pre-FE-8 TransactionSummary.
+    // ak-5rg0 (ak-p3id companion): `net` is now the BE-authoritative
+    // signed value (`in_sum - out_sum`) read verbatim from state,
+    // NOT re-derived via `credit - debit`. Pre-ak-p3id the FE
+    // subtraction flipped the sign because `credits` was itself
+    // signed-NEGATIVE (the legacy credit_sum convention). Rendering
+    // keeps the +/− prefix glyph but the magnitude comes from BE.
     const credit = state.transactions.credits;
     const debit = state.transactions.debits;
-    const net = credit - debit;
+    const net = state.transactions.net;
 
     // Detail drawer a11y via FE-7's shared useModalA11y hook (focus-on-open,
     // focus-restore, tab-trap). Esc-to-close stays inline per the hook's

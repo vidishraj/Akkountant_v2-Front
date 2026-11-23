@@ -5,8 +5,18 @@ import {Transaction} from "../utils/interfaces.ts";
 
 interface Transactions {
     transaction: Transaction[];
-    credits: number;
-    debits: number;
+    // ak-5rg0 (ak-p3id companion): rebind to the BE's canonical
+    // positive-magnitude money fields. `credits` is now the POSITIVE
+    // magnitude of inflows (BE's `in_sum`); `debits` is the POSITIVE
+    // magnitude of outflows (BE's `out_sum`); `net` is the BE-
+    // authoritative signed sum (`in_sum - out_sum`). Pre-ak-p3id the
+    // FE re-derived net = credits - debits where `credits` was
+    // signed-NEGATIVE, so the subtraction flipped the sign and the
+    // Transactions header rendered "+In > Out" as a negative Net.
+    // CONSUMEd verbatim from BE now — no FE re-derivation.
+    credits: number;  // in_sum magnitude (≥ 0)
+    debits: number;   // out_sum magnitude (≥ 0)
+    net: number;      // signed in_sum - out_sum
 }
 
 // Define the filter state type
@@ -37,7 +47,7 @@ const initialState: FilterState = {
     },
     limit: 100,
     month: "",
-    transactions: {transaction: [], credits: 0, debits: 0},
+    transactions: {transaction: [], credits: 0, debits: 0, net: 0},
     page: 0,
     transactionCount: 0,
 };
