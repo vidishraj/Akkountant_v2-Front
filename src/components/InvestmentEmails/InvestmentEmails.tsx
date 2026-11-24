@@ -3,6 +3,7 @@ import {createPortal} from "react-dom";
 import {fetchInvestmentEmails, fetchEmailBody} from "../../services/investmentService.ts";
 import {InvestmentEmail} from "../../utils/interfaces.ts";
 import {containsAccountId, maskAccountIds} from "../../utils/maskAccountIds.ts";
+import {withEmailBodyCsp} from "../../utils/emailSandbox.ts";
 import useModalA11y from "../../hooks/useModalA11y.ts";
 import style from "./InvestmentEmails.module.scss";
 
@@ -288,7 +289,8 @@ const InvestmentEmails = ({category, serviceTypeFilter, categories, customBadgeC
                             ) : emailBodyHtml ? (
                                 <iframe
                                     ref={iframeRef}
-                                    srcDoc={emailBodyHtml}
+                                    // ak-36mz: CSP blocks remote images / tracking pixels / remote CSS.
+                                    srcDoc={withEmailBodyCsp(emailBodyHtml)}
                                     className={style.emailIframe}
                                     sandbox="allow-same-origin"
                                     title="Email content"
