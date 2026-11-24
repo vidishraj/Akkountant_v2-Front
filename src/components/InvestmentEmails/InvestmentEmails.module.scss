@@ -1,224 +1,193 @@
+// ak-fexn: Investment emails tab, rebuilt on Nocturne tokens (design:
+// Akkountant Redesign · Emails + DIALOGS · email). Layout comes from the
+// shared .table / .tag / .btn / .dialog* classes; this file only adds spacing
+// and the few page-specific touches. No raw colours except the email body
+// canvas (see .emailIframe).
+
 .container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tableContainer {
-  max-height: 350px;
-  min-width: 100%;
-  background-color: #121c24 !important;
-  border-radius: 8px;
-  overflow: auto;
-
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.tableContainer td,
-.tableContainer th {
-  background-color: #121c24;
-  color: #FAFAFA !important;
-  font-size: 12px !important;
-  padding: 8px !important;
-  border-bottom: 1px solid #29384D !important;
-}
-
-.tableContainer th {
-  background-color: #1a2530 !important;
-  font-weight: bold !important;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: capitalize;
-  white-space: nowrap;
-}
-
-.badgeInvestment {
-  background-color: rgba(74, 158, 255, 0.15);
-  color: #4a9eff;
-}
-
-.badgeEpf {
-  background-color: rgba(76, 175, 80, 0.15);
-  color: #4caf50;
-}
-
-.badgeGold {
-  background-color: rgba(255, 193, 7, 0.15);
-  color: #ffc107;
-}
-
-.badgeNps {
-  background-color: rgba(156, 39, 176, 0.15);
-  color: #ce93d8;
-}
-
-.badgePayment {
-  background-color: rgba(74, 222, 128, 0.15);
-  color: #4ade80;
-}
-
-.badgeContract {
-  background-color: rgba(74, 158, 255, 0.15);
-  color: #4a9eff;
-}
-
-.badgeCorrespondence {
-  background-color: rgba(255, 193, 7, 0.15);
-  color: #ffc107;
-}
-
-.badgeDefault {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #7a7d85;
-}
-
-.summaryText {
-  color: #aaa;
-  font-size: 11px;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  color: #ccd0d5;
-  font-size: 13px;
-}
-
-.paginationButton {
-  color: #ccd0d5 !important;
-  border: 1px solid #29384D !important;
-  border-radius: 16px !important;
-  padding: 4px 14px !important;
-  font-size: 12px !important;
-  text-transform: none !important;
-  background-color: #1a2530 !important;
-  min-width: auto !important;
-
-  &:hover {
-    background-color: #29384D !important;
-  }
-
-  &:disabled {
-    opacity: 0.4 !important;
-  }
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .emptyState {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 120px;
-  color: #7a7d85;
-  text-align: center;
+    padding: 32px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--color-neutral-500);
 }
 
-.clickableRow {
-  cursor: pointer;
-  transition: background-color 0.15s;
-
-  &:hover td {
-    background-color: #1a2530 !important;
-  }
+.privacyBar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--color-neutral-500);
 }
 
-.dialogPaper {
-  background-color: #121c24 !important;
-  color: #FAFAFA !important;
-  border-radius: 12px !important;
-  border: 1px solid #29384D;
+.revealBtn {
+    font-size: 12px;
+}
+
+.tableWrap {
+    overflow-x: auto;
+}
+
+.table {
+    min-width: 640px;
+}
+
+.row {
+    cursor: pointer;
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-text) 4%, transparent);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -2px;
+    }
+}
+
+.date {
+    white-space: nowrap;
+    color: var(--color-neutral-400);
+}
+
+.subject {
+    max-width: 360px;
+}
+
+.details {
+    color: var(--color-neutral-400);
+    font-size: 12.5px;
+}
+
+.badge {
+    font-size: 10.5px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 12.5px;
+
+    :global(.btn) {
+        font-size: 12px;
+    }
+}
+
+.pageLabel {
+    color: var(--color-neutral-400);
+}
+
+// ── Email dialog ─────────────────────────────────────────────────────────
+.backdrop {
+    z-index: 1300;
+}
+
+.dialog {
+    width: min(640px, 100%);
+    max-height: 86vh;
+    overflow: auto;
+    gap: 12px;
+}
+
+.dialogHead {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
 }
 
 .dialogTitle {
-  display: flex !important;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px !important;
-  color: #FAFAFA !important;
-  border-bottom: 1px solid #29384D;
-  padding: 12px 16px !important;
+    flex: 1;
+    font-size: 17px;
+    line-height: 1.35;
 }
 
-.dialogClose {
-  color: #7a7d85 !important;
+.meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 16px;
+    font-size: 13px;
 }
 
-.dialogContent {
-  padding: 16px !important;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.metaKey {
+    color: var(--color-neutral-500);
 }
 
-.detailRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: #ccd0d5;
+.bodyBox {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
 }
 
-.detailKey {
-  min-width: 70px;
-  color: #7a7d85;
-  font-weight: 600;
-  font-size: 12px;
-  text-transform: uppercase;
+.skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.emailBodySection {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #29384D;
+.skeletonLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--color-neutral-400);
 }
 
-.bodyLoader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100px;
+.skeletonLine {
+    display: block;
+    height: 9px;
+    border-radius: 4px;
+    background: var(--color-neutral-900);
 }
 
+.spin {
+    animation: ieSpin 0.9s linear infinite;
+}
+
+@keyframes ieSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+// Email HTML is authored for a light canvas; rendering it on the dark
+// surface makes most mail unreadable, so the iframe keeps a white page.
 .emailIframe {
-  width: 100%;
-  min-height: 300px;
-  border: none;
-  border-radius: 6px;
-  background-color: #fff;
+    width: 100%;
+    min-height: 300px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background-color: white;
 }
 
 .emailTextPre {
-  background-color: #1a2530;
-  border: 1px solid #29384D;
-  border-radius: 6px;
-  padding: 12px;
-  font-size: 12px;
-  color: #ccd0d5;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
-  max-height: 400px;
-  overflow-y: auto;
+    margin: 0;
+    max-height: 400px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12px;
+    color: var(--color-neutral-300);
+}
+
+.muted {
+    font-size: 13px;
+    color: var(--color-neutral-500);
+}
+
+.footnote {
+    font-size: 12px;
+    color: var(--color-neutral-500);
 }
