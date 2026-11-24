@@ -1,31 +1,142 @@
-/* General calendar container styling */
-.calendarContainer {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 16px;
+/* ak-f5vf: native Nocturne calendar rail card (2026-11-24 design).
+ * Replaces the MUI DateCalendar, whose fixed 320px width overflowed the
+ * 290px rail (clipped month arrows) and whose loading skeleton rendered
+ * as rows of blank circles. Fluid 7-col grid — always fits its column. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
 }
 
-/* Tile styles for different conditions */
-.tile-yellow {
-  background-color: yellow !important;
-  color: black !important;
-  border-radius: 50%;
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.tile-green {
-  background-color: green !important;
-  color: white !important;
-  border-radius: 50%;
+.title {
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.tile-purple {
-  background-color: purple !important;
-  color: white !important;
-  border-radius: 50%;
+.spacer {
+  flex: 1;
 }
 
-/* Optional: Hover effects for better interactivity */
-.react-calendar__tile:hover {
-  filter: brightness(1.1);
+.navBtn {
+  width: 26px;
+  height: 26px;
+  color: var(--color-neutral-400);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  transition: opacity 160ms ease;
+}
+
+.gridLoading {
+  opacity: 0.45;
+}
+
+.dow {
+  font-size: 10px;
+  text-align: center;
+  color: var(--color-neutral-600);
+}
+
+.day {
+  all: unset;
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  cursor: default;
+  color: var(--color-neutral-500);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+}
+
+.dayCovered {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.dayActive {
   cursor: pointer;
+  color: var(--color-accent-100);
+  background: var(--color-accent-700);
+
+  &:hover {
+    background: var(--color-accent-600);
+  }
+}
+
+.dayStatement {
+  cursor: pointer;
+}
+
+.dayFuture {
+  color: var(--color-neutral-700);
+}
+
+.dayToday {
+  box-shadow: inset 0 0 0 1px var(--color-neutral-600);
+}
+
+.daySelected {
+  box-shadow: inset 0 0 0 1.5px var(--color-accent-200);
+}
+
+/* Statement-file marker: small dot under the number. */
+.stmtDot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: var(--color-accent-300);
+}
+
+.hint {
+  font-size: 11.5px;
+  color: var(--color-neutral-500);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legendChip {
+  all: unset;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+}
+
+.legendChipActive {
+  color: var(--color-neutral-200);
+  box-shadow: inset 0 0 0 1px var(--color-accent-700);
 }

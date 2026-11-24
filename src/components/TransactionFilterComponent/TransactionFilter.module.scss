@@ -1,41 +1,95 @@
+/* ak-f5vf: ledger filter row — Nocturne tokens only (2026-11-24 design). */
 .container {
   display: flex;
-  flex-wrap: wrap; /* Allow wrapping */
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-evenly;
-  background-color: #121c24;
-  padding: 10px 20px;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  gap: 10px;
+  gap: 8px;
 }
 
-.group {
+.searchWrap {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-neutral-500);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding-left: 32px;
+}
+
+.dateInput {
+  width: 150px;
+  flex: none;
+}
+
+.toLabel {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.bankSelect {
+  width: 170px;
+  flex: none;
+}
+
+.monthSelect {
+  width: 140px;
+  flex: none;
+}
+
+.sourceToggle {
   display: flex;
-  gap: 10px;
-  flex-wrap: nowrap; /* Prevent individual items in the group from wrapping */
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  overflow: hidden;
 }
 
-.group.single {
-  flex: 1; /* Make the first group take more space */
+.sourceBtn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-400);
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
 }
 
-.group.double {
-  //flex: 2; /* Adjust based on your preferred spacing */
+.sourceBtnActive {
+  color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+
+  &:hover {
+    color: var(--color-accent);
+  }
 }
 
-.input,
-.dateInput,
-.select {
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid #333;
-  border-radius: 6px;
-  background-color: #29384D;
-  color: #fff;
+.clearBtn {
+  font-size: 12.5px;
+  color: var(--color-neutral-400);
 }
 
-.input {
-  flex: 1; /* Allow the search input to grow */
+.iconBtn {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  color: var(--color-neutral-400);
 }

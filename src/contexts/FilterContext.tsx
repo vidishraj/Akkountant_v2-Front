@@ -19,6 +19,11 @@ interface Transactions {
     net: number;      // signed in_sum - out_sum
 }
 
+export type TransactionSource = 'all' | 'statement' | 'email';
+// ak-f5vf: default stays 'statement' (pre-existing behaviour) so the
+// default totals are unchanged; 'all' is opt-in from the source toggle.
+export const DEFAULT_SOURCE: TransactionSource = 'statement';
+
 // Define the filter state type
 interface FilterState {
     searchTerm: string;
@@ -26,7 +31,8 @@ interface FilterState {
     endDate: string;
     bank: string;
     month: string;
-    source: 'email' | 'statement'
+    // ak-f5vf: 'all' = no source filter (BE omits the clause).
+    source: TransactionSource;
     sortBy: SortType;
     limit: number;
     transactions: Transactions;
@@ -40,7 +46,7 @@ const initialState: FilterState = {
     startDate: "",
     endDate: "",
     bank: "",
-    source: "statement",
+    source: DEFAULT_SOURCE,
     sortBy: {
         sortBy: 'date',
         sortDirection: 'desc'
@@ -61,7 +67,7 @@ type FilterAction =
     | { type: "SET_SORT_BY"; payload: SortType }
     | { type: "SET_LIMIT"; payload: number }
     | { type: "SET_MONTH"; payload: string }
-    | { type: "SET_SOURCE"; payload: 'statement' | 'email' }
+    | { type: "SET_SOURCE"; payload: TransactionSource }
     | { type: "SET_PAGE"; payload: number }
     | { type: "SET_TRANSACTIONS"; payload: Transactions }
     | { type: "SET_TRANSACTION_COUNT"; payload: number }
@@ -100,6 +106,7 @@ const filterReducer = (state: FilterState, action: FilterAction): FilterState =>
                 endDate: "",
                 bank: "",
                 month: "",
+                source: DEFAULT_SOURCE,
                 page: 0, // Reset to first page when clearing filters
             };
         default:

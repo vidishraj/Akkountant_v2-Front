@@ -1,223 +1,225 @@
 import React from "react";
-import {bankName} from "../../utils/bankLabels.ts";
 import dayjs, {Dayjs} from "dayjs";
-import {AdapterDayjs} from "@mui/x-date-pickers/AdapterDayjs";
-import {LocalizationProvider} from "@mui/x-date-pickers/LocalizationProvider";
-import {PickersDayProps} from "@mui/x-date-pickers/PickersDay";
-import {DateCalendar} from "@mui/x-date-pickers/DateCalendar";
-import {DayCalendarSkeleton} from "@mui/x-date-pickers/DayCalendarSkeleton";
-import BasicCard from "../BasicCard.tsx";
+import {bankName} from "../../utils/bankLabels.ts";
 import {fetchCalendarTransactions} from "../../services/transactionService.ts";
 import {useFilterContext} from "../../contexts/FilterContext.tsx";
 import {useFileFilterContext} from "../../contexts/FileFilterContext.tsx";
-import {ServerDay, ServerDayProps, BANK_COLORS} from "./ServerDay.tsx";
-import Box from "@mui/material/Box";
+import style from "./Calendar.module.scss";
 
+/**
+ * ak-f5vf: Transactions rail calendar, native Nocturne grid per the
+ * 2026-11-24 design ("Filled days have transactions · click a day to
+ * filter"). Replaces the MUI DateCalendar (fixed 320px → clipped in the
+ * 290px rail; skeleton rendered as blank circles while loading).
+ *
+ * Preserved behaviour from the MUI version:
+ * - same `/calendarTransactions` request per visible month;
+ * - click a transaction day → ledger date range = that day (click again
+ *   to clear it);
+ * - click a statement day → statements date range = that day;
+ * - statement-period coverage per bank (tinted days + day tooltip), with
+ *   the bank chips narrowing which banks' coverage is shown;
+ * - no navigation past the current month.
+ */
+
+const DOW = ["S", "M", "T", "W", "T", "F", "S"];
+
+interface CoveredPeriod {
+    bank: string;
+    period_start: string;
+    period_end: string;
+}
 
 export default function DateCalendarWithBadges(): React.JSX.Element {
-    const [isLoading, setIsLoading] = React.useState(false);
-    const [transactionDays, setTransactionDays] = React.useState<number[]>([]);
-    const [statementDays, setStatementDays] = React.useState<number[]>([]);
-    const [coverageMap, setCoverageMap] = React.useState<Record<number, string[]>>({});
-    const {dispatch} = useFilterContext();
+    const {state, dispatch} = useFilterContext();
     const {dispatch: statementDispatch} = useFileFilterContext();
 
-    const fetchHighlightedDays = async (startDate: string, endDate: string) => {
-        setIsLoading(true);
-        try {
-            const {transaction_dates, statement_dates, covered_periods} = await fetchCalendarTransactions({
-                monthStart: startDate,
-                monthEnd: endDate,
-            });
-            setTransactionDays(transaction_dates.map((item: string) => dayjs(item).date()));
-            setStatementDays(statement_dates.map((item: string) => dayjs(item).date()));
+    const currentMonth = React.useMemo(() => dayjs().startOf("month"), []);
+    const [viewMonth, setViewMonth] = React.useState<Dayjs>(currentMonth);
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [transactionDays, setTransactionDays] = React.useState<Set<number>>(new Set());
+    const [statementDays, setStatementDays] = React.useState<Set<number>>(new Set());
+    const [coverageMap, setCoverageMap] = React.useState<Record<number, string[]>>({});
+    const [selectedBanks, setSelectedBanks] = React.useState<Set<string>>(new Set());
 
-            // Build a map of day -> banks[] for coverage visualization
-            if (covered_periods && covered_periods.length > 0) {
-                const monthStart = dayjs(startDate);
-                const monthEnd = dayjs(endDate);
+    // Drop responses for a month the user has already navigated away from.
+    const reqSeq = React.useRef(0);
+
+    React.useEffect(() => {
+        const seq = ++reqSeq.current;
+        const monthStart = viewMonth.startOf("month");
+        const monthEnd = viewMonth.endOf("month");
+        setIsLoading(true);
+        fetchCalendarTransactions({
+            monthStart: monthStart.format("YYYY-MM-DD"),
+            monthEnd: monthEnd.format("YYYY-MM-DD"),
+        })
+            .then(({transaction_dates = [], statement_dates = [], covered_periods = []}) => {
+                if (seq !== reqSeq.current) return;
+                setTransactionDays(new Set((transaction_dates as string[]).map((d) => dayjs(d).date())));
+                setStatementDays(new Set((statement_dates as string[]).map((d) => dayjs(d).date())));
+
                 const map: Record<number, Set<string>> = {};
-                for (const period of covered_periods) {
+                for (const period of covered_periods as CoveredPeriod[]) {
                     const pStart = dayjs(period.period_start);
                     const pEnd = dayjs(period.period_end);
-                    const start = pStart.isBefore(monthStart) ? monthStart : pStart;
+                    let cur = pStart.isBefore(monthStart) ? monthStart : pStart;
                     const end = pEnd.isAfter(monthEnd) ? monthEnd : pEnd;
-                    let cur = start;
-                    while (cur.isBefore(end) || cur.isSame(end, 'day')) {
+                    while (cur.isBefore(end, "day") || cur.isSame(end, "day")) {
                         const d = cur.date();
-                        if (!map[d]) map[d] = new Set();
-                        map[d].add(period.bank);
-                        cur = cur.add(1, 'day');
+                        (map[d] ??= new Set()).add(period.bank);
+                        cur = cur.add(1, "day");
                     }
                 }
                 const result: Record<number, string[]> = {};
-                for (const [day, banks] of Object.entries(map)) {
-                    result[Number(day)] = Array.from(banks);
-                }
+                for (const [d, banks] of Object.entries(map)) result[Number(d)] = Array.from(banks);
                 setCoverageMap(result);
-            } else {
+            })
+            .catch((error) => {
+                if (seq !== reqSeq.current) return;
+                console.error("Error fetching calendar data:", error);
+                setTransactionDays(new Set());
+                setStatementDays(new Set());
                 setCoverageMap({});
-            }
-        } catch (error) {
-            console.error("Error fetching calendar data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            })
+            .finally(() => {
+                if (seq === reqSeq.current) setIsLoading(false);
+            });
+    }, [viewMonth]);
 
-    const handleMonthChange = (date: Dayjs) => {
-        fetchHighlightedDays(date.startOf("month").format("YYYY-MM-DD"), date.endOf("month").format("YYYY-MM-DD"));
-    };
-
-    const handleDateClick = (date: Dayjs) => {
-        if (transactionDays.includes(date.date())) {
-            dispatch({type: "SET_START_DATE", payload: date.format("YYYY-MM-DD")});
-            dispatch({type: "SET_END_DATE", payload: date.format("YYYY-MM-DD")});
-        }
-        if (statementDays.includes(date.date())) {
-            statementDispatch({type: "SET_START_DATE", payload: date.format("YYYY-MM-DD")});
-            statementDispatch({type: "SET_END_DATE", payload: date.format("YYYY-MM-DD")});
-        }
-    };
-
-    React.useEffect(() => {
-        const now = dayjs();
-        fetchHighlightedDays(now.startOf("month").format("YYYY-MM-DD"), now.endOf("month").format("YYYY-MM-DD"));
-    }, []);
-
-    const today = dayjs();
-    const lastDayOfCurrentMonth = today.endOf("month");
-
-    // Collect unique banks visible in this month's coverage
     const visibleBanks = React.useMemo(() => {
         const banks = new Set<string>();
-        for (const dayBanks of Object.values(coverageMap)) {
-            for (const bank of dayBanks) banks.add(bank);
-        }
+        for (const dayBanks of Object.values(coverageMap)) dayBanks.forEach((b) => banks.add(b));
         return Array.from(banks);
     }, [coverageMap]);
 
-    // Bank filter: when empty, show all; otherwise show only selected banks
-    const [selectedBanks, setSelectedBanks] = React.useState<Set<string>>(new Set());
-
     const toggleBank = (bank: string) => {
-        setSelectedBanks(prev => {
+        setSelectedBanks((prev) => {
             const next = new Set(prev);
-            if (next.has(bank)) {
-                next.delete(bank);
-            } else {
-                next.add(bank);
-            }
+            if (next.has(bank)) next.delete(bank);
+            else next.add(bank);
             return next;
         });
     };
 
-    // Filter the coverageMap based on selected banks
-    const filteredCoverageMap = React.useMemo(() => {
-        if (selectedBanks.size === 0) return coverageMap;
-        const filtered: Record<number, string[]> = {};
-        for (const [day, banks] of Object.entries(coverageMap)) {
-            const matching = banks.filter(b => selectedBanks.has(b));
-            if (matching.length > 0) {
-                filtered[Number(day)] = matching;
-            }
-        }
-        return filtered;
-    }, [coverageMap, selectedBanks]);
+    const coverageFor = (d: number): string[] => {
+        const banks = coverageMap[d] ?? [];
+        return selectedBanks.size === 0 ? banks : banks.filter((b) => selectedBanks.has(b));
+    };
 
-    // @ts-ignore
+    const selectedIso = state.startDate && state.startDate === state.endDate ? state.startDate : null;
+    const today = dayjs();
+
+    const handleDayClick = (date: Dayjs) => {
+        const iso = date.format("YYYY-MM-DD");
+        const d = date.date();
+        if (transactionDays.has(d)) {
+            const next = selectedIso === iso ? "" : iso;
+            dispatch({type: "SET_START_DATE", payload: next});
+            dispatch({type: "SET_END_DATE", payload: next});
+        }
+        if (statementDays.has(d)) {
+            statementDispatch({type: "SET_START_DATE", payload: iso});
+            statementDispatch({type: "SET_END_DATE", payload: iso});
+        }
+    };
+
+    const pad = viewMonth.startOf("month").day();
+    const daysInMonth = viewMonth.daysInMonth();
+    const canGoNext = viewMonth.isBefore(currentMonth, "month");
+
     return (
-        <BasicCard style={{width: "fit-content", backgroundColor: "inherit", boxShadow: "none"}}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DateCalendar
-                    maxDate={lastDayOfCurrentMonth}
-                    sx={{
-                        backgroundColor: "inherit",
-                        "& .MuiDayCalendar-weekDayLabel": {color: "#FAFAFA"},
-                    }}
-                    onMonthChange={handleMonthChange}
-                    onYearChange={handleMonthChange}
-                    onChange={handleDateClick}
-                    loading={isLoading}
-                    renderLoading={() => <DayCalendarSkeleton/>}
-                    slots={{day: ServerDay as React.FC<PickersDayProps<Dayjs>>}}
-                    slotProps={{
-                        // @ts-ignore
-                        day: {
-                            transactionDays,
-                            statementDays,
-                            coverageMap: filteredCoverageMap,
-                            onClick: handleDateClick,
-                        } as Partial<ServerDayProps>,
-                        calendarHeader: {
-                            sx: {
-                                color: "#FAFAFA",
-                                "& .MuiDayCalendar-weekDayLabel": {color: "blue", fontWeight: "bold"},
-                            },
-                        },
-                        leftArrowIcon: {sx: {color: "#FAFAFA"}},
-                        rightArrowIcon: {sx: {color: "#FAFAFA"}},
-                        switchViewButton: {sx: {color: "#FAFAFA"}},
-                        switchViewIcon: {sx: {color: "#FAFAFA"}},
-                        yearButton: {sx: {color: "#FAFAFA"}},
-                        monthButton: {sx: {color: "#FAFAFA"}},
-                        nextIconButton: {sx: {color: "#FAFAFA"}},
-                    }}
-                />
-            </LocalizationProvider>
+        <div className={style.card}>
+            <div className={style.head}>
+                <span className={style.title}>{viewMonth.format("MMMM YYYY")}</span>
+                <span className={style.spacer}/>
+                <button
+                    type="button"
+                    className={`btn btn-icon ${style.navBtn}`}
+                    onClick={() => setViewMonth((m) => m.subtract(1, "month"))}
+                    aria-label="Previous month"
+                >
+                    <i className="ph ph-caret-left" aria-hidden="true"/>
+                </button>
+                <button
+                    type="button"
+                    className={`btn btn-icon ${style.navBtn}`}
+                    onClick={() => canGoNext && setViewMonth((m) => m.add(1, "month"))}
+                    disabled={!canGoNext}
+                    aria-label="Next month"
+                >
+                    <i className="ph ph-caret-right" aria-hidden="true"/>
+                </button>
+            </div>
+
+            <div
+                className={`${style.grid} ${isLoading ? style.gridLoading : ""}`}
+                aria-busy={isLoading}
+            >
+                {DOW.map((d, i) => (
+                    <span key={`dow-${i}`} className={style.dow} aria-hidden="true">{d}</span>
+                ))}
+                {Array.from({length: pad}, (_, i) => <span key={`pad-${i}`}/>)}
+                {Array.from({length: daysInMonth}, (_, i) => {
+                    const n = i + 1;
+                    const date = viewMonth.date(n);
+                    const iso = date.format("YYYY-MM-DD");
+                    const hasTx = transactionDays.has(n);
+                    const hasStmt = statementDays.has(n);
+                    const covered = coverageFor(n);
+                    const titleParts = [
+                        hasTx ? "Has transactions" : "",
+                        hasStmt ? "Statement received" : "",
+                        covered.length ? `Statement coverage: ${covered.map(bankName).join(", ")}` : "",
+                    ].filter(Boolean);
+                    const cls = [
+                        style.day,
+                        covered.length && !hasTx ? style.dayCovered : "",
+                        hasTx ? style.dayActive : "",
+                        hasStmt && !hasTx ? style.dayStatement : "",
+                        date.isAfter(today, "day") ? style.dayFuture : "",
+                        date.isSame(today, "day") ? style.dayToday : "",
+                        selectedIso === iso ? style.daySelected : "",
+                    ].filter(Boolean).join(" ");
+                    const interactive = hasTx || hasStmt;
+                    return (
+                        <button
+                            key={iso}
+                            type="button"
+                            className={cls}
+                            title={titleParts.join(" · ") || undefined}
+                            aria-label={`${date.format("D MMMM YYYY")}${titleParts.length ? ` — ${titleParts.join(", ")}` : ""}`}
+                            aria-pressed={hasTx ? selectedIso === iso : undefined}
+                            tabIndex={interactive ? 0 : -1}
+                            onClick={interactive ? () => handleDayClick(date) : undefined}
+                        >
+                            {n}
+                            {hasStmt && <span className={style.stmtDot} aria-hidden="true"/>}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <span className={style.hint}>Filled days have transactions · click a day to filter</span>
+
             {visibleBanks.length > 0 && (
-                <Box sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "6px",
-                    padding: "4px 10px 8px",
-                    justifyContent: "center",
-                }}>
+                <div className={style.legend} role="group" aria-label="Statement coverage by bank">
                     {visibleBanks.map((bank) => {
-                        const isActive = selectedBanks.size === 0 || selectedBanks.has(bank);
-                        const color = BANK_COLORS[bank] || "#888";
+                        const active = selectedBanks.size === 0 || selectedBanks.has(bank);
                         return (
-                            <Box
+                            <button
                                 key={bank}
+                                type="button"
+                                className={`${style.legendChip} ${active ? style.legendChipActive : ""}`}
+                                aria-pressed={selectedBanks.has(bank)}
                                 onClick={() => toggleBank(bank)}
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "5px",
-                                    padding: "3px 10px",
-                                    borderRadius: "6px",
-                                    border: `1px solid ${isActive ? color : "#333"}`,
-                                    backgroundColor: isActive ? `${color}20` : "#29384D",
-                                    cursor: "pointer",
-                                    transition: "all 0.2s",
-                                    opacity: isActive ? 1 : 0.5,
-                                    "&:hover": {
-                                        borderColor: color,
-                                        backgroundColor: `${color}30`,
-                                        opacity: 1,
-                                    },
-                                }}
                             >
-                                <Box sx={{
-                                    width: 7,
-                                    height: 7,
-                                    borderRadius: "50%",
-                                    backgroundColor: color,
-                                    flexShrink: 0,
-                                }}/>
-                                <span style={{
-                                    color: isActive ? "#FAFAFA" : "#b0b0b0",
-                                    fontSize: "0.65rem",
-                                    whiteSpace: "nowrap",
-                                    userSelect: "none",
-                                }}>
-                                    {bankName(bank)}
-                                </span>
-                            </Box>
+                                {bankName(bank)}
+                            </button>
                         );
                     })}
-                </Box>
+                </div>
             )}
-        </BasicCard>
+        </div>
     );
 }

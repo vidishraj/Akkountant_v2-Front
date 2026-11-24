@@ -1,4 +1,4 @@
-import {bankName, bankShortName, isStatementRecord} from "../../utils/bankLabels.ts";
+import {bankMonogram, bankName, isStatementRecord} from "../../utils/bankLabels.ts";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import TransactionFilters from "../../components/TransactionFilterComponent/TransactionFilters.tsx";
 import {
@@ -343,36 +343,42 @@ const IngestionStatusCard: React.FC = () => {
  * would strand the file-ingestion view otherwise).
  */
 /**
- * ak-inli: BankChip — small monospace uppercase chip for the Bank column.
- * Replaces the pre-ak-inli plain-text bank rendering per design (brief
- * 05 ledger-row shape: `bank-mono-chip / Description + Category / Date /
- * Amount`). Label resolution falls back through utils/bankLabels → de-snaked bank
- * code → "—" so unknown bank codes still render SOMETHING readable.
+ * ak-f5vf: bank monogram tile for the ledger's first column (design:
+ * 26px mono tile; full bank name sits under the description).
  */
-interface BankChipProps {
-    bank: string | null | undefined;
-}
-const BankChip: React.FC<BankChipProps> = ({bank}) => {
-    const label = bankShortName(bank);
-    return (
-        <span className={style.bankChip} title={bank ?? undefined}>
-            {label}
-        </span>
-    );
-};
+const BankMono: React.FC<{bank: string | null | undefined}> = ({bank}) => (
+    <span className={style.bankMono} title={bankName(bank)}>
+        {bankMonogram(bank)}
+    </span>
+);
 
 /**
- * ak-v1f5: on-page agent-prompt strip.
- *
- * Sits at the top of the main content, below the global Header. Three
- * curated sample pills give the overseer a fast path into common
- * Transactions-agent queries. Click = dispatch a send_message command
- * through the shared AgentChatBridge (same imperative-bridge pattern
- * ak-inli's drawer Links use) — opens the AgentChat drawer with the
- * payload pre-filled. Zero new BE contract.
- *
- * The pill strings are intentionally conversational (natural phrasing,
- * ends with punctuation) so the BE prompt catches them as if typed.
+ * ak-f5vf: ledger date per design — "Thu, Oct 1, 2026". `yyyy-mm-dd` is
+ * a calendar date, so it is formatted in UTC to avoid a timezone shift;
+ * any other shape falls back to the shared formatter.
+ */
+const LEDGER_DATE_FMT = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+});
+function formatLedgerDate(date: string | null | undefined): string {
+    if (!date) return "—";
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec(date);
+    if (m) {
+        const d = new Date(`${m[1]}T00:00:00Z`);
+        if (!Number.isNaN(d.getTime())) return LEDGER_DATE_FMT.format(d);
+    }
+    return formatDateString(date);
+}
+
+/**
+ * ak-v1f5 → ak-f5vf: assistant omni bar (design: one input + prompt
+ * chips on a single surface, first on the page). Enter or a chip sends
+ * the text through the shared AgentChatBridge (same imperative-bridge
+ * pattern as the drawer Links) — zero new BE contract.
  */
 const SAMPLE_PROMPTS: string[] = [
     "What did I spend on groceries last month?",
@@ -380,26 +386,43 @@ const SAMPLE_PROMPTS: string[] = [
     "Flag likely recurring charges from the last 90 days.",
 ];
 
-const AgentPromptStrip: React.FC<{onPill: (payload: string) => void}> = ({onPill}) => (
-    <section className={style.promptStrip}>
-        <div className={style.promptStripHeader}>
-            <i className="ph ph-sparkle" aria-hidden="true"/>
-            <span>Ask the Transactions assistant</span>
-        </div>
-        <div className={style.promptStripPills} role="group" aria-label="Sample prompts">
-            {SAMPLE_PROMPTS.map((p) => (
-                <button
-                    key={p}
-                    type="button"
-                    onClick={() => onPill(p)}
-                    className={style.promptPill}
-                >
-                    {p}
-                </button>
-            ))}
-        </div>
-    </section>
-);
+const AgentOmniBar: React.FC<{onSend: (payload: string) => void}> = ({onSend}) => {
+    const [q, setQ] = useState("");
+    const send = (text: string) => {
+        const t = text.trim();
+        if (!t) return;
+        onSend(t);
+        setQ("");
+    };
+    return (
+        <section className={style.omni}>
+            <i className={`ph ph-sparkle ${style.omniIcon}`} aria-hidden="true"/>
+            <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") send(q);
+                }}
+                placeholder="Ask the Transactions assistant — it searches your whole ledger"
+                aria-label="Ask the Transactions assistant"
+                className={style.omniInput}
+            />
+            <div className={style.omniPills} role="group" aria-label="Sample prompts">
+                {SAMPLE_PROMPTS.map((p) => (
+                    <button
+                        key={p}
+                        type="button"
+                        onClick={() => send(p)}
+                        className={style.promptPill}
+                        title={p}
+                    >
+                        {p.length > 34 ? `${p.slice(0, 32)}…` : p}
+                    </button>
+                ))}
+            </div>
+        </section>
+    );
+};
 
 /**
  * ak-v1f5: '+ Add' consolidation menu.
@@ -566,7 +589,8 @@ const Transactions = () => {
                 bank: state.bank || undefined,
                 details: state.searchTerm || undefined,
                 tag: state.month || undefined,
-                source: state.source || undefined,
+                // ak-f5vf: "all" → omit the clause (BE applies no source filter).
+                source: state.source && state.source !== "all" ? state.source : undefined,
                 dateRange: state.startDate || state.endDate
                     ? {
                         dateFrom: state.startDate,
@@ -734,9 +758,42 @@ const Transactions = () => {
         });
     }, [setAgentCommand]);
 
-    const renderTransactionMode = () => (
+    // ak-f5vf: scope note beside the tiles ("Totals follow the filters
+    // above"). Names the active scope so the totals are never ambiguous.
+    const hasFilters = Boolean(
+        state.searchTerm || state.startDate || state.endDate || state.bank || state.month,
+    );
+    const sourceScope = state.source === "statement"
+        ? " · statements only"
+        : state.source === "email"
+            ? " · emails only"
+            : "";
+    const scopeLabel = `${hasFilters ? "Filtered view" : "All accounts · all time"}${sourceScope}`;
+
+    const setSort = (column: string) => {
+        const same = state.sortBy.sortBy === column;
+        dispatch({
+            type: "SET_SORT_BY",
+            payload: {
+                sortBy: column,
+                sortDirection: same && state.sortBy.sortDirection === "desc" ? "asc" : "desc",
+            },
+        });
+    };
+    const sortIcon = (column: string) =>
+        state.sortBy.sortBy === column
+            ? (state.sortBy.sortDirection === "asc" ? "ph-arrow-up" : "ph-arrow-down")
+            : "";
+
+    // ak-f5vf: design order — (omni) → (toggle) → filter row → tiles.
+    const renderTransactionTop = () => (
         <>
-            <AgentPromptStrip onPill={dispatchAgent}/>
+            <TransactionFilters
+                isMobile={isMobile}
+                setDrawerState={() => setSidebarOpen(true)}
+                apply={refreshTransactions}
+                trailing={<AddMenu onPick={dispatchAgent}/>}
+            />
 
             <section className={style.hero}>
                 <div className={style.heroTile}>
@@ -769,98 +826,109 @@ const Transactions = () => {
                         {state.transactionCount.toLocaleString("en-IN")} rows in view
                     </span>
                 </div>
+                <div className={style.heroScope}>
+                    <span className={style.heroScopeLabel}>
+                        <i className="ph ph-funnel" aria-hidden="true"/>
+                        {scopeLabel}
+                    </span>
+                    <span className={style.heroScopeNote}>Totals follow the filters above</span>
+                </div>
             </section>
+        </>
+    );
 
-            <div className={style.transactionFilters}>
-                <TransactionFilters
-                    isMobile={isMobile}
-                    setDrawerState={() => setSidebarOpen(true)}
-                    apply={refreshTransactions}
-                />
-                <AddMenu onPick={dispatchAgent}/>
+    const renderLedger = () => (
+        <section className={style.ledger}>
+            <div className={style.ledgerHead}>
+                <h4 className={style.ledgerTitle}>Ledger</h4>
+                <span className={style.ledgerSub}>
+                    Bank memo is the source of truth · categories are suggestions layered on top
+                </span>
+                <span className={style.ledgerSpacer}/>
+                {/* ak-inli privacy toggle, moved from the Amount header into
+                    the ledger head (design's head-right ghost action). */}
+                <button
+                    type="button"
+                    onClick={() => setAmountsHidden((v) => !v)}
+                    className={`btn btn-ghost ${style.ledgerHeadBtn}`}
+                    aria-pressed={amountsHidden}
+                >
+                    <i className={`ph ${amountsHidden ? "ph-eye" : "ph-eye-slash"}`} aria-hidden="true"/>
+                    {amountsHidden ? "Show amounts" : "Hide amounts"}
+                </button>
             </div>
 
             {state.transactions.transaction.length === 0 ? (
                 <div className={style.emptyPanel}>
                     <span className={style.emptyPrimary}>No transactions found</span>
                     <span className={style.emptySub}>
-                        Trigger an email check from the sidebar, or widen your filters.
+                        Pull new transactions from + Add, or widen your filters.
                     </span>
                 </div>
             ) : (
-                <div className={style.txnList} role="table" aria-label="Transactions">
-                    {/* ak-inli: 4-column layout per design — Bank chip /
-                        Description (+ inline Category chip) / Date / Amount.
-                        The Amount header hosts the column-level hide-amounts
-                        toggle (click to blur / reveal all amount cells). */}
-                    <div className={style.txnHeader} role="row">
-                        <span role="columnheader">Bank</span>
-                        <span role="columnheader">Description</span>
-                        <span role="columnheader">Date</span>
-                        <span role="columnheader" className={style.txnColAmount}>
-                            <button
-                                type="button"
-                                onClick={() => setAmountsHidden((v) => !v)}
-                                className={style.privacyToggle}
-                                aria-pressed={amountsHidden}
-                                aria-label={amountsHidden
-                                    ? "Reveal amounts"
-                                    : "Hide amounts"}
-                                title={amountsHidden
-                                    ? "Reveal amounts"
-                                    : "Hide amounts"}
-                            >
-                                <i
-                                    className={`ph ${amountsHidden ? "ph-eye-slash" : "ph-eye"}`}
-                                    aria-hidden="true"
-                                />
-                            </button>
-                            <span>Amount</span>
-                        </span>
-                    </div>
-                    {state.transactions.transaction.map((txn: Transaction) => {
-                        const amount = parseFloat(txn.amount);
-                        const isCredit = amount >= 0;
-                        return (
-                            <button
-                                key={txn.referenceID}
-                                type="button"
-                                role="row"
-                                className={style.txnRow}
-                                onClick={() => setDetailTx(txn)}
-                            >
-                                <span role="cell" className={style.txnColBank}>
-                                    <BankChip bank={txn.bank}/>
-                                </span>
-                                <span role="cell" className={style.txnColDesc}>
-                                    <span className={style.txnDescText}>
-                                        {txn.details || "—"}
-                                    </span>
-                                    {/* ak-inli: inline Category chip inside
-                                        Description cell — merged from the
-                                        pre-ak-inli standalone Category column.
-                                        Rendered only when a tag is present
-                                        so unshipped rows stay visually quiet. */}
-                                    {txn.tag && (
-                                        <span className={style.txnCategoryChipInline}>
-                                            {txn.tag}
-                                        </span>
-                                    )}
-                                </span>
-                                <span role="cell" className={style.txnColDate}>
-                                    {formatDateString(txn.date)}
-                                </span>
-                                <span
-                                    role="cell"
-                                    className={`${style.txnColAmount} ${amountsHidden ? style.amountHidden : ""}`}
-                                    style={{color: isCredit ? CLR_GAIN : CLR_LOSS}}
-                                    aria-hidden={amountsHidden || undefined}
+                <div className={style.txnScroll}>
+                    <div className={style.txnList} role="table" aria-label="Transactions">
+                        <div className={style.txnHeader} role="row">
+                            <span role="columnheader" aria-label="Bank"/>
+                            <span role="columnheader">Description</span>
+                            <span role="columnheader" className={style.txnColCategory}>Category</span>
+                            <span role="columnheader">
+                                <button type="button" className={style.sortBtn} onClick={() => setSort("date")}>
+                                    Date
+                                    {sortIcon("date") && <i className={`ph ${sortIcon("date")}`} aria-hidden="true"/>}
+                                </button>
+                            </span>
+                            <span role="columnheader" className={style.txnColAmount}>
+                                <button type="button" className={style.sortBtn} onClick={() => setSort("amount")}>
+                                    Amount
+                                    {sortIcon("amount") && <i className={`ph ${sortIcon("amount")}`} aria-hidden="true"/>}
+                                </button>
+                            </span>
+                        </div>
+                        {state.transactions.transaction.map((txn: Transaction) => {
+                            const amount = parseFloat(txn.amount);
+                            const isCredit = amount >= 0;
+                            return (
+                                <button
+                                    key={txn.referenceID}
+                                    type="button"
+                                    role="row"
+                                    className={`${style.txnRow} ${detailTx?.referenceID === txn.referenceID ? style.txnRowSelected : ""}`}
+                                    onClick={() => setDetailTx(txn)}
                                 >
-                                    {isCredit ? "+" : "−"}₹{formatCurrency(Math.abs(amount))}
-                                </span>
-                            </button>
-                        );
-                    })}
+                                    <span role="cell" className={style.txnColBank}>
+                                        <BankMono bank={txn.bank}/>
+                                    </span>
+                                    <span role="cell" className={style.txnColDesc}>
+                                        <span className={style.txnDescText}>
+                                            {txn.details || "—"}
+                                        </span>
+                                        <span className={style.txnDescBank}>{bankName(txn.bank)}</span>
+                                    </span>
+                                    <span role="cell" className={style.txnColCategory}>
+                                        {txn.tag ? (
+                                            <span className={style.txnCategoryTag}>{txn.tag}</span>
+                                        ) : (
+                                            <span className={`${style.txnCategoryTag} ${style.txnCategoryNone}`}>
+                                                Uncategorised
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span role="cell" className={style.txnColDate}>
+                                        {formatLedgerDate(txn.date)}
+                                    </span>
+                                    <span
+                                        role="cell"
+                                        className={`${style.txnColAmount} ${amountsHidden ? style.amountHidden : ""}`}
+                                        style={{color: isCredit ? CLR_GAIN : CLR_LOSS}}
+                                        aria-hidden={amountsHidden || undefined}
+                                    >
+                                        {isCredit ? "+" : "−"}₹{formatCurrency(Math.abs(amount))}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
 
@@ -884,7 +952,7 @@ const Transactions = () => {
                     onRowsPerPageChange={(r) => dispatch({type: "SET_LIMIT", payload: r})}
                 />
             </div>
-        </>
+        </section>
     );
 
     const filteredFiles = useMemo(
@@ -1005,12 +1073,20 @@ const Transactions = () => {
 
     return (
         <div className={style.page}>
-            <main className={style.main}>
+            {/* ak-f5vf: full-width top stack per design — omni → toggle →
+                (ledger mode) filters → tiles; the rail starts beside the
+                Ledger, not at the top of the page. */}
+            <div className={style.pageTop}>
+                <AgentOmniBar onSend={dispatchAgent}/>
                 <ModeToggle
                     transactionMode={transactionModeSelection}
                     onSet={setTransactionMode}
                 />
-                {transactionModeSelection ? renderTransactionMode() : renderFileMode()}
+                {transactionModeSelection && renderTransactionTop()}
+            </div>
+            <div className={style.pageBody}>
+            <main className={style.main}>
+                {transactionModeSelection ? renderLedger() : renderFileMode()}
             </main>
 
             {/* ak-4qgd: sidebar moved RIGHT (DOM-ordered after <main> so
@@ -1053,6 +1129,7 @@ const Transactions = () => {
             ) : (
                 <aside className={style.sidebar}>{sidebarContent}</aside>
             )}
+            </div>
 
             {/* Transaction detail drawer (FE-8 brief 05 ask). PII posture:
                 amount + bank + date + details + reference ID. Raw email
