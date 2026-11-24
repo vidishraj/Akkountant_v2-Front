@@ -14,7 +14,10 @@ import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext.tsx";
 import {fetchFreelanceDashboard} from "../../services/freelanceService.ts";
 import {fetchTransactions} from "../../services/transactionService.ts";
 import {fetchPortfolioTrend} from "../../services/wealthDigestService.ts";
-import {getReconciliationIssues} from "../../services/reconciliationService.ts";
+import {refreshReconIssuesCount, setReconIssuesCount, useReconIssuesCount} from "../../services/reconCountStore.ts";
+import {fetchOptedBanks} from "../../services/transactionService.ts";
+import {listVaultFiles} from "../../services/fileStorageService.ts";
+import {activityDate, activityMemo, bankDisplayName, invoiceAmount} from "../../utils/displayFormat.ts";
 import ReconciliationDialog from "../../components/ReconciliationDialog/ReconciliationDialog.tsx";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import {getRowDayChangeAmount} from "../../utils/holdings.ts";
@@ -227,7 +230,13 @@ const Home = () => {
     // Null until the first fetch resolves so we can distinguish
     // "haven't checked yet" from "checked, count = 0" (suppress
     // the card entirely in the 0 case per bead design).
-    const [reconIssuesCount, setReconIssuesCount] = useState<number | null>(null);
+    // ak-h5jk: shared with the header bell (services/reconCountStore) so the
+    // badge and this strip always show the same count.
+    const reconIssuesCount = useReconIssuesCount();
+    // Jump-to counts (design: "11,582 rows · 7 accounts", "24 documents · 5 folders").
+    const [txTotal, setTxTotal] = useState<number | null>(null);
+    const [accountCount, setAccountCount] = useState<number | null>(null);
+    const [vaultCounts, setVaultCounts] = useState<{files: number; folders: number} | null>(null);
     const [reconDialogOpen, setReconDialogOpen] = useState<boolean>(false);
 
     useEffect(() => {
@@ -243,6 +252,7 @@ const Home = () => {
             .then((res) => {
                 if (cancelled) return;
                 setRecentTx(res.results || []);
+                setTxTotal(Number.isFinite(Number(res.total_count)) ? Number(res.total_count) : null);
                 // ak-5rg0: CONSUME ak-p3id canonical fields verbatim.
                 // No FE-side subtraction / sign-flip; the BE's `net`
                 // is already `in_sum - out_sum` with the correct sign.
@@ -270,13 +280,19 @@ const Home = () => {
         // the list length. Transport failure leaves count at null so
         // the alerts strip stays empty rather than flashing a false
         // "0 issues" state.
-        getReconciliationIssues("open")
-            .then((res) => {
-                if (!cancelled) setReconIssuesCount(Number(res?.count) || 0);
+        void refreshReconIssuesCount();
+        // ak-h5jk: jump-to counts. Read-only, axios-cached; failures just
+        // fall back to the generic sublabel.
+        fetchOptedBanks()
+            .then((banks) => {
+                if (!cancelled) setAccountCount(Array.isArray(banks) ? banks.length : null);
             })
-            .catch(() => {
-                if (!cancelled) setReconIssuesCount(null);
-            });
+            .catch(() => undefined);
+        listVaultFiles(null)
+            .then((v) => {
+                if (!cancelled) setVaultCounts({files: v.files?.length ?? 0, folders: v.folders?.length ?? 0});
+            })
+            .catch(() => undefined);
         return () => {
             cancelled = true;
         };
@@ -400,14 +416,11 @@ const Home = () => {
                 id: `tx-${idx}-${t.referenceID || t.date}`,
                 when: Date.parse(t.date) || 0,
                 icon: isCredit ? "ph-arrow-down-left" : "ph-arrow-up-right",
-                title: t.details || "Transaction",
-                sub: `${t.bank || "—"} · ${new Intl.DateTimeFormat("en-IN", {
-                    timeZone: "Asia/Kolkata",
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                }).format(new Date(t.date))}`,
+                // ak-h5jk: bank memo kept verbatim but whitespace-collapsed
+                // and with account/reference numbers masked; friendly bank
+                // name + "Thu, Oct 1, 2026" date (design).
+                title: activityMemo(t.details),
+                sub: [bankDisplayName(t.bank), activityDate(t.date)].filter(Boolean).join(" · "),
                 amt: hide
                     ? MASK
                     : `${isCredit ? "+" : "−"}₹${formatCurrency(Math.abs(amount))}`,
@@ -418,12 +431,9 @@ const Home = () => {
         const ingestInvoice = (inv: FreelanceEarning, idx: number) => {
             const isOverdue = inv.status === "overdue";
             const isPaid = inv.status === "paid";
-            const amt =
-                hide || !inv.amount
-                    ? MASK
-                    : inv.currency === "INR"
-                        ? `₹${formatCurrency(inv.amount)}`
-                        : `${inv.currency || "₹"}${formatCurrency(inv.amount)}`;
+            // ak-h5jk: original currency, locale-formatted ("$757.50", not
+            // "USD757.50"); a missing amount is "—", not the privacy mask.
+            const amt = hide ? MASK : invoiceAmount(inv.amount, inv.currency);
             out.push({
                 id: `inv-${idx}-${inv.invoiceNumber}`,
                 when: Date.parse(inv.date) || 0,
@@ -480,7 +490,9 @@ const Home = () => {
         {
             icon: "ph-receipt",
             label: "Transactions",
-            sub: "Browse your ledger",
+            sub: txTotal !== null
+                ? `${txTotal.toLocaleString("en-IN")} rows${accountCount ? ` · ${accountCount} account${accountCount === 1 ? "" : "s"}` : ""}`
+                : "Browse your ledger",
             subColor: "var(--color-neutral-500)",
             href: "/transactions",
         },
@@ -494,7 +506,9 @@ const Home = () => {
         {
             icon: "ph-vault",
             label: "Files",
-            sub: "Documents + statements",
+            sub: vaultCounts
+                ? `${vaultCounts.files} document${vaultCounts.files === 1 ? "" : "s"} · ${vaultCounts.folders} folder${vaultCounts.folders === 1 ? "" : "s"}`
+                : "Documents + statements",
             subColor: "var(--color-neutral-500)",
             href: "/files",
         },

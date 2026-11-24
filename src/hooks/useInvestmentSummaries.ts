@@ -50,7 +50,10 @@ export interface InvestmentSummariesState {
     stale: boolean;
     /** Per-asset status, for per-asset surfaces (e.g. landing cards). */
     status: SummaryStatusMap;
-    /** Re-request every summary that failed (bypasses the request cache). */
+    /**
+     * Re-request every summary that failed OR is stale (bypasses the request
+     * cache), so the "may be stale" hint has a working refresh (ak-h5jk).
+     */
     retry: () => void;
 }
 
@@ -88,7 +91,8 @@ export function useInvestmentSummaries(
 
     const retry = useCallback(() => {
         KEYS.forEach((k) => {
-            if (state.summaryStatus[k] === "error") load(k, true);
+            const s = state.summaryStatus[k];
+            if (s === "error" || s === "stale") load(k, true);
         });
     }, [state.summaryStatus, load]);
 

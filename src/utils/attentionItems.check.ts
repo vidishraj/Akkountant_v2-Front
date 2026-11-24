@@ -38,6 +38,12 @@ check("since-label: bad date → ''", digestStaleSinceLabel("not-a-date"), "");
 check("since-label: null → ''", digestStaleSinceLabel(null), "");
 check("since-label: IST day (UTC late evening rolls to next IST day)", digestStaleSinceLabel("2026-08-30T20:00:00Z"), "31 Aug");
 
+// ak-h5jk (ak-rns8 review a): the bell variant carries no invoice detail.
+const bell = buildAttentionItems({...none, overdueInvoices: [{invoiceNumber: "INV-9", clientName: "Client Z"}], detail: false});
+check("bell: invoice title still counts", bell[0].title, "1 invoice overdue");
+check("bell: no invoice number / client in sub", bell[0].sub, "Follow up in Freelance");
+check("bell: sub leaks neither id nor client", /INV-9|Client Z/.test(JSON.stringify(bell)), false);
+
 if (failures > 0) {
     console.log(`\n${failures} attention check(s) FAILED`);
     process.exit(1);

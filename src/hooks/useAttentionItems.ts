@@ -2,7 +2,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {useKite} from "../contexts/KiteContext";
 import {useWealthDigest} from "../contexts/WealthDigestContext";
 import {fetchFreelanceDashboard} from "../services/freelanceService";
-import {getReconciliationIssues} from "../services/reconciliationService";
+import {refreshReconIssuesCount, useReconIssuesCount} from "../services/reconCountStore";
 import type {FreelanceEarning} from "../utils/interfaces";
 import {AttentionItem, buildAttentionItems, digestStaleSinceLabel} from "../utils/attentionItems";
 
@@ -16,16 +16,15 @@ export function useAttentionItems(enabled: boolean): {items: AttentionItem[]; re
     const {state: kiteState} = useKite();
     const {digest} = useWealthDigest();
     const [overdue, setOverdue] = useState<FreelanceEarning[]>([]);
-    const [reconCount, setReconCount] = useState<number | null>(null);
+    // ak-h5jk: same store Home writes to, so the badge never lags the strip.
+    const reconCount = useReconIssuesCount();
 
     const refresh = useCallback(() => {
         if (!enabled) return;
         fetchFreelanceDashboard()
             .then((d) => setOverdue((d?.recentInvoices || []).filter((i) => i.status === "overdue")))
             .catch(() => setOverdue([]));
-        getReconciliationIssues("open")
-            .then((res) => setReconCount(Number(res?.count) || 0))
-            .catch(() => setReconCount(null));
+        void refreshReconIssuesCount();
     }, [enabled]);
 
     useEffect(() => {
@@ -40,6 +39,7 @@ export function useAttentionItems(enabled: boolean): {items: AttentionItem[]; re
                 kiteAuthenticated: kiteState.isAuthenticated,
                 overdueInvoices: overdue,
                 reconIssuesCount: reconCount,
+                detail: false,
             })
             : []),
         [enabled, digest, kiteState.isAuthenticated, overdue, reconCount],

@@ -27,6 +27,12 @@ export interface AttentionInputs {
     overdueInvoices: {invoiceNumber: string; clientName: string}[];
     /** Open reconciliation issues; null = unknown (not fetched / failed). */
     reconIssuesCount: number | null;
+    /**
+     * Include identifying detail (invoice number · client). Home: yes. The
+     * header bell: no (ak-rns8 review), so the dropdown stays generic and
+     * the detail lives on Home / Freelance.
+     */
+    detail?: boolean;
 }
 
 export function buildAttentionItems(input: AttentionInputs): AttentionItem[] {
@@ -66,7 +72,9 @@ export function buildAttentionItems(input: AttentionInputs): AttentionItem[] {
             color: CLR_WARN,
             edge: `color-mix(in srgb, ${CLR_WARN} 30%, transparent)`,
             title: n === 1 ? "1 invoice overdue" : `${n} invoices overdue`,
-            sub: `${first.invoiceNumber} · ${first.clientName}`,
+            sub: input.detail === false
+                ? "Follow up in Freelance"
+                : `${first.invoiceNumber} · ${first.clientName}`,
             cta: "Follow up",
             href: "/freelance",
         });
