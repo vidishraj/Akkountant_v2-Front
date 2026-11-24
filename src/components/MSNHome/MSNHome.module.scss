@@ -364,6 +364,15 @@
     font-size: 13px;
 }
 
+/* ak-o8p5: market feed's day change points the other way from the shown figure. */
+.sourcesDisagree {
+    margin-left: 4px;
+    font-size: 12px;
+    color: var(--color-neutral-400);
+    cursor: help;
+    vertical-align: -1px;
+}
+
 .priceUnavailable {
     display: inline-flex;
     align-items: center;

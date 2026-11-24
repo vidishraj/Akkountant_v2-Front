@@ -244,6 +244,103 @@ export const getDayChange = (row: MSNListResponse, fallbackPercent?: number): Da
     return {change: marketChange, changePercent: marketPercent, source: "market"};
 };
 
+export interface RowDayChangeDisplay {
+    /** False → render "—" in neutral (explicit unknown, or no usable signal). */
+    known: boolean;
+    /** Row ₹ day change to show, or null when only a percentage is available. */
+    amount: number | null;
+    /** Day change % to show, or null when no % shares the amount's basis. */
+    percent: number | null;
+    /** The ONE sign that drives "+/−" on both numbers and the gain/loss colour. */
+    direction: 1 | -1 | 0;
+    /**
+     * True when the market feed's % points the other way from the number we
+     * show (both non-zero). The display stays on one source; callers add a
+     * small "sources disagree" marker so the divergence isn't hidden.
+     */
+    sourcesDisagree: boolean;
+}
+
+const signOf = (n: number): 1 | -1 | 0 => (n > 0 ? 1 : n < 0 ? -1 : 0);
+
+/**
+ * ak-o8p5: single source of truth for a holding row's day-change display.
+ *
+ * The bug: the ₹ amount came from BE `day_change_amount`
+ * (`total_qty × (last_price − close_price)`), while the % and the red/green
+ * colour came from the market feed's `pChange` (whenever the broker's own
+ * day_change was zero-coerced). The two use different bases, so a row could
+ * read "+₹… (−…%)" in red.
+ *
+ * Rules:
+ * 1. `day_change_known: false` → unknown ("—").
+ * 2. BE-folded amount present → it is authoritative. The % is taken from the
+ *    SAME basis: amount ÷ (total_qty × close_price). If that basis is missing,
+ *    reuse the helper % only when its sign agrees with the amount; otherwise
+ *    show no % rather than a contradicting one. Direction = sign(amount).
+ * 3. Otherwise `getDayChange` (broker per-share, else market feed): amount =
+ *    its per-share ₹ (null for MF/NPS), % = its percent. Direction = sign of
+ *    the amount when it is non-zero, else sign of the %. If the two disagree
+ *    the % is dropped.
+ * 4. Nothing usable → unknown.
+ * A zero direction (flat ₹) never borrows a signed % from another source.
+ */
+export const getRowDayChangeDisplay = (
+    row: MSNListResponse,
+    fallbackPercent?: number,
+): RowDayChangeDisplay => {
+    const unknown: RowDayChangeDisplay = {
+        known: false, amount: null, percent: null, direction: 0, sourcesDisagree: false,
+    };
+    if (!isDayChangeKnown(row)) return unknown;
+
+    const feedPercent =
+        fallbackPercent !== undefined && Number.isFinite(Number(fallbackPercent))
+            ? toFiniteNumber(fallbackPercent)
+            : toFiniteNumber(row?.info?.pChange);
+    const disagreesWith = (direction: 1 | -1 | 0): boolean =>
+        direction !== 0 && signOf(feedPercent) !== 0 && signOf(feedPercent) !== direction;
+
+    const helper = getDayChange(row, fallbackPercent);
+    const folded = getRowDayChangeAmount(row);
+
+    if (folded !== null) {
+        const direction = signOf(folded);
+        const qty = toFiniteNumber(row.total_qty);
+        const close = toFiniteNumber(row.close_price);
+        const hasBasis = qty > 0 && close > 0;
+        let percent: number | null = null;
+        if (hasBasis) {
+            percent = (folded / (qty * close)) * 100;
+        } else if (direction === 0) {
+            // Flat ₹ with no basis: never pair it with a signed % from the feed.
+            percent = null;
+        } else if (helper && signOf(helper.changePercent) === direction) {
+            percent = helper.changePercent;
+        }
+        return {known: true, amount: folded, percent, direction, sourcesDisagree: disagreesWith(direction)};
+    }
+
+    if (helper) {
+        const amount = helper.change;
+        const amountSign = amount !== null ? signOf(amount) : 0;
+        const percentSign = signOf(helper.changePercent);
+        const direction = amountSign !== 0 ? amountSign : percentSign;
+        const conflict = amountSign !== 0 && percentSign !== 0 && amountSign !== percentSign;
+        const percent = conflict ? null : helper.changePercent;
+        return {
+            known: true, amount, percent, direction,
+            sourcesDisagree: conflict || disagreesWith(direction),
+        };
+    }
+
+    if (fallbackPercent !== undefined && Number.isFinite(Number(fallbackPercent)) && !row?.info?.error) {
+        const p = toFiniteNumber(fallbackPercent);
+        return {known: true, amount: null, percent: p, direction: signOf(p), sourcesDisagree: false};
+    }
+    return unknown;
+};
+
 export interface PledgeInfo {
     pledged: number;
     authorised: number;

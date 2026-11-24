@@ -12,6 +12,7 @@ import {
     getPledgeInfo,
     getRowCurrentValue,
     getRowDayChangeAmount,
+    getRowDayChangeDisplay,
     getRowInvested,
     getRowUnrealizedPnL,
     getSettledQuantity,
@@ -386,6 +387,106 @@ check(
     normalizePortfolioTrendPoints([], 90),
     [],
 );
+
+// --- ak-o8p5: day-change display has ONE sign source -------------------------
+const r2 = (n: number | null): number | null => (n === null ? null : Math.round(n * 100) / 100);
+const disp = (r: MSNListResponse, fb?: number) => {
+    const d = getRowDayChangeDisplay(r, fb);
+    return {known: d.known, amount: r2(d.amount), percent: r2(d.percent), direction: d.direction};
+};
+
+// The prod bug: BE-folded ₹ is positive (last 1600 > close 1580 over 451 qty),
+// broker day_change zero-coerced, market feed pChange NEGATIVE (different basis).
+const mixedSign = row({
+    total_qty: 451, close_price: 1580, day_change_amount: 9020,
+    day_change: 0, day_change_percentage: 0,
+    info: {...baseInfo, lastPrice: 1600, change: -3.2, pChange: -0.2},
+});
+check("o8p5: folded +₹ with feed −% → +₹ and +% on the SAME basis",
+    disp(mixedSign, -0.2), {known: true, amount: 9020, percent: 1.27, direction: 1});
+
+// Mirror: folded ₹ negative, feed % positive.
+const mixedSignNeg = row({
+    total_qty: 100, close_price: 500, day_change_amount: -750,
+    day_change: 0, day_change_percentage: 0,
+    info: {...baseInfo, lastPrice: 492.5, change: 1.1, pChange: 0.4},
+});
+check("o8p5: folded −₹ with feed +% → −₹ and −%",
+    disp(mixedSignNeg, 0.4), {known: true, amount: -750, percent: -1.5, direction: -1});
+
+// Folded ₹ but no basis to compute % on (no close_price): a disagreeing
+// helper % is dropped rather than shown against the ₹.
+const noBasisDisagree = row({
+    total_qty: 451, day_change_amount: 9020,
+    day_change: 0, day_change_percentage: 0,
+    info: {...baseInfo, pChange: -0.2, change: -3.2},
+});
+check("o8p5: no basis + disagreeing % → % dropped, ₹ kept",
+    disp(noBasisDisagree, -0.2), {known: true, amount: 9020, percent: null, direction: 1});
+
+// Folded ₹ with no basis but an AGREEING helper % → keep it.
+const noBasisAgree = row({
+    total_qty: 451, day_change_amount: 9020,
+    day_change: 0, day_change_percentage: 0,
+    info: {...baseInfo, pChange: 0.5, change: 8},
+});
+check("o8p5: no basis + agreeing % → kept",
+    disp(noBasisAgree, 0.5), {known: true, amount: 9020, percent: 0.5, direction: 1});
+
+// No folded amount (MF-like): market per-share ₹ and % disagree → % dropped.
+const feedDisagree = row({info: {...baseInfo, change: 2.5, pChange: -0.1}});
+check("o8p5: feed ₹ vs feed % disagree → ₹ wins, % dropped",
+    disp(feedDisagree, -0.1), {known: true, amount: 2.5, percent: null, direction: 1});
+
+// Percent-only row (MF/NPS feed with no absolute change).
+const pctOnly = row({info: {...baseInfo, change: undefined as unknown as number, pChange: -0.8}});
+check("o8p5: percent-only row → direction from %",
+    disp(pctOnly, -0.8), {known: true, amount: null, percent: -0.8, direction: -1});
+
+// Broker-reported movement still wins over the feed and agrees with itself.
+const broker = row({day_change: -4, day_change_percentage: -0.25, info: {...baseInfo, pChange: 0.6}});
+check("o8p5: broker per-share pair is used as-is",
+    disp(broker, 0.6), {known: true, amount: -4, percent: -0.25, direction: -1});
+
+// Explicit unknown (ak-4o41) stays "—" regardless of feed numbers.
+check("o8p5: day_change_known false → unknown",
+    disp(row({day_change_known: false, day_change_amount: 0, info: {...baseInfo, pChange: -1}}), -1),
+    {known: false, amount: null, percent: null, direction: 0});
+
+// Review fix: folded ₹ == 0 with no basis must not borrow a signed feed %.
+const flatNoBasis = row({
+    total_qty: 0, day_change_amount: 0,
+    day_change: 0, day_change_percentage: 0,
+    info: {...baseInfo, change: -2.4, pChange: -0.5},
+});
+check("o8p5: flat folded ₹, no basis, −0.5% feed → no % (not '+₹0.00 (+0.50%)')",
+    disp(flatNoBasis, -0.5), {known: true, amount: 0, percent: null, direction: 0});
+check("o8p5: flat folded ₹, no basis, +0.5% feed → no %",
+    disp({...flatNoBasis, info: {...baseInfo, change: 2.4, pChange: 0.5}}, 0.5),
+    {known: true, amount: 0, percent: null, direction: 0});
+check("o8p5: flat folded ₹ WITH basis → 0%",
+    disp(row({total_qty: 10, close_price: 100, day_change_amount: 0, day_change: 0, day_change_percentage: 0,
+        info: {...baseInfo, pChange: -0.5}}), -0.5),
+    {known: true, amount: 0, percent: 0, direction: 0});
+
+// sourcesDisagree marker (MINOR-1).
+check("o8p5: folded + vs feed − → sourcesDisagree", getRowDayChangeDisplay(mixedSign, -0.2).sourcesDisagree, true);
+check("o8p5: folded − vs feed + → sourcesDisagree", getRowDayChangeDisplay(mixedSignNeg, 0.4).sourcesDisagree, true);
+check("o8p5: agreeing sources → no marker", getRowDayChangeDisplay(noBasisAgree, 0.5).sourcesDisagree, false);
+check("o8p5: feed ₹ vs feed % conflict → marker", getRowDayChangeDisplay(feedDisagree, -0.1).sourcesDisagree, true);
+check("o8p5: flat ₹ never flags", getRowDayChangeDisplay(flatNoBasis, -0.5).sourcesDisagree, false);
+check("o8p5: unknown never flags",
+    getRowDayChangeDisplay(row({day_change_known: false, info: {...baseInfo, pChange: -1}}), -1).sourcesDisagree, false);
+
+// Invariant over the mixed fixtures: the shown % never contradicts the ₹.
+[mixedSign, mixedSignNeg, noBasisDisagree, noBasisAgree, feedDisagree, broker].forEach((r, i) => {
+    const d = getRowDayChangeDisplay(r, r.info.pChange);
+    const ok = d.amount === null || d.percent === null || d.amount === 0 || d.percent === 0
+        || Math.sign(d.amount) === Math.sign(d.percent);
+    check(`o8p5 invariant #${i}: ₹ and % never disagree`, ok, true);
+    check(`o8p5 invariant #${i}: direction matches ₹`,
+        d.amount === null || d.amount === 0 || Math.sign(d.amount) === d.direction, true);
+});
 
 if (failures > 0) {
     console.log(`\n${failures} holdings check(s) FAILED`);

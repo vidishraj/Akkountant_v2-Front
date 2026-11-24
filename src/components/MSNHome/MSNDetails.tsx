@@ -6,13 +6,11 @@ import {
     buildT1Tooltip,
     formatCurrency,
     formatQuantity,
-    getDayChange,
     getRowCurrentValue,
-    getRowDayChangeAmount,
+    getRowDayChangeDisplay,
     getRowInvested,
     getRowUnrealizedPnL,
     getT1Quantity,
-    isDayChangeKnown,
 } from "../../utils/holdings.ts";
 import style from "./MSNDetails.module.scss";
 
@@ -109,25 +107,14 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
     // per-share from the market feed, no T+1 fold, and no explicit-
     // unknown gate (an ak-4o41 `day_change_known: false` row rendered
     // as "+0.00 (+0.00%)" instead of "—").
-    const dayChangeKnown = isDayChangeKnown(details);
-    const pChangeForFallback = state.selectedCard.nps
-        ? (npsChange?.pct ?? 0)
-        : Number(details.info.pChange);
-    const stockDayChange = state.selectedCard.nps
-        ? null
-        : getDayChange(details, pChangeForFallback);
-    const rowDayChangeAmount = getRowDayChangeAmount(details);
-    const dayChangePercent = stockDayChange
-        ? stockDayChange.changePercent
-        : pChangeForFallback;
-    // Day-change body rendered next to the hero price. Precedence mirrors
-    // MSNList so the two surfaces agree byte-for-byte:
-    //   1. !dayChangeKnown  → "—"  (strict poison; stocks only)
-    //   2. NPS              → npsChange (FE-local compute; no helper)
-    //   3. rowDayChangeAmount if present → folded ₹ + helper %
-    //   4. stockDayChange per-share rupee → per-share ₹ + helper %
-    //   5. percent-only fallback (MF rows where BE emits neither signal)
-    const heroDayChange: {rupee: string; percent: string; positive: boolean} | null = (() => {
+    const pChangeForFallback = Number(details.info.pChange);
+    // Day-change body rendered next to the hero price. Same source as
+    // MSNList (ak-o8p5 getRowDayChangeDisplay) so the two surfaces agree:
+    //   1. NPS → npsChange (FE-local compute; ₹ and % share one basis)
+    //   2. otherwise the helper: explicit unknown → "—"; BE-folded ₹ with %
+    //      on the same basis; else per-share ₹ + helper %; a % whose sign
+    //      contradicts the ₹ is dropped. Percent-only rows → "—" here.
+    const heroDayChange: {rupee: string; percent: string; positive: boolean; disagree?: boolean} | null = (() => {
         if (state.selectedCard.nps) {
             if (!npsChange) return null;
             return {
@@ -136,23 +123,17 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                 positive: npsChange.change >= 0,
             };
         }
-        if (!dayChangeKnown) return null;
-        const percentStr = `${dayChangePercent >= 0 ? "+" : ""}${dayChangePercent.toFixed(2)}%`;
-        if (rowDayChangeAmount !== null) {
-            return {
-                rupee: `${rowDayChangeAmount >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(rowDayChangeAmount))}`,
-                percent: percentStr,
-                positive: rowDayChangeAmount >= 0,
-            };
-        }
-        if (stockDayChange && stockDayChange.change !== null) {
-            return {
-                rupee: `${stockDayChange.change >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(stockDayChange.change))}`,
-                percent: percentStr,
-                positive: stockDayChange.change >= 0,
-            };
-        }
-        return null;
+        // ak-o8p5: ₹, % and colour from ONE source (same helper as MSNList),
+        // so the hero can't read "+₹… (−…%)".
+        const d = getRowDayChangeDisplay(details, pChangeForFallback);
+        if (!d.known || d.amount === null) return null;
+        const signChar = d.direction < 0 ? "−" : "+";
+        return {
+            rupee: `${signChar}₹${formatCurrency(Math.abs(d.amount))}`,
+            percent: d.percent !== null ? `${signChar}${Math.abs(d.percent).toFixed(2)}%` : "",
+            positive: d.direction >= 0,
+            disagree: d.sourcesDisagree,
+        };
     })();
 
     const technicalRows = (() => {
@@ -235,7 +216,15 @@ const MSNDetails: React.FC<MSNDetailsProps> = ({details}) => {
                                             className={style.heroPct}
                                             style={{color: heroDayChange.positive ? CLR_GAIN : CLR_LOSS}}
                                         >
-                                            {heroDayChange.rupee} ({heroDayChange.percent})
+                                            {heroDayChange.rupee}
+                                            {heroDayChange.percent ? ` (${heroDayChange.percent})` : ""}
+                                            {heroDayChange.disagree && (
+                                                <i
+                                                    className={`ph ph-warning ${style.sourcesDisagree}`}
+                                                    title="Sources disagree: the market feed's day change points the other way. Showing the broker figure."
+                                                    aria-label="Sources disagree"
+                                                />
+                                            )}
                                         </span>
                                     ) : (
                                         /* ak-7lj3: explicit-unknown or no-signal

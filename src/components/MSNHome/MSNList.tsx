@@ -11,6 +11,7 @@ import {
     getPledgeInfo,
     getRowCurrentValue,
     getRowDayChangeAmount,
+    getRowDayChangeDisplay,
     getRowInvested,
     getRowUnrealizedPnL,
     getT1Quantity,
@@ -20,6 +21,7 @@ import {
     type DayChange,
     type PledgeInfo,
 } from "../../utils/holdings.ts";
+import type {RowDayChangeDisplay} from "../../utils/holdings.ts";
 import style from "./MSNHome.module.scss";
 
 const PRICE_UNAVAILABLE_TOOLTIP =
@@ -65,6 +67,8 @@ interface ComputedStock {
      * falls through to the per-share display in those cases.
      */
     rowDayChangeAmount: number | null;
+    /** ak-o8p5: the row's day-change ₹ / % / direction from one source. */
+    dayDisplay: RowDayChangeDisplay;
     pledge: PledgeInfo | null;
     costBasisDivergence: CostBasisDivergence | null;
 }
@@ -146,6 +150,8 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
             // through to per-share display in the renderer. `getRowDay
             // ChangeAmount` already honors the day_change_known gate.
             const rowDayChangeAmount = getRowDayChangeAmount(stock);
+            // ak-o8p5: ONE source for the row's ₹, % and colour.
+            const dayDisplay = getRowDayChangeDisplay(stock, pChange);
             const pledge = getPledgeInfo(stock);
             const costBasisDivergence = getCostBasisDivergence(stock);
 
@@ -166,6 +172,7 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                 dayChange,
                 dayChangeKnown,
                 rowDayChangeAmount,
+                dayDisplay,
                 pledge,
                 costBasisDivergence,
             };
@@ -175,6 +182,13 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
     const sortedList = useMemo(() => {
         const sorted = [...computedList];
         sorted.sort((a, b) => {
+            // ak-o8p5: rows with no displayed % (unknown, or % dropped as
+            // contradictory) always sort LAST on the Day key, either direction.
+            if (sortKey === "dayChange") {
+                const aNone = !a.dayDisplay.known || a.dayDisplay.percent === null;
+                const bNone = !b.dayDisplay.known || b.dayDisplay.percent === null;
+                if (aNone !== bNone) return aNone ? 1 : -1;
+            }
             let cmp = 0;
             switch (sortKey) {
                 case "name":
@@ -191,7 +205,8 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     cmp = (a.currentValue + a.pendingValue) - (b.currentValue + b.pendingValue);
                     break;
                 case "dayChange":
-                    cmp = (a.dayChange?.changePercent ?? a.pChange) - (b.dayChange?.changePercent ?? b.pChange);
+                    // ak-o8p5: sort on the same % the row displays.
+                    cmp = (a.dayDisplay.percent ?? 0) - (b.dayDisplay.percent ?? 0);
                     break;
             }
             return sortAsc ? cmp : -cmp;
@@ -252,24 +267,18 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                         lastPrice,
                         buyQuant,
                         buyPrice,
-                        pChange,
                         profit,
                         profitPercentage,
                         priceUnavailable,
                         pendingQuant,
                         totalQuant,
-                        dayChange,
-                        dayChangeKnown,
-                        rowDayChangeAmount,
+                        dayDisplay,
                         pledge,
                         costBasisDivergence,
                     } = item;
 
                     const profitString = formatCurrency(Math.abs(profit));
                     const profitPercentageString = Math.abs(profitPercentage).toFixed(2);
-                    const displayPercent = dayChange ? dayChange.changePercent : pChange;
-                    const isPositiveChange = displayPercent >= 0;
-
                     const formattedLastPrice = formatCurrency(lastPrice);
                     // Neutral border when price feed errored — green/red would be misleading.
                     const cardBorderColor = priceUnavailable
@@ -281,33 +290,27 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                     // badge next to it discloses the split.
                     const formattedQty = formatQuantity(pendingQuant > 0 ? totalQuant : buyQuant);
                     const formattedBuyPrice = formatCurrency(buyPrice);
-                    const percentLabel = dayChange
-                        ? `${dayChange.changePercent >= 0 ? "+" : ""}${dayChange.changePercent.toFixed(2)}%`
-                        : `${isPositiveChange ? "+" : ""}${pChange}%`;
-                    // Day-change label.
-                    // Precedence (ak-7lj3 consume-not-recompute):
-                    //   1. !dayChangeKnown → "—" (ak-quts strict poison — never
-                    //      render ₹0 for an explicitly-unknown row).
-                    //   2. BE-folded rowDayChangeAmount if present → the
-                    //      authoritative ₹ number for this row, carrying T+1
-                    //      impact via `total_qty × (last_price − close_price)`.
-                    //      Previously the rendered rupee was `dayChange.change`
-                    //      PER SHARE — misleading next to the hero aggregate +
-                    //      silently excluded T+1 for stock rows.
-                    //   3. Fall back to per-share display for rows BE didn't
-                    //      emit the folded field for (MF/NPS feeds).
-                    const dayChangeLabel = !dayChangeKnown
+                    // Day-change label + colour (ak-o8p5). Everything comes
+                    // from `dayDisplay` (utils/holdings getRowDayChangeDisplay):
+                    // one direction drives the ₹ sign, the % sign and the
+                    // colour, so they can never disagree. Precedence inside
+                    // the helper keeps ak-7lj3 consume-not-recompute (BE-
+                    // folded ₹ first, % on the same basis) and the ak-quts
+                    // strict unknown gate ("—", never ₹0).
+                    const signChar = dayDisplay.direction < 0 ? "−" : "+";
+                    const percentLabel = dayDisplay.percent !== null
+                        ? `${signChar}${Math.abs(dayDisplay.percent).toFixed(2)}%`
+                        : null;
+                    const dayChangeLabel = !dayDisplay.known
                         ? "—"
-                        : rowDayChangeAmount !== null
-                            ? `${rowDayChangeAmount >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(rowDayChangeAmount))} (${percentLabel})`
-                            : dayChange && dayChange.change !== null
-                                ? `${dayChange.change >= 0 ? "+" : "-"}₹${formatCurrency(Math.abs(dayChange.change))} (${percentLabel})`
-                                : percentLabel;
+                        : dayDisplay.amount !== null
+                            ? `${signChar}₹${formatCurrency(Math.abs(dayDisplay.amount))}${percentLabel ? ` (${percentLabel})` : ""}`
+                            : percentLabel ?? "—";
 
                     const changeClass =
-                        !dayChangeKnown || displayPercent === 0
+                        !dayDisplay.known || dayDisplay.direction === 0
                             ? style.neutralValue
-                            : isPositiveChange
+                            : dayDisplay.direction > 0
                                 ? style.positiveChange
                                 : style.negativeChange;
 
@@ -330,7 +333,16 @@ const MSNList: React.FC<MSNListProps> = ({list, onClick}) => {
                                 ) : (
                                     <>
                                         <span className={style.rowCurrentValue}>₹{formattedLastPrice}</span>
-                                        <span className={changeClass}>{dayChangeLabel}</span>
+                                        <span className={changeClass}>
+                                            {dayChangeLabel}
+                                            {dayDisplay.sourcesDisagree && (
+                                                <i
+                                                    className={`ph ph-warning ${style.sourcesDisagree}`}
+                                                    title="Sources disagree: the market feed's day change points the other way. Showing the broker figure."
+                                                    aria-label="Sources disagree"
+                                                />
+                                            )}
+                                        </span>
                                     </>
                                 )}
                             </span>
