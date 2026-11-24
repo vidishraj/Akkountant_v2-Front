@@ -7,6 +7,7 @@ import {
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import {useInvestmentSummaries} from "../../hooks/useInvestmentSummaries.ts";
 import {MSN_SUMMARY_KEYS} from "../../utils/portfolioTotals.ts";
+import {buildAttentionItems, digestStaleSinceLabel as formatDigestStaleSince} from "../../utils/attentionItems.ts";
 import {useKite} from "../../contexts/KiteContext.tsx";
 import {useWealthDigest} from "../../contexts/WealthDigestContext.tsx";
 import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext.tsx";
@@ -309,97 +310,23 @@ const Home = () => {
     }, [freelance]);
 
     const digestStale = digest?.last_error != null;
-    const digestStaleSinceLabel = useMemo(() => {
-        if (!digest?.last_error?.at) return "";
-        try {
-            const d = new Date(digest.last_error.at);
-            if (Number.isNaN(d.getTime())) return "";
-            return new Intl.DateTimeFormat("en-IN", {
-                timeZone: "Asia/Kolkata",
-                month: "short",
-                day: "numeric",
-            }).format(d);
-        } catch {
-            return "";
-        }
-    }, [digest]);
+    const digestStaleSinceLabel = useMemo(
+        () => formatDigestStaleSince(digest?.last_error?.at),
+        [digest],
+    );
 
-    const alerts = useMemo(() => {
-        const out: {
-            key: string;
-            icon: string;
-            color: string;
-            edge: string;
-            title: string;
-            sub: string;
-            cta: string;
-            href: string;
-            sample?: boolean;
-        }[] = [];
-        if (digestStale) {
-            out.push({
-                key: "digest-fail",
-                icon: "ph-warning-circle",
-                color: CLR_LOSS,
-                edge: `color-mix(in srgb, ${CLR_LOSS} 40%, transparent)`,
-                title: "Wealth Digest task failing",
-                sub: digestStaleSinceLabel
-                    ? `Since ${digestStaleSinceLabel} · digests are stale`
-                    : "Digests are stale",
-                cta: "View",
-                href: "/wealth-digest",
-            });
-        }
-        if (!kiteState.isAuthenticated) {
-            out.push({
-                key: "kite-session",
-                icon: "ph-plugs",
-                color: CLR_WARN,
-                edge: `color-mix(in srgb, ${CLR_WARN} 30%, transparent)`,
-                title: "Kite session expired",
-                sub: "Reconnect to refresh prices and margins",
-                cta: "Reconnect",
-                href: "/investments",
-            });
-        }
-        if (overdueInvoices.length > 0) {
-            const label = overdueInvoices.length === 1 ? "1 invoice overdue" : `${overdueInvoices.length} invoices overdue`;
-            const first = overdueInvoices[0];
-            out.push({
-                key: "invoice-overdue",
-                icon: "ph-receipt",
-                color: CLR_WARN,
-                edge: `color-mix(in srgb, ${CLR_WARN} 30%, transparent)`,
-                title: label,
-                sub: `${first.invoiceNumber} · ${first.clientName}`,
-                cta: "Follow up",
-                href: "/freelance",
-            });
-        }
-        // ak-j8tc (ak-cipj companion): 4th slot is now real-data.
-        // Suppress the card entirely when there's nothing to review
-        // (count === 0 OR count === null meaning "haven't checked /
-        // transport failure" — either way we show nothing rather
-        // than the pre-ak-j8tc sample placeholder).
-        if (reconIssuesCount !== null && reconIssuesCount > 0) {
-            const label = reconIssuesCount === 1
-                ? "1 issue to review"
-                : `${reconIssuesCount} issues to review`;
-            out.push({
-                key: "recon-open",
-                icon: "ph-arrows-left-right",
-                color: CLR_WARN,
-                edge: `color-mix(in srgb, ${CLR_WARN} 30%, transparent)`,
-                title: "Reconciliation",
-                sub: label,
-                cta: "Review",
-                // href is unused when the card has its own click
-                // handler (opens the drawer instead of navigating).
-                href: "#recon",
-            });
-        }
-        return out;
-    }, [digestStale, digestStaleSinceLabel, kiteState.isAuthenticated, overdueInvoices, reconIssuesCount]);
+    // ak-rns8: shared with the header inbox via utils/attentionItems so the
+    // two surfaces always agree on what needs attention.
+    const alerts = useMemo(
+        () => buildAttentionItems({
+            digestStale,
+            digestStaleSinceLabel,
+            kiteAuthenticated: kiteState.isAuthenticated,
+            overdueInvoices,
+            reconIssuesCount,
+        }),
+        [digestStale, digestStaleSinceLabel, kiteState.isAuthenticated, overdueInvoices, reconIssuesCount],
+    );
 
     const attentionCount = alerts.filter((a) => !a.sample).length;
     const attentionLabel = ((): string => {

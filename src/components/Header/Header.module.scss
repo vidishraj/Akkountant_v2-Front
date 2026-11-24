@@ -144,6 +144,27 @@
     flex: 1;
 }
 
+/* ak-rns8: per-page assistant pill (design: btn-secondary, 13px, accent sparkle). */
+.assistantPill {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    padding: 6px 10px;
+    white-space: nowrap;
+
+    i {
+        color: var(--color-accent);
+    }
+
+    @media (max-width: 720px) {
+        span {
+            display: none;
+        }
+    }
+}
+
 /* Host for AgentHeaderInput so its legacy sizing adapts to the header row. */
 .agentInputHost {
     flex: 0 1 280px;

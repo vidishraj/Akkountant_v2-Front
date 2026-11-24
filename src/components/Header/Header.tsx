@@ -11,6 +11,8 @@ import ChangepasswordDialog from "../ChangePasswordDialog/ChangepasswordDialog";
 import JobsDialog from "../JobsDialogComponent/JobsDialogComponent";
 import PortfolioVisitorsModal from "../PortfolioVisitorsModal/PortfolioVisitorsModal";
 import FileTimestampsDialog from "../FileTimestampsDialog/FileTimestampsDialog";
+import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext";
+import {useAttentionItems} from "../../hooks/useAttentionItems";
 import styles from "./Header.module.scss";
 
 /**
@@ -20,14 +22,17 @@ import styles from "./Header.module.scss";
  *
  * Structure matches the design verbatim:
  *   [Ak chip + Akkountant wordmark] [primary nav … | · | secondary nav]
- *   <flex spacer> [per-page Ask input?] [bell + badge] [avatar]
+ *   <flex spacer> [Ask input (Investments only)] [<Area> assistant pill]
+ *   [bell + count] [avatar]
+ *
+ * ak-rns8 (2026-11-24 design): nav order Home, Wealth Digest(•),
+ * Investments, Transactions | Freelance, Files; a per-page assistant pill
+ * that opens that page's AgentChat via the bridge (open_drawer); the inbox
+ * lists real attention items (utils/attentionItems, shared with Home's
+ * alerts strip) with a count badge; AccountMenu header copy.
  *
  * Mobile collapse: below 720px the primary nav collapses into a ph-list
  * button that opens a dropdown of every link.
- *
- * Out-of-scope per the bead (deferred to later FE beads):
- * - Omni Ask bar (lives on Home, FE-2)
- * - Real inbox data (stub: empty list → badge hidden)
  *
  * ak-2n09 settings restore: the pre-FE-1 Settings drawer surfaced three
  * admin affordances (Jobs / File timestamps / Portfolio visitors) that
@@ -40,19 +45,6 @@ import styles from "./Header.module.scss";
  * Nocturne-native from day 1 (no pre-existing wrapper to inherit).
  */
 
-interface InboxItem {
-    id: string;
-    icon: string;      // phosphor class after `ph `
-    color: string;     // hex or var(--...)
-    title: string;
-    sub: string;
-    href: string;
-}
-
-// FE-1 stub: empty list hides the badge + popover showing "no items".
-// FE-2 wires this to the real alerts strip.
-const STUB_INBOX: InboxItem[] = [];
-
 interface NavItem {
     label: string;
     href: string;
@@ -60,17 +52,25 @@ interface NavItem {
     unread?: boolean;
 }
 
+// ak-rns8: order + grouping per the 2026-11-24 design (all headers):
+// primary Home, Wealth Digest (unread dot), Investments, Transactions;
+// divider; secondary (smaller) Freelance, Files.
 const NAV_ITEMS: NavItem[] = [
     {label: "Home", href: "/home", group: "primary"},
-    {label: "Transactions", href: "/transactions", group: "primary"},
+    {label: "Wealth Digest", href: "/wealth-digest", group: "primary"},
     {label: "Investments", href: "/investments", group: "primary"},
-    {label: "Freelance", href: "/freelance", group: "primary"},
-    {label: "Files", href: "/files", group: "primary"},
-    // Wealth Digest sits in the secondary group per the design. It carries
-    // its own unread-dot (consumed from WealthDigestContext.hasUnread) —
-    // distinct from the top-right inbox badge.
-    {label: "Wealth Digest", href: "/wealth-digest", group: "secondary"},
+    {label: "Transactions", href: "/transactions", group: "primary"},
+    {label: "Freelance", href: "/freelance", group: "secondary"},
+    {label: "Files", href: "/files", group: "secondary"},
 ];
+
+// ak-rns8: per-page assistant pill label (design: "Transactions assistant",
+// "Freelance assistant"; Investments says "Assistant" next to its Ask input).
+const ASSISTANT_LABEL: Record<AgentType, string> = {
+    transaction: "Transactions assistant",
+    investment: "Assistant",
+    freelance: "Freelance assistant",
+};
 
 const Header = () => {
     const navigate = useNavigate();
@@ -79,6 +79,7 @@ const Header = () => {
     const {setPayload} = useMessage();
     const {hasUnread: hasUnreadDigest} = useWealthDigest();
     const {state: kiteState, beginReconnect} = useKite();
+    const {setCommand} = useAgentChatBridge();
 
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
@@ -128,6 +129,7 @@ const Header = () => {
 
     // Only exactly one popover open at a time — opening one closes the others.
     const openInbox = () => {
+        if (!inboxOpen) refreshInbox();
         setInboxOpen((v) => !v);
         setAvatarOpen(false);
         setMobileMenuOpen(false);
@@ -172,7 +174,9 @@ const Header = () => {
             );
     };
 
-    const unreadInboxCount = STUB_INBOX.length;
+    // ak-rns8: real inbox (same builder as Home's alerts strip).
+    const {items: inboxItems, refresh: refreshInbox} = useAttentionItems(!loading && currentUser != null);
+    const unreadInboxCount = inboxItems.filter((i) => !i.sample).length;
     // Active nav link style — rendered via module class toggle so :focus-visible,
     // hover, etc. all come from the stylesheet rather than inline styles.
     const linkClass = (href: string, group: NavItem["group"]) =>
@@ -205,6 +209,9 @@ const Header = () => {
                                 className={linkClass(n.href, "primary")}
                             >
                                 {n.label}
+                                {n.href === "/wealth-digest" && hasUnreadDigest && (
+                                    <span className={styles.navDot} aria-label="unread"/>
+                                )}
                             </Link>
                         ))}
                         <span className={styles.navDivider} aria-hidden="true"/>
@@ -215,9 +222,6 @@ const Header = () => {
                                 className={linkClass(n.href, "secondary")}
                             >
                                 {n.label}
-                                {n.href === "/wealth-digest" && hasUnreadDigest && (
-                                    <span className={styles.navDot} aria-label="unread"/>
-                                )}
                             </Link>
                         ))}
                     </nav>
@@ -238,11 +242,24 @@ const Header = () => {
 
             <span className={styles.spacer}/>
 
-            {/* Per-page agent Ask input — content pages with a scoped agent. */}
-            {authReady && activeAgentType && (
+            {/* Per-page agent Ask input — the design keeps it on Investments
+                only; Transactions has its in-page omni bar instead. */}
+            {authReady && activeAgentType === "investment" && (
                 <div className={styles.agentInputHost}>
                     <AgentHeaderInput agentType={activeAgentType}/>
                 </div>
+            )}
+            {/* ak-rns8: per-page assistant pill (design). Opens the page's
+                own AgentChat drawer via the bridge, without sending. */}
+            {authReady && activeAgentType && (
+                <button
+                    type="button"
+                    className={`btn btn-secondary ${styles.assistantPill}`}
+                    onClick={() => setCommand({type: "open_drawer", payload: "", timestamp: Date.now()})}
+                >
+                    <i className="ph ph-sparkle" aria-hidden/>
+                    <span>{ASSISTANT_LABEL[activeAgentType]}</span>
+                </button>
             )}
 
             {authReady && (
@@ -332,12 +349,12 @@ const Header = () => {
             {inboxOpen && authReady && (
                 <div className={styles.popoverInbox} role="dialog" aria-label="Inbox">
                     <span className={styles.popoverKicker}>Needs attention</span>
-                    {STUB_INBOX.length === 0 ? (
+                    {inboxItems.length === 0 ? (
                         <span className={styles.popoverEmpty}>You're caught up.</span>
                     ) : (
-                        STUB_INBOX.map((item) => (
+                        inboxItems.map((item) => (
                             <Link
-                                key={item.id}
+                                key={item.key}
                                 to={item.href}
                                 className={styles.popoverInboxItem}
                             >
@@ -356,11 +373,12 @@ const Header = () => {
             {avatarOpen && authReady && (
                 <div className={styles.popoverAvatar} role="menu" aria-label="Account">
                     <div className={styles.popoverAvatarIdentity}>
+                        {/* ak-rns8: AccountMenu.dc.html header — name, then "Signed in". */}
                         <span className={styles.popoverAvatarName}>
-                            {currentUser?.displayName || "Signed in"}
+                            {currentUser?.displayName || "Account"}
                         </span>
                         <span className={styles.popoverAvatarMeta}>
-                            Signed in with Google
+                            Signed in
                         </span>
                     </div>
                     {/* ak-2n09: admin cluster (Jobs / File timestamps /
