@@ -1,0 +1,38 @@
+// ak-eub4: destructive type-to-confirm dialog. Layout comes from the shared
+// Nocturne `.dialog*` / `.field` / `.input` / `.btn` classes; this file only
+// adds the loss accent. The DS has no danger token, so the loss colour is the
+// same value the design and the rest of the app use for losses (CLR_LOSS).
+$loss: oklch(0.74 0.15 25);
+
+.backdrop {
+    z-index: 1300;
+}
+
+.panel {
+    width: min(460px, 100%);
+}
+
+.title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.titleIcon {
+    color: $loss;
+}
+
+.word {
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+.danger {
+    color: $loss;
+    border-color: color-mix(in srgb, #{$loss} 60%, transparent);
+
+    &:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+}

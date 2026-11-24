@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import ConfirmationDialog from "../ConfirmationDialogComponent.tsx";
+import DestructiveConfirmDialog from "../DestructiveConfirmDialog/DestructiveConfirmDialog.tsx";
 import InvestmentEmails from "../InvestmentEmails/InvestmentEmails.tsx";
 import DepositModal from "../DepositsComponent.tsx";
 import RatesModal from "../RatesModal.tsx";
@@ -470,11 +470,14 @@ const EPGHome = () => {
                 data={ratesData}
                 title={assetKey}
             />
-            <ConfirmationDialog
+            {/* ak-eub4: type-to-confirm (was a one-click generic Confirm). */}
+            <DestructiveConfirmDialog
                 open={deleteConfirmation}
+                title={`Delete all ${label} data?`}
+                body={`This removes every ${label} entry and its deposits. It can't be undone.`}
+                confirmWord={label}
                 onCancel={() => setDeleteConfirmation(false)}
-                onSubmit={handleDeleteAll}
-                message={`Are you sure you want to delete all ${label} data?`}
+                onConfirm={handleDeleteAll}
             />
         </div>
     );

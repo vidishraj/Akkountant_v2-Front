@@ -9,7 +9,7 @@ import MFOrders from "./MFOrders.tsx";
 import MFSips from "./MFSips.tsx";
 import ObjectDetailsDialog from "./ObjectDetailsDialog.tsx";
 import InvestmentEmails from "../InvestmentEmails/InvestmentEmails.tsx";
-import ConfirmationDialog from "../ConfirmationDialogComponent.tsx";
+import DestructiveConfirmDialog from "../DestructiveConfirmDialog/DestructiveConfirmDialog.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import {useKite} from "../../contexts/KiteContext.tsx";
 import {fetchSecurityScheme} from "../../services/investmentService.ts";
@@ -413,14 +413,17 @@ const MSNHome = () => {
                 title={schemeData?.companyName || ""}
                 data={schemeData}
             />
-            <ConfirmationDialog
+            {/* ak-eub4: type-to-confirm (was a one-click generic Confirm). */}
+            <DestructiveConfirmDialog
                 open={deleteConfirmation}
+                title={`Delete all ${assetTitle} data?`}
+                body={`This removes every ${assetTitle} entry and its transactions. It can't be undone.`}
+                confirmWord={assetTitle}
                 onCancel={() => setDeleteConfirmation(false)}
-                onSubmit={() => {
+                onConfirm={() => {
                     setDeleteConfirmation(false);
                     deleteComplete();
                 }}
-                message={`Are you sure you want to delete all ${assetTitle} data?`}
             />
         </div>
     );
