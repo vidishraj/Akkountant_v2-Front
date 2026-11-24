@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import DestructiveConfirmDialog from "../DestructiveConfirmDialog/DestructiveConfirmDialog.tsx";
+import {deleteAllSpecFor} from "../../utils/assetDelete.ts";
 import InvestmentEmails from "../InvestmentEmails/InvestmentEmails.tsx";
 import DepositModal from "../DepositsComponent.tsx";
 import RatesModal from "../RatesModal.tsx";
@@ -222,9 +223,11 @@ const EPGHome = () => {
 
     const handleBack = () => navigate("/investments");
 
+    // ak-k9d8: the dialog word and the delete target come from this ONE spec.
+    const deleteSpec = deleteAllSpecFor(assetKey);
     const handleDeleteAll = () => {
         setDeleteConfirmation(false);
-        deleteComplete();
+        deleteComplete(deleteSpec);
     };
 
     const openRates = () => {
@@ -473,9 +476,9 @@ const EPGHome = () => {
             {/* ak-eub4: type-to-confirm (was a one-click generic Confirm). */}
             <DestructiveConfirmDialog
                 open={deleteConfirmation}
-                title={`Delete all ${label} data?`}
-                body={`This removes every ${label} entry and its deposits. It can't be undone.`}
-                confirmWord={label}
+                title={`Delete all ${deleteSpec.displayName} data?`}
+                body={`This removes every ${deleteSpec.displayName} entry and its deposits. It can't be undone.`}
+                confirmWord={deleteSpec.displayName}
                 onCancel={() => setDeleteConfirmation(false)}
                 onConfirm={handleDeleteAll}
             />

@@ -10,6 +10,7 @@ import MFSips from "./MFSips.tsx";
 import ObjectDetailsDialog from "./ObjectDetailsDialog.tsx";
 import InvestmentEmails from "../InvestmentEmails/InvestmentEmails.tsx";
 import DestructiveConfirmDialog from "../DestructiveConfirmDialog/DestructiveConfirmDialog.tsx";
+import {deleteAllSpecFor} from "../../utils/assetDelete.ts";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
 import {useKite} from "../../contexts/KiteContext.tsx";
 import {fetchSecurityScheme} from "../../services/investmentService.ts";
@@ -149,6 +150,9 @@ const MSNHome = () => {
                 : null;
 
     const assetTitle = assetKey === "stocks" ? "Stocks" : assetKey === "mf" ? "Mutual Funds" : "NPS";
+    // ak-k9d8: the dialog word and the delete target come from this ONE spec.
+    // No resolved asset → no delete (never fall back to a default asset).
+    const deleteSpec = assetKey ? deleteAllSpecFor(assetKey) : null;
 
     useEffect(() => {
         fetchAndSetUserSecurities();
@@ -305,6 +309,7 @@ const MSNHome = () => {
                 <button
                     type="button"
                     onClick={() => setDeleteConfirmation(true)}
+                    disabled={!deleteSpec}
                     className={`btn btn-secondary ${style.actionBtn} ${style.actionBtnDanger}`}
                     title="Delete all holdings for this asset"
                     aria-label="Delete all"
@@ -414,17 +419,19 @@ const MSNHome = () => {
                 data={schemeData}
             />
             {/* ak-eub4: type-to-confirm (was a one-click generic Confirm). */}
-            <DestructiveConfirmDialog
-                open={deleteConfirmation}
-                title={`Delete all ${assetTitle} data?`}
-                body={`This removes every ${assetTitle} entry and its transactions. It can't be undone.`}
-                confirmWord={assetTitle}
-                onCancel={() => setDeleteConfirmation(false)}
-                onConfirm={() => {
-                    setDeleteConfirmation(false);
-                    deleteComplete();
-                }}
-            />
+            {deleteSpec && (
+                <DestructiveConfirmDialog
+                    open={deleteConfirmation}
+                    title={`Delete all ${deleteSpec.displayName} data?`}
+                    body={`This removes every ${deleteSpec.displayName} entry and its transactions. It can't be undone.`}
+                    confirmWord={deleteSpec.displayName}
+                    onCancel={() => setDeleteConfirmation(false)}
+                    onConfirm={() => {
+                        setDeleteConfirmation(false);
+                        deleteComplete(deleteSpec);
+                    }}
+                />
+            )}
         </div>
     );
 };

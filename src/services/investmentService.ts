@@ -152,16 +152,20 @@ export async function fetchSecurityScheme(
 
 /**
  * Deletes all data for a specific investment type.
+ *
+ * ak-k9d8: `confirm` (the serviceType the user confirmed in the dialog) is
+ * sent in the request body so the server can reject a mismatch. Callers
+ * build both values from one DeleteAllSpec (utils/assetDelete).
  */
 export async function deleteAll(
     serviceType: string,
+    confirm: string,
     clearCache = false
 ): Promise<CacheAxiosResponse<any>> {
+    const base = {params: {serviceType}, data: {confirm}};
     const options = withRequestId(
         'deleteAllInvestments',
-        clearCache
-            ? withCacheCleared({params: {serviceType}})
-            : {params: {serviceType}}
+        clearCache ? withCacheCleared(base) : base
     );
 
     return queueRequest(() => axios.delete('deleteAllInvestments', options));

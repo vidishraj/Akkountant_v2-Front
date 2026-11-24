@@ -17,6 +17,7 @@ import {
 } from "../services/investmentService";
 import {FOSummaryResponse, RealizedPnLResponse} from "../utils/interfaces";
 import {useMessage} from "./MessageContext";
+import {DeleteAllSpec, MARKET_LINKED_KEYS} from "../utils/assetDelete";
 import {
     initialSummaryStatus,
     statusOnFetchError,
@@ -229,7 +230,7 @@ interface MSNContextType {
     fetchAndSetSearchItems: () => Promise<MSNListResponse[]>;
     fetchAndSetUserSecurities: (clearCache?: boolean) => void;
 
-    deleteComplete: () => void;
+    deleteComplete: (spec: DeleteAllSpec) => void;
     AllInfoForEpf: (serviceType: string, clearCache: boolean) => void;
     getServiceType: () => string;
     getContextKey: () => any;
@@ -375,22 +376,28 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
         }
     };
 
-    const deleteComplete = async (): Promise<void> => {
-        deleteAll(serviceType)
+    // ak-k9d8: acts ONLY on the spec the confirm dialog showed — never
+    // re-derives the asset from selectedCard / getServiceType().
+    const deleteComplete = async (spec: DeleteAllSpec): Promise<void> => {
+        deleteAll(spec.serviceType, spec.confirm)
             .then((response) => {
                 if (response.status === 200 && response.data.message.startsWith("Successfully deleted all")) {
                     setPayload({
                         type: "success",
-                        message: `Successfully deleted all ${serviceType}.`
+                        message: `Successfully deleted all ${spec.displayName}.`
                     });
-                    fetchAndSetUserSecurities(true);
-                    fetchAndSetSummary(getServiceType(), true);
+                    if (MARKET_LINKED_KEYS.includes(spec.assetKey)) {
+                        fetchAndSetUserSecurities(true);
+                        fetchAndSetSummary(spec.serviceType, true);
+                    } else {
+                        AllInfoForEpf(spec.serviceType, true);
+                    }
                 }
             })
             .catch(() => {
                 setPayload({
                     type: "error",
-                    message: `Error deleting all ${serviceType}. Please try again!`
+                    message: `Error deleting all ${spec.displayName}. Please try again!`
                 });
             });
     };
