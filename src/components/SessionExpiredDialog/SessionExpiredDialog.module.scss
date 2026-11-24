@@ -1,0 +1,19 @@
+// ak-p612: re-auth dialog. Layout from Nocturne .dialog* / .btn classes.
+.backdrop {
+    // Above every page dialog (MUI 1300) so nothing can sit on top of it.
+    z-index: 1500;
+}
+
+.panel {
+    width: min(420px, 100%);
+}
+
+.title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i {
+        color: var(--color-accent);
+    }
+}

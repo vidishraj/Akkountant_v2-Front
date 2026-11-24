@@ -2,6 +2,7 @@ import Axios from 'axios';
 import {auth} from '../components/FirebaseConfig';
 import {onAuthStateChanged, User} from 'firebase/auth';
 import {setupCache} from 'axios-cache-interceptor';
+import {isSessionUnauthorized, notifySessionExpired, resolveIdToken} from './sessionExpiry';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/';
 const instance = Axios.create({baseURL: API_BASE_URL});
@@ -25,28 +26,23 @@ function waitForAuthUser(): Promise<User | null> {
 }
 
 /**
- * ak-t7ax (ak-c8l companion FE): return the value for the X-Firebase-ID
- * header on outgoing requests.
+ * Value for the X-Firebase-ID header on outgoing requests: the Firebase ID
+ * token (JWT), or null.
  *
- * Resolution order:
- *   1. If `auth.currentUser` is set, use it directly.
- *   2. Else, wait for the first `onAuthStateChanged` emission
- *      (cold-boot path; `waitForAuthUser` is memoized so this fires
- *      once per session).
- *   3. If still no user, return null — caller omits the header,
- *      BE treats the request as unauthenticated.
+ * Resolution:
+ *   1. `auth.currentUser`, else the first `onAuthStateChanged` emission
+ *      (cold boot; memoized). No user → null (header omitted).
+ *   2. `getIdToken(false)` (SDK auto-refreshes near expiry).
+ *   3. ak-p612: on failure, ONE forced refresh `getIdToken(true)`.
+ *   4. Still failing → raise the app-wide session-expired state and return
+ *      null.
  *
- * From the resolved User:
- *   - Prefer the Firebase ID token (`getIdToken(false)` — a short-
- *     lived JWT the SDK auto-refreshes when within ~5 min of expiry).
- *     This is what ak-c8l's BE rollout verifies.
- *   - If `getIdToken` throws (transient SDK error / network blip /
- *     revoked token), fall back to the raw uid. BE's rollout default
- *     `FIREBASE_AUTH_MODE=verify_with_raw_uid_fallback` still accepts
- *     bare uids during the cutover window, so a transient JWT failure
- *     doesn't drop the user to logged-out. The BE logs a WARN which
- *     the operator greps during their 24h cutover audit before
- *     flipping to `verify_only`.
+ * ak-p612: this NEVER returns the raw uid. The previous `catch { return
+ * user.uid }` fallback (ak-t7ax dual-mode rollout) was the last thing
+ * preventing the BE from enforcing `FIREBASE_AUTH_MODE=verify_only`: a bare
+ * uid is not a credential, so accepting it lets anyone who knows a uid act
+ * as that user (IDOR). A token failure now surfaces as "session expired —
+ * sign in again" instead of silently downgrading the credential.
  */
 export async function getFirebaseAuthHeader(): Promise<string | null> {
     let user: User | null = auth.currentUser;
@@ -54,13 +50,7 @@ export async function getFirebaseAuthHeader(): Promise<string | null> {
         user = await waitForAuthUser();
     }
     if (!user) return null;
-    try {
-        return await user.getIdToken(false);
-    } catch {
-        // Transient failure — fall back to raw uid during the ak-c8l
-        // dual-mode rollout window. Zero-downtime cutover guarantee.
-        return user.uid;
-    }
+    return resolveIdToken(user);
 }
 
 export const setupAxiosInterceptors = () => {
@@ -74,8 +64,8 @@ export const setupAxiosInterceptors = () => {
                     console.error('Error removing cache entry:', error);
                 }
             }
-            // ak-t7ax: ship the Firebase ID-token JWT (with raw-uid
-            // fallback on SDK error) instead of the pre-ak-t7ax bare uid.
+            // ak-t7ax / ak-p612: ship the Firebase ID-token JWT. No token →
+            // no header (never the raw uid); the BE rejects with 401.
             const authHeader = await getFirebaseAuthHeader();
             if (authHeader) {
                 config.headers["X-Firebase-ID"] = authHeader;
@@ -92,6 +82,15 @@ export const setupAxiosInterceptors = () => {
             return response;
         },
         (error) => {
+            // ak-p612: a real 401 (not Kite's reconnect_required) means the
+            // session is gone — show the re-auth state instead of letting
+            // every tile render empty.
+            // Only when we actually sent a credential: signed-out background
+            // requests (no header) must not latch the dialog (review MINOR-1).
+            const sentCredential = Boolean(error?.config?.headers?.["X-Firebase-ID"]);
+            if (isSessionUnauthorized(error?.response?.status, error?.response?.data, sentCredential)) {
+                notifySessionExpired("unauthorized");
+            }
             return Promise.reject(error);
         }
     );

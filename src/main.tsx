@@ -29,6 +29,7 @@ import {WealthDigestProvider} from "./contexts/WealthDigestContext.tsx";
 import {KiteProvider} from "./contexts/KiteContext.tsx";
 import NotificationMessage from "./components/NotificationBanner/NotificationBanner.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
+import SessionExpiredDialog from "./components/SessionExpiredDialog/SessionExpiredDialog.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <Router>
@@ -53,6 +54,8 @@ createRoot(document.getElementById("root")!).render(
                                                         until FE-1 moves them under this wrapper. */}
                                                     <div className="nocturne">
                                                         <App/>
+                                                        {/* ak-p612: app-wide re-auth prompt. */}
+                                                        <SessionExpiredDialog/>
                                                     </div>
                                                 </ErrorBoundary>
                                             </div>

@@ -1,5 +1,6 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { API_BASE_URL, getFirebaseAuthHeader } from "./AxiosConfig.tsx";
+import { reportIfSessionUnauthorized } from "./sessionExpiry.ts";
 
 export type AgentType = "investment" | "transaction" | "freelance";
 
@@ -137,6 +138,8 @@ export async function uploadAttachment(file: File): Promise<Attachment> {
     headers: { "X-Firebase-ID": authHeader },
     body: form,
   });
+  // ak-p612: expired session → re-auth state, not just an upload error.
+  if (response.status === 401) reportIfSessionUnauthorized(401);
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Upload failed: ${response.status} ${errorText || ""}`.trim());
@@ -277,8 +280,8 @@ export async function deleteConversation(id: number): Promise<void> {
   }
 }
 
-// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken,
-// raw-uid fallback on SDK error) via the shared AxiosConfig helper.
+// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken; no
+// raw-uid fallback since ak-p612) via the shared AxiosConfig helper.
 // Rejects if no user is authenticated — matches the pre-ak-t7ax contract
 // so the caller's existing error-path (401 / login redirect) still fires.
 async function getFirebaseAuth(): Promise<string> {
@@ -359,6 +362,8 @@ export async function streamAgentChat(
       onopen: async (response) => {
         // Match the pre-polyfill response.ok check. Draining response.text()
         // lets the connection close cleanly instead of dangling.
+        // ak-p612: an expired session is a re-auth state, not a chat error.
+        if (response.status === 401) reportIfSessionUnauthorized(401);
         if (!response.ok) {
           const errorText = await response.text().catch(() => "");
           callbacks.onError(`Server error: ${response.status} - ${errorText}`);

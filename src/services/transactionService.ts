@@ -161,8 +161,8 @@ export async function fetchStatementPeriods(bank?: string): Promise<any> {
  * Trigger statement check for a date from and date to
  */
 export async function downloadFile(fileId: string): Promise<any> {
-    // ak-t7ax: ship the Firebase ID-token JWT (raw-uid fallback on SDK
-    // error) through the shared helper. This endpoint bypasses the
+    // ak-t7ax: ship the Firebase ID-token JWT (no raw-uid fallback since
+    // ak-p612) through the shared helper. This endpoint bypasses the
     // axios-instance interceptor (uses the raw Axios constructor for
     // blob responseType), so the header has to be set inline — using
     // the same helper the interceptor does keeps the dual-mode BE

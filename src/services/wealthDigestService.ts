@@ -1,4 +1,5 @@
 import { API_BASE_URL, getFirebaseAuthHeader } from "./AxiosConfig.tsx";
+import { reportIfSessionUnauthorized } from "./sessionExpiry.ts";
 
 /**
  * Structured action item that WealthDigestTask emits. Backend produces these
@@ -101,8 +102,8 @@ export class WealthDigestError extends Error {
   }
 }
 
-// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken,
-// raw-uid fallback on SDK error) via the shared AxiosConfig helper.
+// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken; no
+// raw-uid fallback since ak-p612) via the shared AxiosConfig helper.
 // Rejects if no user is authenticated — matches the pre-ak-t7ax contract.
 async function getFirebaseAuth(): Promise<string> {
   const header = await getFirebaseAuthHeader();
@@ -120,7 +121,10 @@ async function authedFetch(
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  return fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  // ak-p612: surface an expired session instead of empty digest tiles.
+  if (res.status === 401) reportIfSessionUnauthorized(401);
+  return res;
 }
 
 /**

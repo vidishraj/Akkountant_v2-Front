@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { API_BASE_URL, getFirebaseAuthHeader } from "../../services/AxiosConfig.tsx";
+import { reportIfSessionUnauthorized } from "../../services/sessionExpiry.ts";
 import styles from "./AgentChat.module.scss";
 
 /**
@@ -80,8 +81,8 @@ function resolveUrl(url: string): string {
   return `${API_BASE_URL}${path}`;
 }
 
-// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken,
-// raw-uid fallback on SDK error) via the shared AxiosConfig helper.
+// ak-t7ax: resolve the X-Firebase-ID header value (JWT via getIdToken; no
+// raw-uid fallback since ak-p612) via the shared AxiosConfig helper.
 // Rejects if no user is authenticated — matches the pre-ak-t7ax contract
 // so the caller's error-path (card flips to "not available") still fires.
 async function getFirebaseAuth(): Promise<string> {
@@ -102,6 +103,8 @@ async function downloadWithAuth(url: string, filename: string): Promise<void> {
   const res = await fetch(resolveUrl(url), {
     headers: { "X-Firebase-ID": authHeader },
   });
+  // ak-p612: expired session → re-auth state.
+  if (res.status === 401) reportIfSessionUnauthorized(401);
   if (!res.ok) {
     // Bubble up so the caller can flip the card to the not-available state.
     throw new Error(`download failed: ${res.status}`);
@@ -129,6 +132,7 @@ async function previewWithAuth(url: string): Promise<void> {
   const res = await fetch(resolveUrl(url), {
     headers: { "X-Firebase-ID": authHeader },
   });
+  if (res.status === 401) reportIfSessionUnauthorized(401);
   if (!res.ok) throw new Error(`preview failed: ${res.status}`);
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
