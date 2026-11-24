@@ -17,6 +17,13 @@ import {
 } from "../services/investmentService";
 import {FOSummaryResponse, RealizedPnLResponse} from "../utils/interfaces";
 import {useMessage} from "./MessageContext";
+import {
+    initialSummaryStatus,
+    statusOnFetchError,
+    statusOnFetchStart,
+    SummaryKey,
+    SummaryStatusMap,
+} from "../utils/portfolioTotals";
 
 // Define interfaces for selected card, summary context, list context, loader, loading state, and MSN state
 
@@ -83,6 +90,10 @@ interface MSNState {
     loadingState: LoadingState;
     realizedPnl: RealizedPnLResponse | null;
     foSummary: FOSummaryResponse | null;
+    // ak-s74k: per-asset summary load state. The zero-initialised
+    // `summaries` above are NOT data — consumers that aggregate them must
+    // wait for every key to reach "loaded" (see utils/portfolioTotals).
+    summaryStatus: SummaryStatusMap;
 }
 
 // Define the shape of the actions
@@ -95,7 +106,10 @@ type MSNAction =
     | { type: 'MSNListSetter'; payload: ListContext }
     | { type: 'MSNLoaderSetter'; payload: any }
     | { type: 'RealizedPnLSetter'; payload: RealizedPnLResponse | null }
-    | { type: 'FOSummarySetter'; payload: FOSummaryResponse | null };
+    | { type: 'FOSummarySetter'; payload: FOSummaryResponse | null }
+    | { type: 'SummaryFetchStart'; key: SummaryKey }
+    | { type: 'SummaryFetchSuccess'; key: SummaryKey }
+    | { type: 'SummaryFetchError'; key: SummaryKey };
 
 // Initial state
 const initialSummaryState: MSNSummaryResponse = {
@@ -160,6 +174,7 @@ const initialState: MSNState = {
     },
     realizedPnl: null,
     foSummary: null,
+    summaryStatus: initialSummaryStatus,
 };
 
 // Reducer function to manage state transitions
@@ -183,6 +198,24 @@ const msnReducer = (state: MSNState, action: MSNAction): MSNState => {
             return {...state, realizedPnl: action.payload};
         case 'FOSummarySetter':
             return {...state, foSummary: action.payload};
+        case 'SummaryFetchStart':
+            return {
+                ...state,
+                summaryStatus: {
+                    ...state.summaryStatus,
+                    [action.key]: statusOnFetchStart(state.summaryStatus[action.key]),
+                },
+            };
+        case 'SummaryFetchSuccess':
+            return {...state, summaryStatus: {...state.summaryStatus, [action.key]: "loaded"}};
+        case 'SummaryFetchError':
+            return {
+                ...state,
+                summaryStatus: {
+                    ...state.summaryStatus,
+                    [action.key]: statusOnFetchError(state.summaryStatus[action.key]),
+                },
+            };
         default:
             return state;
     }
@@ -261,14 +294,18 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
             payload: {[context]: {...state.loadingState[context], summary: true}}
         });
 
+        dispatch({type: "SummaryFetchStart", key: context as SummaryKey});
+
         fetchSummary(serviceType, clearCache)
             .then((response) => {
                 dispatch({
                     type: "MSNSummarySetter",
                     payload: {[context]: response.data},
                 });
+                dispatch({type: "SummaryFetchSuccess", key: context as SummaryKey});
             })
             .catch((err) => {
+                dispatch({type: "SummaryFetchError", key: context as SummaryKey});
                 setPayload({
                     type: "error",
                     message: `Error fetching summary for ${serviceType}. Please try again!`
@@ -364,6 +401,7 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
             type: "MSNLoaderSetter",
             payload: {[serviceType]: {...state.loadingState[serviceType], summary: true}}
         });
+        dispatch({type: "SummaryFetchStart", key: serviceType as SummaryKey});
         fetchCompleteEPG(serviceTy, clearCache)
             .then((response) => {
                 if (response.status === 200) {
@@ -371,9 +409,13 @@ export const MSNProvider: React.FC<MSNProviderProps> = ({children}) => {
                         type: "MSNSummarySetter",
                         payload: {[serviceType]: response.data}
                     });
+                    dispatch({type: "SummaryFetchSuccess", key: serviceType as SummaryKey});
+                } else {
+                    dispatch({type: "SummaryFetchError", key: serviceType as SummaryKey});
                 }
             })
             .catch(() => {
+                dispatch({type: "SummaryFetchError", key: serviceType as SummaryKey});
                 setPayload({
                     type: "error",
                     message: `Error fetching EPG ${serviceType}. Please try again!`

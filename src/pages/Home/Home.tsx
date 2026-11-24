@@ -5,6 +5,8 @@ import {
     makeTokenRequest,
 } from "../../services/GoogleApiUtils.tsx";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import {useInvestmentSummaries} from "../../hooks/useInvestmentSummaries.ts";
+import {MSN_SUMMARY_KEYS} from "../../utils/portfolioTotals.ts";
 import {useKite} from "../../contexts/KiteContext.tsx";
 import {useWealthDigest} from "../../contexts/WealthDigestContext.tsx";
 import {useAgentChatBridge} from "../../contexts/AgentChatBridgeContext.tsx";
@@ -61,8 +63,6 @@ const CLR_GAIN = "oklch(0.80 0.13 155)";
 const CLR_LOSS = "oklch(0.74 0.15 25)";
 const CLR_WARN = "oklch(0.82 0.12 75)";
 
-const MSN_SUMMARY_KEYS = ["mf", "stocks", "nps"] as const;
-const EPG_SUMMARY_KEYS = ["epf", "ppf", "gold"] as const;
 
 function todayISTLabel(): string {
     // "Thursday, 12 November · IST" — design kicker shape.
@@ -112,10 +112,10 @@ function sparklinePath(values: number[]): string | null {
 }
 
 /**
- * Aggregates currentValue / invested / profit across the six asset summaries,
- * and aggregates day change by consuming the authoritative per-row
+ * Aggregates day change by consuming the authoritative per-row
  * `getRowDayChangeAmount` helper (utils/holdings.ts) across the MSN holdings
- * lists.
+ * lists. (ak-s74k: the currentValue / invested / profit totals moved to the
+ * shared `useInvestmentSummaries` hook + utils/portfolioTotals.)
  *
  * **ak-7mru CRITICAL (reviewer-caught)**: a previous revision summed
  * `MSNSummaryResponse.changeAmount` into both `profit` AND `dayChange`. But
@@ -137,52 +137,12 @@ function sparklinePath(values: number[]): string | null {
  *     the aggregate — the honest render is '—', NEVER substitute lifetime P&L)
  *   - every MSN row returned a finite ₹ value             → true, sum them
  */
-function derivePortfolio(
-    summaries: Record<string, unknown>,
+function deriveDayChange(
     lists: Record<string, MSNListResponse[] | undefined>,
 ): {
-    currentValue: number;
-    invested: number;
-    profit: number;
-    profitPct: number;
     dayChange: number;
     dayChangeKnown: boolean;
 } {
-    let currentValue = 0;
-    let invested = 0;
-    let profit = 0;
-
-    MSN_SUMMARY_KEYS.forEach((k) => {
-        const s = summaries[k] as
-            | {totalValue?: number; currentValue?: number; changeAmount?: number | string}
-            | undefined;
-        if (!s) return;
-        const totalValue = Number(s.totalValue) || 0;
-        if (totalValue === 0) return;
-        invested += totalValue;
-        currentValue += Number(s.currentValue) || 0;
-        profit += Number(s.changeAmount) || 0; // lifetime P&L, NOT day delta
-    });
-
-    EPG_SUMMARY_KEYS.forEach((k) => {
-        const s = summaries[k] as
-            | {net?: number | string; netProfit?: number | string; unAccountedProfit?: number | string}
-            | undefined;
-        if (!s) return;
-        const net = Number(s.net) || 0;
-        const netProfit = Number(s.netProfit) || 0;
-        const unaccounted = Number(s.unAccountedProfit || 0);
-        if (net === 0) return;
-        if (k === "ppf") {
-            invested += net - (netProfit - unaccounted);
-            currentValue += net + unaccounted;
-        } else {
-            invested += net - netProfit;
-            currentValue += net;
-        }
-        profit += netProfit;
-    });
-
     // Day change — consume authoritative per-row helper. Any unknown row
     // poisons the aggregate per the §23#3 "unknown, not flat" rule.
     let dayChange = 0;
@@ -204,8 +164,7 @@ function derivePortfolio(
     const dayChangeKnown = anyMsnHoldings && !anyUnknown;
     if (!dayChangeKnown) dayChange = 0; // callers must gate on the flag; zero out to avoid leak
 
-    const profitPct = invested !== 0 ? (profit / invested) * 100 : 0;
-    return {currentValue, invested, profit, profitPct, dayChange, dayChangeKnown};
+    return {dayChange, dayChangeKnown};
 }
 
 const MASK = "₹ ••••";
@@ -323,13 +282,18 @@ const Home = () => {
     }, []);
 
     // ── derived state ──────────────────────────────────────────────────
-    const portfolio = useMemo(
-        () =>
-            derivePortfolio(
-                msnState.summaries as Record<string, unknown>,
-                msnState.lists as Record<string, MSNListResponse[] | undefined>,
-            ),
-        [msnState.summaries, msnState.lists],
+    // ak-s74k: Home never loaded the summaries, so a cold /home summed the
+    // zero initial state and showed ₹0. The hook loads them and only yields
+    // totals once all six have resolved; until then the tile shows "—".
+    const {
+        readiness: portfolioReadiness,
+        totals: portfolioTotals,
+        stale: portfolioStale,
+        retry: retryPortfolio,
+    } = useInvestmentSummaries();
+    const {dayChange, dayChangeKnown} = useMemo(
+        () => deriveDayChange(msnState.lists as Record<string, MSNListResponse[] | undefined>),
+        [msnState.lists],
     );
     const spark = useMemo(() => sparklinePath((trend || []).map((p) => p.value)), [trend]);
     const trendIsSample = spark === null; // dashed 'Sample trend' chip mirrors design
@@ -580,7 +544,9 @@ const Home = () => {
         {
             icon: "ph-chart-line-up",
             label: "Investments",
-            sub: hide ? "6 asset types" : `₹${formatCompact(portfolio.currentValue)} · 6 asset types`,
+            sub: hide || !portfolioTotals
+                ? "6 asset types"
+                : `₹${formatCompact(portfolioTotals.currentValue)} · 6 asset types`,
             subColor: "var(--color-neutral-500)",
             href: "/investments",
         },
@@ -715,7 +681,7 @@ const Home = () => {
                             navigate("/investments");
                         }}
                         className={`${style.kpiTile} ${style.kpiHero}`}
-                        title={hide ? "" : `₹${formatCurrency(portfolio.currentValue)}`}
+                        title={hide || !portfolioTotals ? "" : `₹${formatCurrency(portfolioTotals.currentValue)}`}
                     >
                         <span className={style.kpiKicker}>
                             Portfolio · 6 asset types
@@ -725,27 +691,77 @@ const Home = () => {
                         <div className={style.kpiHeroBody}>
                             <div className={style.kpiHeroMoney}>
                                 <span className={style.kpiHeroValue}>
-                                    {money(portfolio.currentValue, hide, true)}
+                                    {portfolioTotals ? (
+                                        money(portfolioTotals.currentValue, hide, true)
+                                    ) : (
+                                        // ak-s74k: never a partial sum or the ₹0
+                                        // placeholder — unknown until all six load.
+                                        <span
+                                            className={style.kpiUnknown}
+                                            title={portfolioReadiness === "error"
+                                                ? "Some holdings failed to load — total unknown"
+                                                : "Loading holdings…"}
+                                        >
+                                            —
+                                        </span>
+                                    )}
                                 </span>
                                 <span className={style.kpiHeroSub}>
-                                    Invested {money(portfolio.invested, hide, true)}
-                                    {portfolio.invested > 0 && (
+                                    {portfolioTotals ? (
                                         <>
-                                            {" · "}
-                                            <span style={{color: portfolio.profit >= 0 ? CLR_GAIN : CLR_LOSS}}>
-                                                {portfolio.profit >= 0 ? "+" : ""}
-                                                {portfolio.profitPct.toFixed(2)}%
+                                            Invested {money(portfolioTotals.invested, hide, true)}
+                                            {portfolioTotals.invested > 0 && (
+                                                <>
+                                                    {" · "}
+                                                    <span style={{color: portfolioTotals.profit >= 0 ? CLR_GAIN : CLR_LOSS}}>
+                                                        {portfolioTotals.profit >= 0 ? "+" : ""}
+                                                        {portfolioTotals.profitPct.toFixed(2)}%
+                                                    </span>
+                                                </>
+                                            )}
+                                            {portfolioStale && (
+                                                <span
+                                                    className={style.kpiUnknown}
+                                                    title="The last refresh failed for at least one asset"
+                                                >
+                                                    {" · "}may be stale
+                                                </span>
+                                            )}
+                                        </>
+                                    ) : portfolioReadiness === "error" ? (
+                                        <>
+                                            Couldn't load all holdings{" · "}
+                                            <span
+                                                role="button"
+                                                tabIndex={0}
+                                                className={style.kpiRetry}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    retryPortfolio();
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        retryPortfolio();
+                                                    }
+                                                }}
+                                            >
+                                                Retry
                                             </span>
                                         </>
+                                    ) : (
+                                        "Loading holdings…"
                                     )}
                                     {" · "}
                                     Today{" "}
-                                    {portfolio.dayChangeKnown ? (
+                                    {dayChangeKnown ? (
                                         <span
-                                            style={{color: portfolio.dayChange >= 0 ? CLR_GAIN : CLR_LOSS}}
+                                            style={{color: dayChange >= 0 ? CLR_GAIN : CLR_LOSS}}
                                         >
-                                            {portfolio.dayChange >= 0 ? "+" : "−"}
-                                            {money(Math.abs(portfolio.dayChange), hide)}
+                                            {dayChange >= 0 ? "+" : "−"}
+                                            {money(Math.abs(dayChange), hide)}
                                         </span>
                                     ) : (
                                         <span

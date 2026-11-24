@@ -1,6 +1,8 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import {useInvestmentSummaries} from "../../hooks/useInvestmentSummaries.ts";
+import {hasSummaryData} from "../../utils/portfolioTotals.ts";
 import {useKite} from "../../contexts/KiteContext.tsx";
 import {fetchPortfolioTrend, PortfolioTrendPoint} from "../../services/wealthDigestService.ts";
 import {getKiteLoginUrl} from "../../services/investmentService.ts";
@@ -25,7 +27,7 @@ import style from "./InvestmentsLanding.module.scss";
  * `/investment-snapshot/history` for the trend. No new BE wires.
  *
  * Cross-cutting (§23) honored throughout:
- * - §2 accounting correctness: `derivePortfolio` sums BE-authoritative
+ * - §2 accounting correctness: `deriveDayChange` sums BE-authoritative
  *   per-row `getRowDayChangeAmount` for day change (same discipline as
  *   ak-7mru's Home dashboard fix); never re-derives from summary fields.
  * - §3 day_change_known gate: Today line renders '—' when any MSN row has
@@ -85,56 +87,18 @@ const RANGE_OPTS: {label: string; days: number}[] = [
 ];
 
 /**
- * Hero aggregation. Keeps per-row day-change sourced from
+ * Hero day change. Keeps per-row day-change sourced from
  * `getRowDayChangeAmount` (same pattern as Home / ak-7mru CRITICAL fix).
- * profit = sum of lifetime P&L (changeAmount semantics on MSNSummary).
+ * ak-s74k: the currentValue / invested / profit totals come from the shared
+ * useInvestmentSummaries hook (utils/portfolioTotals), gated on all six
+ * summaries having loaded.
  */
-function derivePortfolio(
-    summaries: Record<string, unknown>,
+function deriveDayChange(
     lists: Record<string, MSNListResponse[] | undefined>,
 ): {
-    currentValue: number;
-    invested: number;
-    profit: number;
-    profitPct: number;
     dayChange: number;
     dayChangeKnown: boolean;
 } {
-    let currentValue = 0;
-    let invested = 0;
-    let profit = 0;
-
-    MSN_SUMMARY_KEYS.forEach((k) => {
-        const s = summaries[k] as
-            | {totalValue?: number; currentValue?: number; changeAmount?: number | string}
-            | undefined;
-        if (!s) return;
-        const totalValue = Number(s.totalValue) || 0;
-        if (totalValue === 0) return;
-        invested += totalValue;
-        currentValue += Number(s.currentValue) || 0;
-        profit += Number(s.changeAmount) || 0;
-    });
-
-    EPG_SUMMARY_KEYS.forEach((k) => {
-        const s = summaries[k] as
-            | {net?: number | string; netProfit?: number | string; unAccountedProfit?: number | string}
-            | undefined;
-        if (!s) return;
-        const net = Number(s.net) || 0;
-        const netProfit = Number(s.netProfit) || 0;
-        const unaccounted = Number(s.unAccountedProfit || 0);
-        if (net === 0) return;
-        if (k === "ppf") {
-            invested += net - (netProfit - unaccounted);
-            currentValue += net + unaccounted;
-        } else {
-            invested += net - netProfit;
-            currentValue += net;
-        }
-        profit += netProfit;
-    });
-
     let dayChange = 0;
     let anyMsnHoldings = false;
     let anyUnknown = false;
@@ -154,8 +118,7 @@ function derivePortfolio(
     const dayChangeKnown = anyMsnHoldings && !anyUnknown;
     if (!dayChangeKnown) dayChange = 0;
 
-    const profitPct = invested !== 0 ? (profit / invested) * 100 : 0;
-    return {currentValue, invested, profit, profitPct, dayChange, dayChangeKnown};
+    return {dayChange, dayChangeKnown};
 }
 
 /**
@@ -456,12 +419,18 @@ const InvestmentsLanding = () => {
         };
     }, []);
 
-    const portfolio = useMemo(
-        () => derivePortfolio(
-            state.summaries as Record<string, unknown>,
-            state.lists as Record<string, MSNListResponse[] | undefined>,
-        ),
-        [state.summaries, state.lists],
+    // ak-s74k: the parent Investments route issues the summary loads
+    // (refreshOnMount); this index route only reads the gated totals.
+    const {
+        readiness: portfolioReadiness,
+        totals: portfolioTotals,
+        stale: portfolioStale,
+        status: summaryStatus,
+        retry: retryPortfolio,
+    } = useInvestmentSummaries({autoLoad: false});
+    const {dayChange, dayChangeKnown} = useMemo(
+        () => deriveDayChange(state.lists as Record<string, MSNListResponse[] | undefined>),
+        [state.lists],
     );
 
     const trendSlice = useMemo(() => {
@@ -500,6 +469,8 @@ const InvestmentsLanding = () => {
     const allocation = useMemo(() => {
         const items: {key: string; label: string; value: number; pct: number; color: string}[] = [];
         let total = 0;
+        // ak-s74k: percentages of a partial set would be wrong — wait for all six.
+        if (portfolioReadiness !== "ready") return {items, total};
         MSN_SUMMARY_KEYS.forEach((k) => {
             const s = state.summaries[k] as {currentValue?: number} | undefined;
             const cv = Number(s?.currentValue) || 0;
@@ -523,7 +494,7 @@ const InvestmentsLanding = () => {
             item.pct = total > 0 ? (item.value / total) * 100 : 0;
         });
         return {items, total};
-    }, [state.summaries]);
+    }, [state.summaries, portfolioReadiness]);
 
     const assetCards = useMemo(() => {
         const summaries = state.summaries as Record<string, unknown>;
@@ -539,6 +510,7 @@ const InvestmentsLanding = () => {
                             ? "/investments/mf"
                             : "/investments/nps",
                 ...deriveAssetCard(k, summaries),
+                loaded: hasSummaryData(summaryStatus[k]),
             })),
             epg: EPG_SUMMARY_KEYS.map((k) => ({
                 key: k,
@@ -551,9 +523,10 @@ const InvestmentsLanding = () => {
                             ? "/investments/ppf"
                             : "/investments/gold",
                 ...deriveAssetCard(k, summaries),
+                loaded: hasSummaryData(summaryStatus[k]),
             })),
         };
-    }, [state.summaries]);
+    }, [state.summaries, summaryStatus]);
 
     const today = useMemo(
         () =>
@@ -586,7 +559,7 @@ const InvestmentsLanding = () => {
         if (dot === -1) return {whole: txt, decimal: ""};
         return {whole: txt.slice(0, dot), decimal: txt.slice(dot)};
     };
-    const heroAmt = splitAmount(portfolio.currentValue);
+    const heroAmt = portfolioTotals ? splitAmount(portfolioTotals.currentValue) : null;
 
     const realized = state.realizedPnl;
     const fo = state.foSummary;
@@ -608,45 +581,76 @@ const InvestmentsLanding = () => {
                             <span>Refresh all</span>
                         </button>
                     </div>
-                    <div className={style.heroAmount} title={`₹${formatCurrency(portfolio.currentValue)}`}>
-                        <span className={style.heroWhole}>₹{heroAmt.whole}</span>
-                        <span className={style.heroDecimal}>{heroAmt.decimal}</span>
-                    </div>
+                    {portfolioTotals && heroAmt ? (
+                        <div className={style.heroAmount} title={`₹${formatCurrency(portfolioTotals.currentValue)}`}>
+                            <span className={style.heroWhole}>₹{heroAmt.whole}</span>
+                            <span className={style.heroDecimal}>{heroAmt.decimal}</span>
+                        </div>
+                    ) : (
+                        // ak-s74k: never a partial sum or the ₹0 placeholder.
+                        <div
+                            className={style.heroAmount}
+                            title={portfolioReadiness === "error"
+                                ? "Some holdings failed to load — total unknown"
+                                : "Loading holdings…"}
+                        >
+                            <span className={`${style.heroWhole} ${style.heroUnknown}`}>—</span>
+                        </div>
+                    )}
+                    {portfolioReadiness === "error" && (
+                        <div className={style.heroNote}>
+                            Couldn't load all holdings ·{" "}
+                            <button type="button" className={style.heroRetry} onClick={retryPortfolio}>
+                                Retry
+                            </button>
+                        </div>
+                    )}
+                    {portfolioTotals && portfolioStale && (
+                        <div className={style.heroNote} title="The last refresh failed for at least one asset">
+                            <i className="ph ph-warning" aria-hidden/> Refresh failed · showing last loaded values
+                        </div>
+                    )}
                     <div className={style.heroMetrics}>
                         <div className={style.heroMetric}>
                             <span className={style.heroMetricLabel}>Today</span>
                             <span
                                 className={style.heroMetricValue}
-                                style={{color: portfolio.dayChangeKnown ? (portfolio.dayChange >= 0 ? CLR_GAIN : CLR_LOSS) : "var(--color-neutral-500)"}}
-                                title={portfolio.dayChangeKnown
+                                style={{color: dayChangeKnown ? (dayChange >= 0 ? CLR_GAIN : CLR_LOSS) : "var(--color-neutral-500)"}}
+                                title={dayChangeKnown
                                     ? "Day change across holdings with a known day basis"
                                     : "No day basis yet — unknown, not flat"}
                             >
-                                {portfolio.dayChangeKnown
-                                    ? `${portfolio.dayChange >= 0 ? "+" : "−"}₹${formatCompact(Math.abs(portfolio.dayChange))}`
+                                {dayChangeKnown
+                                    ? `${dayChange >= 0 ? "+" : "−"}₹${formatCompact(Math.abs(dayChange))}`
                                     : "—"}
-                                {portfolio.dayChangeKnown && portfolio.currentValue > 0 && (
+                                {dayChangeKnown && portfolioTotals && portfolioTotals.currentValue > 0 && (
                                     <span className={style.heroMetricPct}>
-                                        {" "}{portfolio.dayChange >= 0 ? "+" : "−"}{Math.abs((portfolio.dayChange / portfolio.currentValue) * 100).toFixed(2)}%
+                                        {" "}{dayChange >= 0 ? "+" : "−"}{Math.abs((dayChange / portfolioTotals.currentValue) * 100).toFixed(2)}%
                                     </span>
                                 )}
                             </span>
                         </div>
                         <div className={style.heroMetric}>
                             <span className={style.heroMetricLabel}>Change</span>
-                            <span
-                                className={style.heroMetricValue}
-                                style={{color: portfolio.profit >= 0 ? CLR_GAIN : CLR_LOSS}}
-                            >
-                                {portfolio.profit >= 0 ? "+" : "−"}₹{formatCurrency(Math.abs(portfolio.profit))}
-                                <span className={style.heroMetricPct}>
-                                    {" "}{portfolio.profit >= 0 ? "+" : "−"}{Math.abs(portfolio.profitPct).toFixed(2)}%
+                            {portfolioTotals ? (
+                                <span
+                                    className={style.heroMetricValue}
+                                    style={{color: portfolioTotals.profit >= 0 ? CLR_GAIN : CLR_LOSS}}
+                                >
+                                    {portfolioTotals.profit >= 0 ? "+" : "−"}₹{formatCurrency(Math.abs(portfolioTotals.profit))}
+                                    <span className={style.heroMetricPct}>
+                                        {" "}{portfolioTotals.profit >= 0 ? "+" : "−"}{Math.abs(portfolioTotals.profitPct).toFixed(2)}%
+                                    </span>
                                 </span>
-                            </span>
+                            ) : (
+                                <span className={`${style.heroMetricValue} ${style.heroUnknown}`}>—</span>
+                            )}
                         </div>
                         <div className={style.heroMetric}>
                             <span className={style.heroMetricLabel}>Invested</span>
-                            <span className={style.heroMetricValue}>₹{formatCurrency(portfolio.invested)}</span>
+                            <span className={`${style.heroMetricValue} ${portfolioTotals ? "" : style.heroUnknown}`}>
+                                {portfolioTotals ? `₹${formatCurrency(portfolioTotals.invested)}` : "—"}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -1219,11 +1223,12 @@ const InvestmentsLanding = () => {
                             <div className={style.assetCardHead}>
                                 <span className={style.assetCardSwatch} style={{background: c.color}}/>
                                 <span className={style.assetCardName}>{c.label}</span>
-                                <span className={style.assetCardCount}>{c.count}</span>
+                                <span className={style.assetCardCount}>{c.loaded ? c.count : ""}</span>
                             </div>
                             <span className={style.assetCardValue}>
-                                ₹{formatCompact(c.currentValue)}
+                                {c.loaded ? `₹${formatCompact(c.currentValue)}` : "—"}
                             </span>
+                            {c.loaded && (
                             <div className={style.assetCardGrid}>
                                 <div className={style.assetCardCell}>
                                     <span className={style.assetCardCellLabel}>Invested</span>
@@ -1250,6 +1255,7 @@ const InvestmentsLanding = () => {
                                     </span>
                                 </div>
                             </div>
+                            )}
                             <div className={style.assetCardFooter}>
                                 <span className={style.assetCardOpen}>
                                     Open <i className="ph ph-arrow-right"/>
@@ -1295,8 +1301,9 @@ const InvestmentsLanding = () => {
                             </div>
                             <div className={style.assetCardEpgBody}>
                                 <span className={style.assetCardValue}>
-                                    ₹{formatCompact(c.currentValue)}
+                                    {c.loaded ? `₹${formatCompact(c.currentValue)}` : "—"}
                                 </span>
+                                {c.loaded && (
                                 <span
                                     className={style.assetCardEpgPct}
                                     style={{color: c.changePct >= 0 ? CLR_GAIN : CLR_LOSS}}
@@ -1304,6 +1311,7 @@ const InvestmentsLanding = () => {
                                     {c.changePct >= 0 ? "+" : "−"}{Math.abs(c.changePct).toFixed(2)}%
                                     <span className={style.assetCardEpgPctLabel}>vs invested</span>
                                 </span>
+                                )}
                             </div>
                             <div className={style.assetCardEpgBar}>
                                 <div
@@ -1315,10 +1323,12 @@ const InvestmentsLanding = () => {
                                     }}
                                 />
                             </div>
+                            {c.loaded && (
                             <div className={style.assetCardEpgMeta}>
                                 <span>Invested ₹{formatCompact(c.invested)}</span>
                                 <span>Earned ₹{formatCompact(c.change)}</span>
                             </div>
+                            )}
                             <div className={style.assetCardFooter}>
                                 <span className={style.assetCardOpen}>
                                     Open <i className="ph ph-arrow-right"/>

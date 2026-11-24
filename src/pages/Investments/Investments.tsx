@@ -2,6 +2,7 @@ import {useCallback, useEffect} from "react";
 import {Outlet} from "react-router-dom";
 import style from "../Investments/Investments.module.scss";
 import {useMSNContext} from "../../contexts/MSNContext.tsx";
+import {useInvestmentSummaries} from "../../hooks/useInvestmentSummaries.ts";
 import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 
 /**
@@ -24,13 +25,12 @@ import AgentChat from "../../components/AgentChat/AgentChat.tsx";
 const Investments = () => {
     const {fetchAndSetSummary, AllInfoForEpf, fetchAndSetFOSummary, fetchAndSetRealizedPnL} = useMSNContext();
 
+    // ak-s74k: the six asset summaries load through the shared hook so Home,
+    // Wealth Digest and Investments track the same per-asset load status.
+    // refreshOnMount keeps this page's existing fetch-all-on-visit behaviour.
+    useInvestmentSummaries({refreshOnMount: true});
+
     useEffect(() => {
-        fetchAndSetSummary("Stocks", false);
-        fetchAndSetSummary("NPS", false);
-        fetchAndSetSummary("Mutual_Funds", false);
-        AllInfoForEpf("EPF", false);
-        AllInfoForEpf("Gold", false);
-        AllInfoForEpf("PF", false);
         fetchAndSetFOSummary(false);
         fetchAndSetRealizedPnL(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps

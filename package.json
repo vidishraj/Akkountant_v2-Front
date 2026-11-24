@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "check:holdings": "esbuild src/utils/holdings.check.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/holdings.check.mjs && node node_modules/.cache/holdings.check.mjs",
+    "check:portfolio": "esbuild src/utils/portfolioTotals.check.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/portfolioTotals.check.mjs && node node_modules/.cache/portfolioTotals.check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

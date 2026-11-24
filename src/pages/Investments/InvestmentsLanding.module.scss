@@ -87,6 +87,38 @@
     color: var(--color-neutral-500);
 }
 
+/* ak-s74k: total not yet known (loading / a summary failed). */
+.heroUnknown {
+    color: var(--color-neutral-500);
+}
+
+.heroNote {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 12.5px;
+    color: var(--color-neutral-500);
+}
+
+.heroRetry {
+    all: unset;
+    cursor: pointer;
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    &:hover {
+        color: var(--color-accent-400);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+    }
+}
+
 .heroMetrics {
     display: flex;
     gap: 28px;

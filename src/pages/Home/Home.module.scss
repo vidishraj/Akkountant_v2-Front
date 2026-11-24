@@ -348,6 +348,23 @@
     cursor: help;
 }
 
+.kpiRetry {
+    color: var(--color-accent);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    &:hover {
+        color: var(--color-accent-400);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+    }
+}
+
 .kpiSpark {
     flex: 1 1 160px;
     max-width: 260px;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMSNContext } from "../../contexts/MSNContext.tsx";
+import { useInvestmentSummaries } from "../../hooks/useInvestmentSummaries.ts";
 import { useWealthDigest } from "../../contexts/WealthDigestContext.tsx";
 import { useAgentChatBridge } from "../../contexts/AgentChatBridgeContext.tsx";
 import {
@@ -87,61 +88,10 @@ function todayInIST(): string {
   });
 }
 
-function derivePortfolioTotal(summaries: Record<string, any>): {
-  totalInvestment: number;
-  currentValue: number;
-  profit: number;
-  profitPercentage: number;
-} {
-  let totalInvestment = 0;
-  let currentValue = 0;
-  let profit = 0;
-
-  MSN_KEYS.forEach((k) => {
-    const s = summaries[k];
-    if (s && s.totalValue !== 0) {
-      totalInvestment += Number(s.totalValue) || 0;
-      currentValue += Number(s.currentValue) || 0;
-      profit += Number(s.changeAmount) || 0;
-    }
-  });
-
-  EPG_KEYS.forEach((k) => {
-    const s = summaries[k];
-    if (!s) return;
-    const net = Number(s.net) || 0;
-    const netProfit = Number(s.netProfit) || 0;
-    const unaccounted = Number(s.unAccountedProfit || 0);
-    if (net !== 0) {
-      if (k === "ppf") {
-        totalInvestment += net - (netProfit - unaccounted);
-        currentValue += net + unaccounted;
-      } else {
-        totalInvestment += net - netProfit;
-        currentValue += net;
-      }
-      profit += netProfit;
-    }
-  });
-
-  const profitPercentage =
-    totalInvestment !== 0 ? (profit / totalInvestment) * 100 : 0;
-
-  return { totalInvestment, currentValue, profit, profitPercentage };
-}
-
-/**
- * Rough "is MSNContext populated?" check. Every category starts with a zero-
- * initialized summary object, so a genuinely empty state has every currentValue
- * and net at zero. Returns true if we should trigger a bootstrap fetch.
- */
-function msnLooksEmpty(summaries: Record<string, any>): boolean {
-  const msnZero = MSN_KEYS.every(
-    (k) => Number(summaries[k]?.currentValue) === 0
-  );
-  const epgZero = EPG_KEYS.every((k) => Number(summaries[k]?.net) === 0);
-  return msnZero && epgZero;
-}
+// ak-s74k: derivePortfolioTotal + msnLooksEmpty were replaced by the shared
+// useInvestmentSummaries hook (utils/portfolioTotals holds the same formula).
+// msnLooksEmpty could not tell "not fetched yet" from "fetched", so the tiles
+// showed partial sums while the six summary requests landed.
 
 type Mover = {
   name: string;
@@ -282,7 +232,14 @@ function deriveAllocation(
  */
 const WealthDigest = () => {
   const navigate = useNavigate();
-  const { state, globalInvestmentRefresh } = useMSNContext();
+  const { state } = useMSNContext();
+  // ak-s74k: loads any summary not yet loaded; totals stay null until all six
+  // resolve so the Total tile never shows a partial sum or the ₹0 placeholder.
+  const {
+    readiness: portfolioReadiness,
+    totals: portfolioTotals,
+    stale: portfolioStale,
+  } = useInvestmentSummaries();
   const { digest: latestDigest, loading, error, refresh, markReadLocal } =
     useWealthDigest();
   const { setCommand } = useAgentChatBridge();
@@ -297,9 +254,20 @@ const WealthDigest = () => {
 
   const displayed = pastDigest ?? latestDigest;
 
+  // Zero fallback is only used by consumers that already treat 0 as "no
+  // data" (Today %, Cash %, allocation donut). The Total tile gates on
+  // portfolioTotals directly.
   const totals = useMemo(
-    () => derivePortfolioTotal(state.summaries),
-    [state.summaries]
+    () =>
+      portfolioTotals
+        ? {
+            totalInvestment: portfolioTotals.invested,
+            currentValue: portfolioTotals.currentValue,
+            profit: portfolioTotals.profit,
+            profitPercentage: portfolioTotals.profitPct,
+          }
+        : { totalInvestment: 0, currentValue: 0, profit: 0, profitPercentage: 0 },
+    [portfolioTotals]
   );
   const movers = useMemo(() => deriveMovers(state.lists), [state.lists]);
   const allocationSlices = useMemo(
@@ -312,27 +280,15 @@ const WealthDigest = () => {
   const isStaleForToday =
     !!latestDigest && !pastDigest && latestDigest.date !== todayIso;
 
-  // ── Lane 1a fix: MSNContext bootstrap ─────────────────────────────────────
-  // If the user hits /wealth-digest as their first authenticated page (nav
-  // badge draws them straight here) then MSNContext has never fetched, all
-  // tiles read as zero, and the whole KPI row is misleading. Trigger the
-  // same refresh the /investments page uses. globalInvestmentRefresh fires
-  // 8 parallel category fetches — worth doing once on mount, not on every
-  // rerender.
-  //
-  // Also sweep stale action-done localStorage keys older than the archive
-  // window — bounded namespace + free housekeeping on the one guaranteed
-  // mount surface for this feature.
+  // ── Housekeeping on mount ─────────────────────────────────────────────────
+  // (ak-s74k: the old Lane 1a MSNContext bootstrap moved into the
+  // useInvestmentSummaries hook above.) Sweep stale action-done localStorage
+  // keys older than the archive window — bounded namespace + free
+  // housekeeping on the one guaranteed mount surface for this feature.
   useEffect(() => {
-    if (msnLooksEmpty(state.summaries)) {
-      globalInvestmentRefresh();
-    }
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - ACTION_DONE_TTL_DAYS);
     sweepStaleActionDoneKeys(cutoff.toISOString().slice(0, 10));
-    // Intentionally not depending on state.summaries — we only want the
-    // bootstrap-on-mount fire, not a re-fire after the fetches populate it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Auto mark-read on visit (unchanged from Wave 2) ───────────────────────
@@ -502,25 +458,45 @@ const WealthDigest = () => {
       <StatTileRow>
         <StatTile
           label="Total"
-          value={`₹${formatCompact(totals.currentValue)}`}
-          valueTooltip={`₹${formatCurrency(totals.currentValue)}`}
+          value={portfolioTotals ? `₹${formatCompact(totals.currentValue)}` : "—"}
+          valueTooltip={
+            portfolioTotals
+              ? `₹${formatCurrency(totals.currentValue)}`
+              : portfolioReadiness === "error"
+                ? "Some holdings failed to load — total unknown"
+                : "Loading holdings…"
+          }
           subtitle={
-            totals.totalInvestment !== 0
-              ? `Invested ₹${formatCompact(totals.totalInvestment)}`
+            !portfolioTotals
+              ? portfolioReadiness === "error"
+                ? "Couldn't load all holdings"
+                : "Loading holdings…"
+              : totals.totalInvestment !== 0
+                ? `Invested ₹${formatCompact(totals.totalInvestment)}${portfolioStale ? " · may be stale" : ""}`
+                : portfolioStale
+                  ? "May be stale"
+                  : undefined
+          }
+          delta={
+            portfolioTotals
+              ? {
+                  text: `${totals.profit >= 0 ? "+" : ""}${totals.profitPercentage.toFixed(2)}%`,
+                  polarity:
+                    totals.profit === 0
+                      ? "neutral"
+                      : totals.profit > 0
+                        ? "positive"
+                        : "negative",
+                }
               : undefined
           }
-          delta={{
-            text: `${totals.profit >= 0 ? "+" : ""}${totals.profitPercentage.toFixed(2)}%`,
-            polarity:
-              totals.profit === 0
-                ? "neutral"
-                : totals.profit > 0
-                  ? "positive"
-                  : "negative",
-          }}
           hero
           onClick={() => navigate("/investments")}
-          ariaLabel={`Total portfolio value ${formatCurrency(totals.currentValue)} rupees, drill into investments`}
+          ariaLabel={
+            portfolioTotals
+              ? `Total portfolio value ${formatCurrency(totals.currentValue)} rupees, drill into investments`
+              : "Total portfolio value not yet known, drill into investments"
+          }
         />
 
         <StatTile
