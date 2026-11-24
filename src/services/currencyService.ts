@@ -12,6 +12,13 @@ export class CurrencyService {
         AUD: 58.7,
         INR: 1.0,
     };
+    // ak-f9kg review: provenance. `liveRates` holds ONLY values that came from
+    // the rate API in the last successful fetch (no per-currency substitution);
+    // the static table above is a labelled approximation, never "live".
+    private liveRates: Record<string, number> = {};
+    private static readonly STATIC_RATES: Record<string, number> = {
+        USD: 88.0, EUR: 104.0, GBP: 120.0, AUD: 58.7, INR: 1.0,
+    };
     private lastUpdated: Date | null = null;
     private updateInProgress = false;
     private cacheExpiry = 1000 * 60 * 60; // 1 hour cache
@@ -47,6 +54,23 @@ export class CurrencyService {
         }
 
         return amount * rate;
+    }
+
+    /**
+     * ak-f9kg: INR rate for a currency WITH provenance, or null when unknown.
+     * - live: from the last successful rate fetch → exact.
+     * - static: the built-in fallback table → `approx: true`; callers must
+     *   label the figure (e.g. "≈ ₹X · approx. rate"), never present it as exact.
+     * - neither → null (render "—"). Never a 1:1 guess.
+     */
+    getRateToINR(currency: string): {rate: number; approx: boolean} | null {
+        const code = (currency || "").toUpperCase();
+        if (code === this.baseCurrency) return {rate: 1, approx: false};
+        const live = this.liveRates[code];
+        if (typeof live === "number" && Number.isFinite(live) && live > 0) return {rate: live, approx: false};
+        const fallback = CurrencyService.STATIC_RATES[code];
+        if (typeof fallback === "number" && fallback > 0) return {rate: fallback, approx: true};
+        return null;
     }
 
     /**
@@ -138,13 +162,18 @@ export class CurrencyService {
             }
             if (data && data.inr) {
                 // The API returns { inr: { usd: number, eur: number, ... } }
-                this.exchangeRates = {
-                    USD: 1 / (data.inr.usd || 1 / 88.0),
-                    EUR: 1 / (data.inr.eur || 1 / 105.0),
-                    GBP: 1 / (data.inr.gbp || 1 / 120.0),
-                    AUD: 1 / (data.inr.aud || 1 / 58.7),
-                    INR: 1.0,
-                };
+                // (units of currency per 1 INR). ak-f9kg review: take EVERY
+                // currency the API returns, and NO per-currency substitution:
+                // a missing/invalid key is simply not live.
+                const live: Record<string, number> = {INR: 1.0};
+                for (const [k, v] of Object.entries(data.inr as Record<string, unknown>)) {
+                    const perInr = Number(v);
+                    if (Number.isFinite(perInr) && perInr > 0) live[k.toUpperCase()] = 1 / perInr;
+                }
+                this.liveRates = live;
+                // Legacy convert* paths keep their old behaviour (static
+                // table for gaps) — the UI money paths use getRateToINR.
+                this.exchangeRates = {...CurrencyService.STATIC_RATES, ...live};
                 this.lastUpdated = new Date();
             } else {
                 throw new Error("Invalid API response");
@@ -154,14 +183,11 @@ export class CurrencyService {
                 "⚠️ Failed to update exchange rates from both APIs, using fallback static rates:",
                 error
             );
-            this.exchangeRates = {
-                USD: 88.0,
-                EUR: 104.0,
-                GBP: 120.0,
-                AUD: 58.7,
-                INR: 1.0,
-            };
-            this.lastUpdated = new Date();
+            // ak-f9kg review: a failed fetch leaves NO live rates (the old code
+            // silently reset to the static table and stamped it "updated").
+            this.liveRates = {};
+            this.exchangeRates = {...CurrencyService.STATIC_RATES};
+            this.lastUpdated = null;
         } finally {
             this.updateInProgress = false;
         }

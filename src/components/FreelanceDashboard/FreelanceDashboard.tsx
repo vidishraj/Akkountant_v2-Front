@@ -26,6 +26,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import InvoicePDFPreview from "../InvoiceCreator/InvoicePDFPreview";
 import ErrorBoundary from "../ErrorBoundary";
 import {currencyService} from "../../services/currencyService";
+import {monthlyAverage, unpaidTotalInINR} from "../../utils/freelanceMetrics";
 import styles from "../../pages/Freelance/Freelance.module.scss";
 import ownStyles from "./FreelanceDashboard.module.scss";
 
@@ -214,7 +215,9 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
             setLoading(true);
             const data = await fetchFreelanceDashboard();
             setDashboardData(data);
-            currencyService.updateExchangeRates().catch(console.warn);
+            currencyService.updateExchangeRates()
+                .catch(console.warn)
+                .finally(() => setFxVersion((v) => v + 1));
         } catch (error) {
             setPayload({type: "error", message: "Failed to load dashboard data. Backend connection required."});
             console.error("Dashboard loading error:", error);
@@ -327,10 +330,18 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
 
     const formatBaseCurrency = (amount: number) => formatCurrency(amount, "INR");
 
-    const getINRConversion = (amount: number, currency: string) => {
-        if (currency === "INR") return amount;
-        return currencyService.convertToINRSync(amount, currency);
+    // ak-f9kg: STRICT conversion. A currency with no known rate is null
+    // (rendered "—"), never the old silent 1:1 that showed $X as ₹X. A
+    // static fallback rate is flagged approx so the UI can label it "≈".
+    const getINRConversionInfo = (amount: number, currency: string): {value: number; approx: boolean} | null => {
+        const info = currencyService.getRateToINR(currency || "INR");
+        return info === null ? null : {value: amount * info.rate, approx: info.approx};
     };
+    const getINRConversion = (amount: number, currency: string): number | null =>
+        getINRConversionInfo(amount, currency)?.value ?? null;
+    // Re-read the strict rates once a live fetch lands (they live in the
+    // service, not React state).
+    const [fxVersion, setFxVersion] = useState(0);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -362,12 +373,13 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
     ];
 
     // Compute derived metrics
-    const unpaidTotal = useMemo(() => {
-        if (!dashboardData?.unpaidByCurrency?.length) return 0;
-        return dashboardData.unpaidByCurrency.reduce(
-            (sum, item) => sum + getINRConversion(item.amount, item.currency), 0
-        );
-    }, [dashboardData]);
+    // ak-f9kg: shared with Home's "Owed to you" (utils/freelanceMetrics).
+    const unpaidTotalInfo = useMemo(
+        () => unpaidTotalInINR(dashboardData?.unpaidByCurrency, (c) => currencyService.getRateToINR(c)),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [dashboardData, fxVersion],
+    );
+    const unpaidTotal = unpaidTotalInfo?.total ?? null;
 
     const avgInvoiceValue = useMemo(() => {
         if (!dashboardData) return 0;
@@ -376,8 +388,9 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
         return dashboardData.totalEarnings / totalProjects;
     }, [dashboardData]);
 
-    const collectionRate = useMemo(() => {
-        if (!dashboardData) return 0;
+    // null = unknown (an unpaid currency has no rate) → rendered "—".
+    const collectionRate = useMemo((): number | null => {
+        if (!dashboardData || unpaidTotal === null) return null;
         const total = dashboardData.totalEarnings + unpaidTotal;
         if (total === 0) return 0;
         return (dashboardData.totalEarnings / total) * 100;
@@ -473,8 +486,9 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
         const sorted = [...overdues].sort((a, b) => {
             const dateDiff = a.date.localeCompare(b.date); // ISO strings
             if (dateDiff !== 0) return dateDiff;
-            const aAmt = getINRConversion(a.amount, a.currency ?? "INR");
-            const bAmt = getINRConversion(b.amount, b.currency ?? "INR");
+            // Ordering tie-break only (not displayed): unknown rate sorts last.
+            const aAmt = getINRConversion(a.amount, a.currency ?? "INR") ?? -Infinity;
+            const bAmt = getINRConversion(b.amount, b.currency ?? "INR") ?? -Infinity;
             return bAmt - aAmt;
         });
         return sorted[0];
@@ -784,10 +798,14 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                 </div>
                 <div className={ownStyles.kpiCard}>
                     <div className={ownStyles.kpiLabel}>
-                        Monthly avg ({filteredMonthlyData.length} mo)
+                        Monthly avg ({filteredMonthlyData.length} mo, incl. this month)
                     </div>
                     <div className={ownStyles.kpiValue}>
-                        {formatBaseCurrency(filteredMonthlyData.length > 0 ? filteredTotalEarnings / filteredMonthlyData.length : 0)}
+                        {/* ak-f9kg: shared selector (same as Home); "—" when no months. */}
+                        {(() => {
+                            const avg = monthlyAverage(filteredMonthlyData);
+                            return avg === null ? "—" : formatBaseCurrency(avg);
+                        })()}
                     </div>
                     {renderTrend(monthlyTrend, "vs prev period")}
                 </div>
@@ -804,13 +822,20 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                     <div className={ownStyles.kpiLabel}>Collection rate</div>
                     <div
                         className={ownStyles.kpiValue}
-                        style={{color: collectionRate >= 80
-                            ? "oklch(0.80 0.13 155)"
-                            : collectionRate >= 50
-                                ? "oklch(0.82 0.12 75)"
-                                : "oklch(0.74 0.15 25)"}}
+                        style={{color: collectionRate === null
+                            ? "var(--color-neutral-500)"
+                            : collectionRate >= 80
+                                ? "oklch(0.80 0.13 155)"
+                                : collectionRate >= 50
+                                    ? "oklch(0.82 0.12 75)"
+                                    : "oklch(0.74 0.15 25)"}}
+                        title={collectionRate === null
+                            ? "Unknown: an unpaid invoice's currency has no exchange rate"
+                            : unpaidTotalInfo?.approx
+                                ? "Approximate: live exchange rates unavailable"
+                                : undefined}
                     >
-                        {collectionRate.toFixed(0)}%
+                        {collectionRate === null ? "—" : `${unpaidTotalInfo?.approx ? "≈ " : ""}${collectionRate.toFixed(0)}%`}
                     </div>
                     <div className={ownStyles.kpiSub}>
                         Paid vs billed · {dashboardData.activeClients} active clients
@@ -1028,9 +1053,10 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                             .map((item) => ({
                                 ...item,
                                 inrAmount: getINRConversion(item.amount, item.currency),
+                                approx: getINRConversionInfo(item.amount, item.currency)?.approx ?? false,
                             }))
-                            .filter((r) => r.inrAmount > 0 || r.amount > 0)
-                            .sort((a, b) => b.inrAmount - a.inrAmount);
+                            .filter((r) => (r.inrAmount ?? 0) > 0 || r.amount > 0)
+                            .sort((a, b) => (b.inrAmount ?? -Infinity) - (a.inrAmount ?? -Infinity));
                         if (rows.length === 0) {
                             return (
                                 <div className={ownStyles.emptyRow}>
@@ -1038,11 +1064,13 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                                 </div>
                             );
                         }
-                        const total = rows.reduce((s, r) => s + r.inrAmount, 0);
+                        // Only rows with a known rate share the bar; unknown-rate
+                        // rows show "—" and no bar (never a 1:1 guess).
+                        const total = rows.reduce((s, r) => s + (r.inrAmount ?? 0), 0);
                         return (
                             <ul className={ownStyles.distList} aria-label="Unpaid amounts by currency (INR-equivalent, sorted descending)">
                                 {rows.map((r, i) => {
-                                    const pct = total > 0 ? (r.inrAmount / total) * 100 : 0;
+                                    const pct = total > 0 && r.inrAmount !== null ? (r.inrAmount / total) * 100 : 0;
                                     const color = BAR_PALETTE[i % BAR_PALETTE.length];
                                     return (
                                         <li key={r.currency} className={ownStyles.distRow}>
@@ -1061,10 +1089,14 @@ const FreelanceDashboard = ({refreshTrigger, isActive = true, onNavigateToManage
                                                 />
                                             </div>
                                             <span className={ownStyles.distValue}>
-                                                {formatBaseCurrency(r.inrAmount)}
+                                                {r.inrAmount === null
+                                                    ? "—"
+                                                    : r.approx
+                                                        ? <span title="Approximate: live exchange rates unavailable">≈ {formatBaseCurrency(r.inrAmount)}</span>
+                                                        : formatBaseCurrency(r.inrAmount)}
                                             </span>
                                             <span className={ownStyles.distPct}>
-                                                {pct.toFixed(1)}%
+                                                {r.inrAmount === null ? "" : `${pct.toFixed(1)}%`}
                                             </span>
                                         </li>
                                     );

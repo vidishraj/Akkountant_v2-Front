@@ -421,6 +421,21 @@ export interface UnpaidByCurrency {
     count: number;
 }
 
+export interface CombinedEarningsFx {
+    unconvertedCount: number;
+    unconvertedCurrencies: string[];
+    /** true = a dated fallback rate was used (live FX API down). */
+    approximate: boolean;
+    rateVintage: string | null;
+}
+
+export interface ClientCombinedEarnings extends Partial<CombinedEarningsFx> {
+    client: string;
+    /** INR total, or null when part of it couldn't be converted (ak-nzed). */
+    earnings: number | null;
+    knownEarnings?: number;
+}
+
 export interface FreelanceDashboard {
     totalEarnings: number; // Total paid earnings in base currency (INR)
     monthlyEarnings: number; // Monthly paid earnings in base currency (INR)
@@ -439,7 +454,12 @@ export interface FreelanceDashboard {
     activeClients: number;
     earningsByMonth: { month: string; earnings: number }[]; // Paid earnings by month in INR
     earningsByClient: { client: string; earnings: number }[]; // Paid earnings by client in INR
-    earningsByClientCombined: { client: string; earnings: number }[]; // All client earnings converted to INR
+    // ak-nzed (BE) contract: paid + unpaid per client converted to INR.
+    // `earnings` is NULL (unknown) when one of that client's unpaid invoices
+    // could not be converted; `knownEarnings` is the part that did. Not read
+    // by the FE today; typed nullable so any future reader must handle '—'.
+    earningsByClientCombined: ClientCombinedEarnings[];
+    earningsByClientCombinedFx?: CombinedEarningsFx;
     recentInvoices: FreelanceEarning[];
     unpaidByCurrency?: UnpaidByCurrency[]; // Unpaid invoices breakdown by currency
 }

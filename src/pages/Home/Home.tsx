@@ -18,6 +18,8 @@ import {refreshReconIssuesCount, setReconIssuesCount, useReconIssuesCount} from 
 import {fetchOptedBanks} from "../../services/transactionService.ts";
 import {listVaultFiles} from "../../services/fileStorageService.ts";
 import {activityDate, activityMemo, bankDisplayName, invoiceAmount} from "../../utils/displayFormat.ts";
+import {currentFyMonths, monthlyAverage, toMonth, unpaidTotalInINR} from "../../utils/freelanceMetrics.ts";
+import {currencyService} from "../../services/currencyService.ts";
 import ReconciliationDialog from "../../components/ReconciliationDialog/ReconciliationDialog.tsx";
 import {formatCompact, formatCurrency} from "../../components/WealthDigest/formatters.ts";
 import {getRowDayChangeAmount} from "../../utils/holdings.ts";
@@ -248,7 +250,9 @@ const Home = () => {
             .catch(() => {
                 if (!cancelled) setFreelance(null);
             });
-        fetchTransactions({Page: 1, Filter: {}})
+        // ak-f9kg: ask for NEWEST first. Without `sorted` the BE returned page
+        // 1 in its default order, so "Recent activity" showed months-old rows.
+        fetchTransactions({Page: 1, Filter: {sorted: {column: "date", order: "desc"}, limit: 10}})
             .then((res) => {
                 if (cancelled) return;
                 setRecentTx(res.results || []);
@@ -320,10 +324,37 @@ const Home = () => {
         return list.filter((inv) => inv.status === "overdue");
     }, [freelance]);
 
-    const unpaidTotalINR = useMemo(() => {
-        const inrRow = freelance?.unpaidByCurrency?.find((r) => r.currency === "INR");
-        return Number(inrRow?.amount) || 0;
+    // ak-f9kg: SAME selectors as the Freelance dashboard (utils/freelanceMetrics).
+    // "Owed to you" converts EVERY currency (the old code summed only the INR
+    // row, so a USD-only overdue read ₹0); a missing FX rate is unknown ("—").
+    const [fxVersion, setFxVersion] = useState(0);
+    useEffect(() => {
+        let alive = true;
+        currencyService.updateExchangeRates()
+            .catch(() => undefined)
+            .finally(() => { if (alive) setFxVersion((v) => v + 1); });
+        return () => { alive = false; };
+    }, []);
+    const unpaidTotalINR = useMemo(
+        () => (freelance ? unpaidTotalInINR(freelance.unpaidByCurrency, (c) => currencyService.getRateToINR(c)) : null),
+        // fxVersion: re-read once fresh rates land.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [freelance, fxVersion],
+    );
+    // FY monthly average — the dashboard's "Monthly avg" formula over the FY
+    // months (BE fyStart/fyEnd, else the Indian FY containing today). The
+    // old binding used BE `monthlyEarnings`, a different figure (read ₹0).
+    const fyMonthlyAvg = useMemo(() => {
+        if (!freelance) return null;
+        const fy = currentFyMonths();
+        return monthlyAverage(
+            freelance.earningsByMonth,
+            toMonth(freelance.fyStart) ?? fy.start,
+            toMonth(freelance.fyEnd) ?? fy.end,
+        );
     }, [freelance]);
+    const moneyOrUnknown = (v: number | null | undefined, compact = true): string =>
+        v === null || v === undefined || !Number.isFinite(v) ? "—" : money(v, hide, compact);
 
     const digestStale = digest?.last_error != null;
     const digestStaleSinceLabel = useMemo(
@@ -385,9 +416,12 @@ const Home = () => {
         // double-newline. Markdown emphasis is left intact; renderer is
         // plain text so asterisks show through, which is consistent with
         // the design's "pulse first paragraph only" treatment.
-        const raw = digest.text.trim();
-        const paraEnd = raw.indexOf("\n\n");
-        return paraEnd === -1 ? raw : raw.slice(0, paraEnd);
+        // ak-f9kg #5: skip a disclaimer-only paragraph (e.g. "[Personal use
+        // — not investment advice]"), so the card shows the first real one.
+        const paras = digest.text.trim().split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+        const isDisclaimer = (p: string) =>
+            /^\[?\s*personal use\b.*not investment advice\s*\]?\.?$/i.test(p);
+        return paras.find((p) => !isDisclaimer(p)) ?? "";
     }, [digest]);
 
     // Recent activity: merge last transactions + recent invoices, sorted
@@ -754,10 +788,10 @@ const Home = () => {
                                 divergence on any future BE regression
                                 that drops/nulls fyEarnings. `?? 0` is
                                 the correct no-data rendering. */}
-                            {money(freelance?.fyEarnings ?? 0, hide, true)}
+                            {moneyOrUnknown(freelance?.fyEarnings)}
                         </span>
                         <span className={style.kpiSub}>
-                            Monthly avg {money(freelance?.monthlyEarnings ?? 0, hide, true)}
+                            Monthly avg {moneyOrUnknown(fyMonthlyAvg)} (incl. this month)
                         </span>
                     </a>
 
@@ -770,7 +804,17 @@ const Home = () => {
                         className={style.kpiTile}
                     >
                         <span className={style.kpiKicker}>Owed to you</span>
-                        <span className={style.kpiValue}>{money(unpaidTotalINR, hide, true)}</span>
+                        <span
+                            className={style.kpiValue}
+                            title={unpaidTotalINR === null && freelance
+                                ? "Unknown: an unpaid invoice's currency has no exchange rate"
+                                : unpaidTotalINR?.approx
+                                    ? "Approximate: live exchange rates unavailable"
+                                    : undefined}
+                        >
+                            {unpaidTotalINR?.approx && !hide ? "≈ " : ""}
+                            {moneyOrUnknown(unpaidTotalINR?.total ?? null)}
+                        </span>
                         <span className={style.kpiSub} style={{color: overdueInvoices.length > 0 ? CLR_WARN : "var(--color-neutral-500)"}}>
                             {overdueInvoices.length > 0
                                 ? `${overdueInvoices.length} invoice${overdueInvoices.length === 1 ? "" : "s"} overdue`

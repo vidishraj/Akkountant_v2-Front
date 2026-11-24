@@ -3,6 +3,16 @@
  * var(--...). Breakpoints match the shared scope §36 (1280/880/720/480).
  */
 
+/* ak-f9kg: the legacy global `a { color: #646cff }` (index.css) leaked accent
+ * purple into every <a>-based tile on Home (KPI values, activity titles,
+ * quick start, jump-to). Neutralise it for links inside Home only.
+ * Specificity (0,1,0) beats the bare `a` rule but ties with Home's own
+ * classes, which come later in this file, so a deliberate accent link class
+ * still wins. */
+.page :where(a) {
+    color: inherit;
+}
+
 .page {
     display: flex;
     width: 100%;
