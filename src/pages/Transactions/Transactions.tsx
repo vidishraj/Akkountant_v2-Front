@@ -1,3 +1,4 @@
+import {bankName, bankShortName, isStatementRecord} from "../../utils/bankLabels.ts";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import TransactionFilters from "../../components/TransactionFilterComponent/TransactionFilters.tsx";
 import {
@@ -89,25 +90,8 @@ import React, {useRef} from "react";
  *   unchanged — it only downloads what the user explicitly clicked.
  */
 
-const BANK_LABEL: Record<string, string> = {
-    HDFC_DEBIT: "HDFC",
-    Millenia_Credit: "Millennia",
-    HDFC_REGALIA: "Regalia",
-    BOI: "BOI",
-    YES_BANK_DEBIT: "Yes Bank",
-    YES_BANK_ACE: "Yes Ace",
-    ICICI_AMAZON_PAY: "ICICI Pay",
-};
-
-const ALLOWED_BANKS = [
-    "HDFC_DEBIT",
-    "Millenia_Credit",
-    "HDFC_REGALIA",
-    "BOI",
-    "YES_BANK_DEBIT",
-    "YES_BANK_ACE",
-    "ICICI_AMAZON_PAY",
-];
+// ak-5aw4: bank labels + the statements allow-list come from
+// utils/bankLabels (shared map incl. the ak-iu8i banks); no local copies.
 
 const CLR_GAIN = "oklch(0.80 0.13 155)";
 const CLR_LOSS = "oklch(0.74 0.15 25)";
@@ -362,14 +346,14 @@ const IngestionStatusCard: React.FC = () => {
  * ak-inli: BankChip — small monospace uppercase chip for the Bank column.
  * Replaces the pre-ak-inli plain-text bank rendering per design (brief
  * 05 ledger-row shape: `bank-mono-chip / Description + Category / Date /
- * Amount`). Label resolution falls back through BANK_LABEL → raw bank
+ * Amount`). Label resolution falls back through utils/bankLabels → de-snaked bank
  * code → "—" so unknown bank codes still render SOMETHING readable.
  */
 interface BankChipProps {
     bank: string | null | undefined;
 }
 const BankChip: React.FC<BankChipProps> = ({bank}) => {
-    const label = bank ? (BANK_LABEL[bank] ?? bank) : "—";
+    const label = bankShortName(bank);
     return (
         <span className={style.bankChip} title={bank ?? undefined}>
             {label}
@@ -548,7 +532,7 @@ const ModeToggle: React.FC<ModeToggleProps> = ({transactionMode, onSet}) => (
 const Transactions = () => {
     const {state, dispatch} = useFilterContext();
     const {state: fileState, dispatch: fileDispatch} = useFileFilterContext();
-    const {transactionModeSelection, setTransactionMode, setOptedBanks, user} = useUser();
+    const {transactionModeSelection, setTransactionMode, optedBanks, setOptedBanks, user} = useUser();
     const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
     const [detailTx, setDetailTx] = useState<Transaction | null>(null);
     const {setPayload} = useMessage();
@@ -904,8 +888,11 @@ const Transactions = () => {
     );
 
     const filteredFiles = useMemo(
-        () => fileState.fileDetails.filter((f: FileDetails) => ALLOWED_BANKS.includes(f.bank)),
-        [fileState.fileDetails],
+        // ak-5aw4: visibility by what the record is (category / extracted
+        // rows / known bank), not a bank-id list; the old hardcoded 7-id list
+        // hid new banks and "UNKNOWN"-stamped statements with transactions.
+        () => fileState.fileDetails.filter((f: FileDetails) => isStatementRecord(f, optedBanks)),
+        [fileState.fileDetails, optedBanks],
     );
 
     const renderFileMode = () => (
@@ -1116,7 +1103,7 @@ const Transactions = () => {
                             </div>
                             <div className={style.detailMetaRow}>
                                 <dt>Bank</dt>
-                                <dd>{BANK_LABEL[detailTx.bank] ?? detailTx.bank ?? "—"}</dd>
+                                <dd>{bankName(detailTx.bank)}</dd>
                             </div>
                             <div className={style.detailMetaRow}>
                                 <dt>Category / tag</dt>

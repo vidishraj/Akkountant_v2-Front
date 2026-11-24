@@ -1,4 +1,5 @@
 import React from "react";
+import {bankName} from "../../utils/bankLabels.ts";
 import dayjs, {Dayjs} from "dayjs";
 import {AdapterDayjs} from "@mui/x-date-pickers/AdapterDayjs";
 import {LocalizationProvider} from "@mui/x-date-pickers/LocalizationProvider";
@@ -210,7 +211,7 @@ export default function DateCalendarWithBadges(): React.JSX.Element {
                                     whiteSpace: "nowrap",
                                     userSelect: "none",
                                 }}>
-                                    {bank.replace(/_/g, " ")}
+                                    {bankName(bank)}
                                 </span>
                             </Box>
                         );

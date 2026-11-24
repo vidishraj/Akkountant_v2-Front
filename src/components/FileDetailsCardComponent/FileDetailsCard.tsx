@@ -1,4 +1,5 @@
 import React, {useState} from "react";
+import {bankName as bankLabel} from "../../utils/bankLabels.ts";
 import {IconButton, Tooltip} from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -42,7 +43,7 @@ const FileDetailsCard: React.FC<FileDetailsPage> = (props) => {
     const [downloadDialog, setDownloadDialog] = useState(false);
 
     const displayName = subject || fileName;
-    const bankName = (bank || "Unknown").replace(/_/g, " ");
+    const bankName = bank ? bankLabel(bank) : "Unknown";
     const statusInfo = status ? statusConfig[status] : undefined;
 
     const inserted = extraction_summary?.inserted ?? 0;

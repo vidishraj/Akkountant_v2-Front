@@ -1,4 +1,5 @@
 import {useEffect, useCallback} from "react";
+import {bankName} from "../../utils/bankLabels.ts";
 import {debounce} from "lodash";
 import {useFilterContext} from "../../contexts/FilterContext.tsx";
 import {getFirstAndLastDateOfMonth, getLast5Months} from "../../utils/util.tsx";
@@ -91,7 +92,7 @@ const SearchFilterCompact = ({apply, isMobile, setDrawerState}: {
                     </option>
                     {optedBanks.map((option, idx) => (
                         <option key={idx} value={option}>
-                            {option.replace("_", " ")}
+                            {bankName(option)}
                         </option>
                     ))}
                 </select>

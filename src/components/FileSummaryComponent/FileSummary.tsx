@@ -1,4 +1,5 @@
 import React from "react";
+import {bankName} from "../../utils/bankLabels.ts";
 import {Box, Typography} from "@mui/material";
 import {useFileFilterContext} from "../../contexts/FileFilterContext.tsx";
 import {useFilterContext} from "../../contexts/FilterContext.tsx";
@@ -65,7 +66,7 @@ const FileSummary: React.FC<FileSummaryProps> = ({files}) => {
                             {count}
                         </Typography>
                         <Typography className={styles.bankName}>
-                            {bank.replace(/_/g, " ")}
+                            {bankName(bank)}
                         </Typography>
                     </Box>
                 ))}

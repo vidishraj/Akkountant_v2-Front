@@ -1,4 +1,5 @@
 import React from "react";
+import {bankName} from "../../utils/bankLabels.ts";
 import {Dayjs} from "dayjs";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
@@ -43,7 +44,7 @@ export function ServerDay({
 
     const bankDots = isCovered ? (
         <Tooltip
-            title={banks.map(b => b.replace(/_/g, " ")).join(", ")}
+            title={banks.map(b => bankName(b)).join(", ")}
             arrow
             placement="top"
         >

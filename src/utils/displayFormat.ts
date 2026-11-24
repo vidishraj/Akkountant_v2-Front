@@ -2,28 +2,11 @@
 // "Recent activity" — "HDFC · Thu, Oct 1, 2026", invoices "$757.50").
 
 import {maskAccountIds} from "./maskAccountIds.ts";
+import {bankName} from "./bankLabels.ts";
 
-/** Human bank/account names for BE bank keys (fallback: de-snake + title case). */
-const BANK_DISPLAY: Record<string, string> = {
-    HDFC_DEBIT: "HDFC",
-    HDFC_REGALIA: "HDFC Regalia",
-    Millenia_Credit: "HDFC Millennia",
-    BOI: "Bank of India",
-    ICICI_AMAZON_PAY: "ICICI Amazon Pay",
-    YES_BANK_DEBIT: "YES Bank",
-    YES_BANK_ACE: "YES Bank Ace",
-};
-
-const BANK_ACRONYMS = new Set(["HDFC", "ICICI", "SBI", "BOI", "YES", "IDFC", "AU", "RBL", "UPI", "NRE", "NRO", "PNB", "IDBI"]);
-
+/** Human bank/account name for a BE bank key (shared map: utils/bankLabels). */
 export function bankDisplayName(key: string | null | undefined): string {
-    if (!key) return "—";
-    if (BANK_DISPLAY[key]) return BANK_DISPLAY[key];
-    return key
-        .split(/[_\s]+/)
-        .filter(Boolean)
-        .map((w) => (BANK_ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()))
-        .join(" ");
+    return bankName(key);
 }
 
 /** "Thu, Oct 1, 2026" in IST, or "" for an unparseable date. */
