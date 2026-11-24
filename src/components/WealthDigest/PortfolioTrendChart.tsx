@@ -153,10 +153,10 @@ const PortfolioTrendChart: React.FC<PortfolioTrendChartProps> = ({days = 90}) =>
                     <div className={style.widgetPlaceholder}>Loading…</div>
                 ) : !paths ? (
                     <div className={style.widgetPlaceholder}>
-                        Trend data not yet available.
-                        <br/>
+                        Building your history
                         <span className={style.widgetPlaceholderHint}>
-                            (daily snapshots accumulate as the scheduler runs)
+                            The trend appears once two complete days are recorded. It
+                            fills in meaningfully after about 30.
                         </span>
                     </div>
                 ) : (

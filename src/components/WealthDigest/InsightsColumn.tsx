@@ -25,7 +25,7 @@ const InsightsColumn: React.FC<InsightsColumnProps> = ({
 }) => {
     return (
         <div className={style.insightsColumn}>
-            <PortfolioTrendChart days={90}/>
+            <PortfolioTrendChart days={30}/>
             <AllocationDonut
                 slices={allocationSlices}
                 totalCurrentValue={totalCurrentValue}

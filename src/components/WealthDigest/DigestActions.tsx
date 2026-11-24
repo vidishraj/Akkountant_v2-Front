@@ -1,8 +1,15 @@
 import React, {useEffect, useRef, useState} from "react";
 import style from "./WealthDigest.module.scss";
 
+export interface DigestPrompt {
+    label: string;
+    onClick: () => void;
+}
+
 interface DigestActionsProps {
     alreadyRead: boolean;
+    /** ak-x1i5: suggested follow-up questions shown as chips beside Ask follow-up. */
+    prompts?: DigestPrompt[];
     onAskFollowUp: () => void;
     onMarkRead: () => void;
     onCopy: () => void;
@@ -18,6 +25,7 @@ interface DigestActionsProps {
  */
 const DigestActions: React.FC<DigestActionsProps> = ({
     alreadyRead,
+    prompts = [],
     onAskFollowUp,
     onMarkRead,
     onCopy,
@@ -58,13 +66,27 @@ const DigestActions: React.FC<DigestActionsProps> = ({
                 <span>Ask follow-up</span>
             </button>
 
+            {prompts.map((p) => (
+                <button
+                    key={p.label}
+                    type="button"
+                    className={style.promptChip}
+                    onClick={p.onClick}
+                    disabled={disabled}
+                >
+                    {p.label}
+                </button>
+            ))}
+
+            <span style={{flex: 1}}/>
+
             {alreadyRead ? (
                 <span
                     className={style.readIndicator}
                     aria-label="Digest already read"
                     title="Digest already marked read"
                 >
-                    <i className="ph ph-check-circle"/>
+                    <i className="ph-fill ph-check-circle"/>
                     <span>Marked read</span>
                 </span>
             ) : (
@@ -78,8 +100,6 @@ const DigestActions: React.FC<DigestActionsProps> = ({
                     <span>Mark read</span>
                 </button>
             )}
-
-            <span style={{flex: 1}}/>
 
             <div ref={hostRef} className={style.kebabHost}>
                 <button

@@ -6,23 +6,20 @@ interface ActionCardProps {
     action: DigestAction;
     done: boolean;
     onToggleDone: (id: string, done: boolean) => void;
+    onAsk?: () => void;
 }
 
 /**
- * FE-6 (ak-jhy8) Nocturne-skinned action card. MUI/BasicCard dropped;
- * plain div with Nocturne tokens + Phosphor category icons. Category
- * color-tokens remain semantic (cash / equity / debt / gold / other).
+ * ak-x1i5: design "Do" card — square check toggle, title (+ High priority
+ * tag), detail, then a meta row: category icon · label · priority, and an
+ * "Ask about this" link on the right.
  */
-
-const CATEGORY_META: Record<
-    DigestAction["category"],
-    {label: string; icon: string; colorClass: string}
-> = {
-    cash: {label: "Cash", icon: "ph-currency-inr", colorClass: "categoryPill_cash"},
-    equity: {label: "Equity", icon: "ph-chart-line-up", colorClass: "categoryPill_equity"},
-    debt: {label: "Debt", icon: "ph-bank", colorClass: "categoryPill_debt"},
-    gold: {label: "Gold", icon: "ph-diamond", colorClass: "categoryPill_gold"},
-    other: {label: "Other", icon: "ph-squares-four", colorClass: "categoryPill_other"},
+const CATEGORY_META: Record<DigestAction["category"], {label: string; icon: string}> = {
+    cash: {label: "Cash", icon: "ph-currency-inr"},
+    equity: {label: "Equity", icon: "ph-chart-line-up"},
+    debt: {label: "Debt", icon: "ph-bank"},
+    gold: {label: "Gold", icon: "ph-diamond"},
+    other: {label: "Other", icon: "ph-squares-four"},
 };
 
 const PRIORITY_LABEL: Record<DigestAction["priority"], string> = {
@@ -31,41 +28,49 @@ const PRIORITY_LABEL: Record<DigestAction["priority"], string> = {
     low: "Low priority",
 };
 
-const ActionCard: React.FC<ActionCardProps> = ({action, done, onToggleDone}) => {
-    const catMeta = CATEGORY_META[action.category];
+const ActionCard: React.FC<ActionCardProps> = ({action, done, onToggleDone, onAsk}) => {
+    const catMeta = CATEGORY_META[action.category] ?? CATEGORY_META.other;
     return (
         <div className={`${style.insightCard} ${done ? style.insightCardDone : ""}`}>
+            <button
+                type="button"
+                role="checkbox"
+                aria-checked={done}
+                aria-label={`Mark "${action.title}" done`}
+                className={`${style.actionCheckbox} ${done ? style.actionCheckboxOn : ""}`}
+                onClick={() => onToggleDone(action.id, !done)}
+            >
+                <i className="ph ph-check" aria-hidden/>
+            </button>
             <div className={style.insightCardBody}>
                 <div className={style.insightCardHeader}>
-                    <input
-                        type="checkbox"
-                        checked={done}
-                        onChange={(e) => onToggleDone(action.id, e.target.checked)}
-                        className={style.actionCheckbox}
-                        aria-label={`Mark "${action.title}" done`}
-                    />
-                    <div
+                    <span
                         className={`${style.insightCardTitle} ${done ? style.insightCardTitleDone : ""}`}
                     >
                         {action.title}
-                    </div>
+                    </span>
+                    {action.priority === "high" && (
+                        <span className={`tag tag-outline ${style.priorityTag}`}>High priority</span>
+                    )}
                 </div>
                 {action.detail && (
-                    <div className={style.insightCardDetail}>{action.detail}</div>
+                    <p className={style.insightCardDetail}>{action.detail}</p>
                 )}
                 <div className={style.insightCardMeta}>
-                    <span
-                        className={`${style.categoryPill} ${style[catMeta.colorClass as "categoryPill_cash"]}`}
-                    >
-                        <i className={`ph ${catMeta.icon}`} aria-hidden/>
-                        <span>{catMeta.label}</span>
-                    </span>
-                    <span
-                        className={`${style.priorityPill} ${style["priorityPill_" + action.priority as "priorityPill_high"]}`}
-                        title={PRIORITY_LABEL[action.priority]}
-                    >
-                        {action.priority.toUpperCase()}
-                    </span>
+                    <i className={`ph ${catMeta.icon}`} aria-hidden/>
+                    <span>{catMeta.label}</span>
+                    <span aria-hidden>·</span>
+                    <span>{PRIORITY_LABEL[action.priority] ?? action.priority}</span>
+                    <span className={style.metaSpacer}/>
+                    {onAsk && (
+                        <button
+                            type="button"
+                            className={`btn btn-ghost ${style.askLink}`}
+                            onClick={onAsk}
+                        >
+                            Ask about this
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

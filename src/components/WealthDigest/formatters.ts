@@ -33,3 +33,23 @@ export const formatCompact = (value: number): string => {
   if (abs >= 1_000) return (value / 1_000).toFixed(1) + "K";
   return value.toFixed(2);
 };
+
+const DAY_NAMES = [
+    "Sunday", "Monday", "Tuesday", "Wednesday",
+    "Thursday", "Friday", "Saturday",
+];
+const MONTH_NAMES = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/**
+ * YYYY-MM-DD → "Thursday, Nov 12" via UTC parts so the BE-sent IST calendar
+ * date doesn't drift under a west-of-IST viewer's local tz.
+ */
+export function formatDigestDateLabel(iso: string): string {
+    const [y, m, d] = iso.split("-").map(Number);
+    if (!y || !m || !d) return iso;
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return `${DAY_NAMES[date.getUTCDay()]}, ${MONTH_NAMES[m - 1]} ${d}`;
+}

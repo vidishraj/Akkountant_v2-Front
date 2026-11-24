@@ -1,4 +1,5 @@
 import React from "react";
+import {useNavigate} from "react-router-dom";
 import {formatCompact} from "./formatters";
 import style from "./WealthDigest.module.scss";
 
@@ -15,123 +16,100 @@ interface AllocationDonutProps {
 }
 
 /**
- * FE-6 (ak-jhy8) Nocturne-native allocation donut. Replaces the pre-FE-6
- * recharts PieChart with a hand-drawn SVG that uses Nocturne ramp tokens
- * (matching FE-3's `ASSET_COLOR` map on InvestmentsLanding), so both
- * surfaces stay color-coordinated. BasicCard / MUI Box+Typography dropped
- * — plain divs with Nocturne tokens.
+ * ak-x1i5: categorical allocation donut per the design — one hue per asset
+ * type (CSS vars `--wd-cat-*` on the page root), ring drawn as dashed
+ * circles, legend rows navigate to the asset. Slices are sorted largest
+ * first so the ring and legend read in the same order.
  */
-const ASSET_COLOR: Record<string, string> = {
-    stocks: "var(--color-accent-500)",
-    mf: "var(--color-accent-700)",
-    nps: "var(--color-accent-300)",
-    epf: "var(--color-neutral-400)",
-    ppf: "var(--color-neutral-600)",
-    gold: "var(--color-accent-2-500)",
+const CAT_VAR: Record<string, string> = {
+    stocks: "var(--wd-cat-stocks)",
+    mf: "var(--wd-cat-mf)",
+    nps: "var(--wd-cat-nps)",
+    ppf: "var(--wd-cat-ppf)",
+    epf: "var(--wd-cat-epf)",
+    gold: "var(--wd-cat-gold)",
 };
-
-const SIZE = 180;
-const R_OUTER = 78;
-const R_INNER = 50;
-const PAD_ANGLE_RAD = (2 * Math.PI) / 360; // 1°
-
-/**
- * Build a donut-slice SVG path (sector between innerR and outerR from
- * startAngle to endAngle, radians measured clockwise from -π/2).
- */
-function arcPath(cx: number, cy: number, r0: number, r1: number, a0: number, a1: number): string {
-    const toXY = (r: number, a: number) => ({
-        x: cx + r * Math.cos(a),
-        y: cy + r * Math.sin(a),
-    });
-    const large = a1 - a0 > Math.PI ? 1 : 0;
-    const p0 = toXY(r1, a0);
-    const p1 = toXY(r1, a1);
-    const p2 = toXY(r0, a1);
-    const p3 = toXY(r0, a0);
-    return [
-        `M${p0.x.toFixed(2)},${p0.y.toFixed(2)}`,
-        `A${r1},${r1} 0 ${large} 1 ${p1.x.toFixed(2)},${p1.y.toFixed(2)}`,
-        `L${p2.x.toFixed(2)},${p2.y.toFixed(2)}`,
-        `A${r0},${r0} 0 ${large} 0 ${p3.x.toFixed(2)},${p3.y.toFixed(2)}`,
-        "Z",
-    ].join(" ");
-}
+const FALLBACK = "var(--color-neutral-500)";
+const R = 15.915; // circumference ≈ 100 → dash units are percentages
+const GAP = 0.6;
 
 const AllocationDonut: React.FC<AllocationDonutProps> = ({slices, totalCurrentValue}) => {
-    const hasData = slices.length > 0 && totalCurrentValue > 0;
-    const total = slices.reduce((s, x) => s + x.value, 0);
+    const navigate = useNavigate();
+    const sorted = [...slices].sort((a, b) => b.value - a.value);
+    const total = sorted.reduce((s, x) => s + x.value, 0);
+    const hasData = sorted.length > 0 && totalCurrentValue > 0 && total > 0;
 
-    const cx = SIZE / 2;
-    const cy = SIZE / 2;
-
-    // Compute arc segments. Angles start at -π/2 (12 o'clock) and advance
-    // clockwise. Each slice gets a PAD_ANGLE gap taken from its own share so
-    // the total still sums to 2π.
-    const startAngle = -Math.PI / 2;
-    let cursor = startAngle;
-    const arcs = slices.map((s) => {
-        const sweep = total > 0 ? (s.value / total) * 2 * Math.PI : 0;
-        const padded = Math.max(0, sweep - PAD_ANGLE_RAD);
-        const a0 = cursor;
-        const a1 = cursor + padded;
-        cursor += sweep;
-        return {
-            slice: s,
-            d: arcPath(cx, cy, R_INNER, R_OUTER, a0, a1),
-            color: ASSET_COLOR[s.key] || "var(--color-neutral-500)",
-        };
+    let cum = 0;
+    const rings = sorted.map((s) => {
+        const p = (s.value / total) * 100;
+        const g = sorted.length > 1 ? Math.max(p - GAP, 0.3) : p;
+        const ring = {slice: s, dash: `${g} ${100 - g}`, off: String(-cum)};
+        cum += p;
+        return ring;
     });
 
     return (
         <div className={style.widgetCard}>
             <div className={style.widgetHeader}>
                 <h3 className={style.widgetTitle}>Allocation</h3>
-                <span className={style.widgetSubtitle}>By asset type</span>
+                <span className={style.widgetSubtitle}>by asset type</span>
             </div>
-            <div className={style.widgetBody}>
-                {!hasData ? (
-                    <div className={style.widgetPlaceholder}>
-                        Load some holdings on the Investments page to see allocation.
-                    </div>
-                ) : (
-                    <>
+            {!hasData ? (
+                <div className={style.widgetPlaceholder}>
+                    Load some holdings on the Investments page to see allocation.
+                </div>
+            ) : (
+                <>
+                    <div className={style.donutRow}>
                         <svg
-                            viewBox={`0 0 ${SIZE} ${SIZE}`}
-                            width="100%"
-                            height={SIZE}
+                            viewBox="0 0 42 42"
+                            className={style.donutSvg}
                             role="img"
-                            aria-label="Allocation donut"
+                            aria-label="Allocation by asset type"
                         >
-                            {arcs.map(({slice, d, color}) => (
-                                <path
+                            {rings.map(({slice, dash, off}) => (
+                                <circle
                                     key={slice.key}
-                                    d={d}
-                                    fill={color}
-                                    aria-label={`${slice.label} ${slice.pct.toFixed(1)}%`}
+                                    cx="21"
+                                    cy="21"
+                                    r={R}
+                                    fill="none"
+                                    stroke={CAT_VAR[slice.key] ?? FALLBACK}
+                                    strokeWidth="5"
+                                    strokeDasharray={dash}
+                                    strokeDashoffset={off}
                                 >
                                     <title>
                                         {slice.label}: ₹{formatCompact(slice.value)} · {slice.pct.toFixed(1)}%
                                     </title>
-                                </path>
+                                </circle>
                             ))}
                         </svg>
                         <div className={style.donutLegend}>
-                            {slices.map((s) => (
-                                <div key={s.key} className={style.donutLegendRow}>
+                            {sorted.map((s) => (
+                                <button
+                                    key={s.key}
+                                    type="button"
+                                    className={style.donutLegendRow}
+                                    onClick={() => navigate(`/investments/${s.key}`)}
+                                    title={`${s.label} · ₹${formatCompact(s.value)} · ${s.pct.toFixed(1)}%`}
+                                >
                                     <span
                                         className={style.donutLegendSwatch}
-                                        style={{background: ASSET_COLOR[s.key] || "var(--color-neutral-500)"}}
+                                        style={{background: CAT_VAR[s.key] ?? FALLBACK}}
                                         aria-hidden
                                     />
                                     <span className={style.donutLegendLabel}>{s.label}</span>
                                     <span className={style.donutLegendValue}>{s.pct.toFixed(1)}%</span>
-                                </div>
+                                </button>
                             ))}
                         </div>
-                    </>
-                )}
-            </div>
+                    </div>
+                    <span className={style.widgetFootnote}>
+                        Stocks, MF, NPS at current value · EPF, PPF, gold at net — same basis as Investments.
+                    </span>
+                </>
+            )}
         </div>
     );
 };

@@ -1,29 +1,9 @@
-// Shared color roles for the WealthDigest surface. Declared once at the top so
-// swapping the app-wide dark theme later means editing one block. Every value
-// here already lives elsewhere in the app palette — we're just giving them
-// component-scoped role names so the CSS below reads intent, not hex.
-//
-// Palette lineage:
-// - `--wd-surface`      = existing card surface (#1a2530)
-// - `--wd-surface-hover`= same surface, one step lighter
-// - `--wd-border`       = existing divider color (#29384D)
-// - `--wd-text-primary` = existing near-white body text (#FAFAFA)
-// - `--wd-text-secondary`= existing muted label token (#7a7d85)
-// - `--wd-accent`       = existing brand blue used for CTAs (#4A90E2)
-// - `--wd-positive`     = existing green used for gain deltas (#4caf50)
-// - `--wd-negative`     = existing red used for loss deltas (#f44336)
-// - `--wd-page-bg`      = existing page background (#121C24)
-//
-// The `text wears text tokens, never data color` rule from the dataviz skill
-// is honored: only tileDelta_{polarity} classes color text, and only because
-// the delta text is carrying a semantic up/down signal — one of the two
-// explicit exceptions in the tile-contract spec.
+// WealthDigest surface — role tokens. ak-x1i5 rebuilt the page against the
+// 2026-11-24 design export (Akkountant Redesign :: Wealth Digest). Every value
+// is a Nocturne token or one of the design's semantic oklch roles (gain /
+// loss / warning) and the design's categorical asset palette — no raw hex.
 
 .wealthDigestRoot {
-  // FE-6 (ak-jhy8): token values now flow from Nocturne. The `--wd-*`
-  // indirection stays so downstream rules don't need touching, but every
-  // underlying value is a Nocturne primitive. Swapping Nocturne retones
-  // this whole page at the root.
   --wd-surface: var(--color-surface);
   --wd-surface-hover: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
   --wd-border: var(--color-divider);
@@ -37,412 +17,374 @@
   --wd-warning: oklch(0.82 0.12 75);
   --wd-page-bg: var(--color-bg);
 
-  padding: 24px 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-  color: var(--wd-text-primary);
+  // Categorical allocation palette (design: one hue per asset type).
+  --wd-cat-stocks: var(--color-accent);
+  --wd-cat-mf: oklch(0.74 0.09 200);
+  --wd-cat-nps: oklch(0.72 0.10 330);
+  --wd-cat-ppf: oklch(0.72 0.08 250);
+  --wd-cat-epf: oklch(0.74 0.09 150);
+  --wd-cat-gold: oklch(0.80 0.10 85);
 
-  @media (max-width: 900px) {
-    padding: 16px;
+  // Full width (design): no centred max-width container.
+  width: 100%;
+  box-sizing: border-box;
+  padding: 26px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: var(--wd-text-primary);
+  font-variant-numeric: tabular-nums;
+
+  @media (max-width: 899px) {
+    padding: 18px 16px 32px;
   }
+}
+
+.textPositive {
+  color: var(--wd-positive);
+}
+.textNegative {
+  color: var(--wd-negative);
 }
 
 // ── Header row ──────────────────────────────────────────────────────────────
 
 .headerRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 24px;
+  align-items: flex-end;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
 .headerLeft {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.headerEyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
 }
 
 .headerTitle {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--wd-text-primary);
   margin: 0;
-  line-height: 1.2;
-}
-
-.headerDate {
-  font-size: 16px;
-  color: var(--wd-text-secondary);
-  font-weight: 400;
+  font-size: 30px;
+  line-height: 1.12;
+  color: var(--wd-text-primary);
 }
 
 .headerSnapshot {
-  font-size: 13px;
-  color: var(--wd-text-muted);
-  font-weight: 400;
+  font-size: 12.5px;
+  color: var(--color-neutral-500);
+  padding-bottom: 5px;
 }
 
-.headerRight {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+.headerSpacer {
+  flex: 1;
 }
 
 .historyBtn {
-  color: var(--wd-text-secondary);
-  text-transform: none;
-  font-size: 13px;
-  &:hover {
-    color: var(--wd-text-primary);
-    background: var(--wd-surface-hover);
-  }
+  font-size: 12.5px;
 }
 
 .backToTodayBtn {
-  color: var(--wd-accent);
-  text-transform: none;
-  font-size: 13px;
+  font-size: 12.5px;
+  padding-bottom: 4px;
 }
 
 .disclosureChip {
-  background: transparent;
-  color: var(--wd-text-secondary);
-  border: 1px solid var(--wd-border);
-  font-size: 11px;
-  height: 22px;
-  letter-spacing: 0.3px;
+  font-size: 11.5px;
+  color: var(--color-neutral-500);
+  padding-bottom: 7px;
 }
 
-// ── Tile row (responsive grid) ──────────────────────────────────────────────
+// ── Tile row ────────────────────────────────────────────────────────────────
 
 .tileRow {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-
-  // Overseer-locked Q3: 5-across desktop (>=900px), 2-col tablet (600-899px)
-  // with Total-hero spanning both, 1-col phone (<600px). The prior <=1200px
-  // trigger regressed the 900-1200px laptop range into tablet layout.
-  @media (max-width: 899px) {
-    grid-template-columns: repeat(2, 1fr);
-    & > :first-child {
-      grid-column: 1 / -1;
-    }
-  }
-
-  @media (max-width: 599px) {
-    grid-template-columns: 1fr;
-    & > :first-child {
-      grid-column: auto;
-    }
-  }
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 10px;
 }
 
-// ── Single tile ─────────────────────────────────────────────────────────────
-
 .tile {
-  background: var(--wd-surface) !important;
-  border: 1px solid var(--wd-border);
-  border-radius: 8px !important;
-  overflow: hidden;
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: var(--wd-surface);
+  transition: box-shadow 120ms ease;
 }
 
 .tileClickable {
   cursor: pointer;
   &:hover {
-    background: var(--wd-surface-hover) !important;
-    border-color: var(--wd-accent);
+    box-shadow: inset 0 0 0 1px var(--color-neutral-700);
   }
-  &:focus-within {
+  &:focus-visible {
     outline: 2px solid var(--wd-accent);
     outline-offset: 2px;
   }
 }
 
 .tileHero {
-  // Hero variant — no extra styling beyond the value size; the tile itself
-  // stays visually calm so the number is what draws the eye.
-}
+  grid-column: span 2;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent) 14%, var(--color-surface)),
+    var(--color-surface) 70%
+  );
+  box-shadow: inset 0 0 0 1px var(--color-accent-800);
 
-.tileInner {
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 96px;
-  &:focus {
-    outline: none;
+  &.tileClickable:hover {
+    box-shadow: inset 0 0 0 1px var(--color-accent-600);
+  }
+
+  @media (max-width: 559px) {
+    grid-column: span 1;
   }
 }
 
 .tileLabel {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--wd-text-secondary);
-  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-neutral-400);
 }
 
 .tileValue {
   font-size: 22px;
-  font-weight: 600;
-  color: var(--wd-text-primary);
+  font-weight: 500;
+  letter-spacing: -0.02em;
   line-height: 1.2;
-  // Proportional figures — per dataviz skill, hero/tile values should NOT use
-  // tabular-nums (that's for aligned columns of numbers, not standalone).
-  font-variant-numeric: proportional-nums;
+  color: var(--wd-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tileValueHero {
-  @extend .tileValue;
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--wd-text-primary);
 
-  @media (max-width: 600px) {
-    font-size: 28px;
+  @media (max-width: 599px) {
+    font-size: 34px;
   }
+}
+
+.tileValue_positive {
+  color: var(--wd-positive);
+}
+.tileValue_negative {
+  color: var(--wd-negative);
+}
+.tileValue_muted {
+  color: var(--color-neutral-500);
 }
 
 .tileSubtitle {
   font-size: 12px;
-  color: var(--wd-text-secondary);
-  margin-top: 2px;
-}
+  color: var(--color-neutral-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
 
-.tileDelta {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-top: 4px;
-  font-variant-numeric: proportional-nums;
-}
-
-// Only the delta text carries color — semantic direction signal, not identity.
-.tileDelta_positive {
-  color: var(--wd-positive);
-}
-.tileDelta_negative {
-  color: var(--wd-negative);
-}
-.tileDelta_neutral {
-  color: var(--wd-text-secondary);
-}
-
-// ── Body band ───────────────────────────────────────────────────────────────
-
-.bodyBand {
-  background: var(--wd-surface);
-  border: 1px solid var(--wd-border);
-  border-radius: 8px;
-  padding: 24px 20px;
-  margin-bottom: 20px;
-}
-
-.bodyInner {
-  max-width: 700px;
-  margin: 0 auto;
-  color: var(--wd-text-primary);
-  font-size: 15px;
-  line-height: 1.7;
-
-  h1, h2, h3, h4 {
-    color: var(--wd-text-primary);
-    margin-top: 20px;
-    margin-bottom: 10px;
-    line-height: 1.3;
-  }
-  h1 { font-size: 20px; }
-  h2 { font-size: 18px; }
-  h3 { font-size: 16px; }
-  h4 { font-size: 15px; }
-
-  p {
-    margin: 0 0 12px 0;
-  }
-
-  ul, ol {
-    padding-left: 22px;
-    margin: 0 0 12px 0;
-  }
-  li {
-    margin-bottom: 4px;
-  }
-
-  a {
-    color: var(--wd-accent);
-    text-decoration: underline;
-    &:hover {
-      color: var(--wd-accent-hover);
-    }
-  }
-
-  code {
-    background: rgba(255, 255, 255, 0.06);
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-size: 13px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-
-  pre {
-    background: rgba(0, 0, 0, 0.25);
-    padding: 12px;
-    border-radius: 6px;
-    overflow-x: auto;
-    code {
-      background: transparent;
-      padding: 0;
-    }
-  }
-
-  blockquote {
-    border-left: 3px solid var(--wd-accent);
-    margin: 12px 0;
-    padding: 4px 12px;
-    color: var(--wd-text-secondary);
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 12px 0;
-    font-size: 14px;
-  }
-  th, td {
-    border: 1px solid var(--wd-border);
-    padding: 6px 10px;
-    text-align: left;
-  }
-  th {
-    background: rgba(255, 255, 255, 0.03);
-    font-weight: 600;
+  .tileHero & {
+    font-size: 12.5px;
+    color: var(--color-neutral-400);
   }
 }
 
-// ── Actions row ─────────────────────────────────────────────────────────────
+// ── Actions row (sticky bar: Ask follow-up + chips + read + kebab) ─────────
 
 .actionsRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 24px;
   flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px var(--color-accent-800);
 }
 
-.primaryActionBtn {
-  background: var(--wd-accent) !important;
-  color: var(--wd-text-primary) !important;
-  text-transform: none !important;
-  font-weight: 500 !important;
-  &:hover {
-    background: var(--wd-accent-hover) !important;
-  }
-  &:disabled {
-    background: var(--wd-text-muted) !important;
-    color: var(--wd-text-secondary) !important;
-  }
+.actionsRowSticky {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.primaryActionBtn,
+.secondaryActionBtn {
+  font-size: 13px;
 }
 
 .secondaryActionBtn {
-  color: var(--wd-text-primary) !important;
-  border-color: var(--wd-border) !important;
-  text-transform: none !important;
-  font-weight: 500 !important;
+  font-size: 12.5px;
+}
+
+.promptChip {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--color-accent-300);
+  background: var(--color-accent-900);
+
   &:hover {
-    border-color: var(--wd-accent) !important;
-    background: var(--wd-surface-hover) !important;
+    background: var(--color-accent-800);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--wd-accent);
+    outline-offset: 2px;
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
   }
 }
 
 .readIndicator {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--wd-positive);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border: 1px solid var(--wd-border);
-  border-radius: 4px;
-  background: rgba(76, 175, 80, 0.08);
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 12.5px;
+  color: var(--color-neutral-400);
+
+  i {
+    color: var(--wd-positive);
+  }
 }
 
 .kebabBtn {
-  color: var(--wd-text-secondary) !important;
-  &:hover {
-    color: var(--wd-text-primary) !important;
-    background: var(--wd-surface-hover) !important;
-  }
+  width: 32px;
+  height: 32px;
+  color: var(--color-neutral-400);
 }
 
 // ── State banners ───────────────────────────────────────────────────────────
 
 .stateBanner {
-  margin-bottom: 16px;
-  border-radius: 6px !important;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--wd-surface);
 }
 
-.errorDetail {
-  color: var(--wd-text-secondary);
-  font-size: 12px;
+.stateBannerIcon {
+  font-size: 18px;
+  margin-top: 1px;
+  flex: none;
 }
 
-.retryLink {
-  color: var(--wd-text-primary) !important;
-  text-decoration: underline !important;
-  cursor: pointer;
-  background: transparent !important;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
+.stateBanner_info {
+  box-shadow: inset 0 0 0 1px var(--color-accent-800);
+  .stateBannerIcon { color: var(--color-accent); }
 }
 
-// ── Not-configured full-page state ──────────────────────────────────────────
+.stateBanner_warning {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wd-warning) 35%, transparent);
+  .stateBannerIcon { color: var(--wd-warning); }
+}
+
+.stateBanner_error {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wd-negative) 40%, transparent);
+  .stateBannerIcon { color: var(--wd-negative); }
+}
+
+.stateBannerBody {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stateBannerTitle {
+  font-size: 14px;
+  text-wrap: pretty;
+  color: var(--wd-text-primary);
+}
+
+.stateBannerText {
+  font-size: 12.5px;
+  color: var(--color-neutral-500);
+}
+
+.stateBannerDetail {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-neutral-400);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.stateBannerActions {
+  display: flex;
+  gap: 6px;
+}
+
+.stateBannerDetailBtn {
+  font-size: 12.5px;
+  color: var(--color-neutral-400);
+}
+
+.stateBannerCta {
+  font-size: 12.5px;
+}
+
+// ── Full-page empty states (zero / not configured) ──────────────────────────
 
 .notConfiguredRoot {
-  max-width: 640px;
-  margin: 60px auto;
-  padding: 32px;
-  background: var(--wd-surface);
-  border: 1px solid var(--wd-border);
-  border-radius: 8px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 62ch;
+  padding: 28px 0;
+}
+
+.notConfiguredIcon {
+  font-size: 28px;
+  color: var(--color-accent);
 }
 
 .notConfiguredTitle {
+  margin: 0;
   color: var(--wd-text-primary);
-  margin-bottom: 16px;
-  font-weight: 600;
 }
 
 .notConfiguredBody {
-  color: var(--wd-text-secondary);
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 12px;
-  code {
-    background: rgba(255, 255, 255, 0.08);
-    padding: 2px 6px;
-    border-radius: 3px;
-    color: var(--wd-text-primary);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-}
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--color-neutral-400);
 
-.notConfiguredLink {
-  color: var(--wd-accent) !important;
-  font-weight: 600;
-  &:hover {
-    color: var(--wd-accent-hover) !important;
+  code {
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+    background: var(--color-neutral-900);
+    color: var(--wd-text-primary);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   }
 }
 
@@ -482,7 +424,7 @@
 .skeletonTile {
   height: 96px;
   border-radius: 8px !important;
-  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-color: color-mix(in srgb, var(--color-text) 6%, transparent) !important;
 }
 
 .skeletonBody {
@@ -584,96 +526,129 @@
   text-transform: none !important;
 }
 
-// ── Wave 3 additions ────────────────────────────────────────────────────────
-//
-// Everything below is new for Wave 3: the 2-col main grid, insight-card
-// primitives (ActionCard / WatchItemCard / NewsCard), narrative refinement,
-// right-side widget column (trend chart + donut), sticky actions row.
+// ── Main body: digest column + insights aside ───────────────────────────────
 
-// Main body layout — 2-col at desktop, stacked below tablet.
-// Digest column stays flexible (min 0 to prevent overflow-blowout); insights
-// column is a fixed ~360px sidebar. On tablet (< 1000px) they stack.
 .mainGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 24px;
-  margin-bottom: 24px;
-
-  @media (max-width: 999px) {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-  }
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .digestColumn {
+  flex: 999 1 560px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  min-width: 0;
+  gap: 30px;
 }
 
 .insightsColumnSlot {
+  flex: 1 1 320px;
   min-width: 0;
+  position: sticky;
+  top: 0;
 }
 
 .insightsColumn {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .sectionHeading {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--wd-text-secondary);
-  margin: 0 0 4px 0;
+  margin: 0;
+  font-size: 18px;
+  color: var(--wd-text-primary);
 }
 
-.cardStack {
+.sectionMeta {
+  font-size: 12.5px;
+  color: var(--color-neutral-500);
+}
+
+.sectionEmpty {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-900);
+  font-size: 13.5px;
+  color: var(--color-neutral-500);
+
+  i {
+    font-size: 16px;
+    margin-top: 1px;
+  }
 }
 
-// Sticky actions — anchored to the top of digestColumn so the buttons stay
-// visible on scroll. z-index above the section headings; a soft backdrop
-// so scrolling content shows through without visual noise.
-.actionsRowSticky {
-  position: sticky;
-  top: 8px;
-  z-index: 5;
-  background: var(--wd-page-bg);
-  padding: 8px;
-  margin: -8px;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+.metaSpacer {
+  flex: 1;
 }
 
-// ── Insight cards (ActionCard / WatchItemCard shared primitives) ────────────
+.askLink {
+  font-size: 12px;
+}
+
+// ── Do (ActionCard) ─────────────────────────────────────────────────────────
 
 .insightCard {
-  background: var(--wd-surface) !important;
-  border: 1px solid var(--wd-border);
-  border-radius: 8px !important;
-  overflow: hidden;
-  transition: opacity 200ms ease, background 200ms ease;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--wd-surface);
+  transition: opacity 200ms ease;
 }
 
 .insightCardDone {
-  opacity: 0.6;
-  background: rgba(76, 175, 80, 0.06) !important;
+  opacity: 0.55;
+}
+
+.actionCheckbox {
+  all: unset;
+  cursor: pointer;
+  flex: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1.5px var(--color-neutral-600);
+  background: transparent;
+  color: transparent;
+  font-size: 12px;
+
+  &:focus-visible {
+    outline: 2px solid var(--wd-accent);
+    outline-offset: 2px;
+  }
+}
+
+.actionCheckboxOn {
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-bg);
 }
 
 .insightCardBody {
-  padding: 12px 14px;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -681,281 +656,173 @@
 
 .insightCardHeader {
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.actionCheckbox {
-  color: var(--wd-text-secondary) !important;
-  padding: 2px !important;
-  &.Mui-checked {
-    color: var(--wd-positive) !important;
-  }
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .insightCardTitle {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
   color: var(--wd-text-primary);
-  line-height: 1.4;
-  flex-grow: 1;
 }
 
 .insightCardTitleDone {
   text-decoration: line-through;
-  color: var(--wd-text-secondary);
+}
+
+.priorityTag {
+  font-size: 10px;
+  padding: 1px 7px;
 }
 
 .insightCardDetail {
-  font-size: 13px;
-  color: var(--wd-text-secondary);
-  line-height: 1.5;
-  padding-left: 24px;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-neutral-400);
+  text-wrap: pretty;
 }
 
 .insightCardMeta {
   display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+// ── Watch (WatchItemCard) ───────────────────────────────────────────────────
+
+.watchCard {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+}
+
+.watchIcon {
+  font-size: 18px;
+  flex: none;
+  margin-top: 1px;
+}
+
+.watchBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.watchSeverity {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.watchTone_info {
+  color: var(--color-neutral-400);
+}
+.watchTone_warning {
+  color: var(--wd-warning);
+}
+.watchTone_critical {
+  color: var(--wd-negative);
+}
+
+.watchActions {
+  display: flex;
   gap: 6px;
-  padding-left: 24px;
   flex-wrap: wrap;
 }
 
-// Category pills — semantic colors (not the categorical viz palette).
-// Cash = green (safe), equity = blue (growth), debt = purple (fixed),
-// gold = amber (metal), other = neutral gray.
-.categoryPill {
-  height: 22px !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.3px !important;
-  color: var(--wd-text-primary) !important;
-  & .MuiChip-icon {
-    color: var(--wd-text-primary) !important;
-    margin-left: 4px !important;
-  }
-}
-
-.categoryPillIcon {
-  display: inline-flex;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.categoryPill_cash {
-  background: rgba(76, 175, 80, 0.18) !important;
-  border: 1px solid rgba(76, 175, 80, 0.4);
-}
-.categoryPill_equity {
-  background: rgba(74, 158, 255, 0.18) !important;
-  border: 1px solid rgba(74, 158, 255, 0.4);
-}
-.categoryPill_debt {
-  background: rgba(156, 39, 176, 0.18) !important;
-  border: 1px solid rgba(156, 39, 176, 0.4);
-}
-.categoryPill_gold {
-  background: rgba(255, 215, 0, 0.15) !important;
-  border: 1px solid rgba(255, 215, 0, 0.4);
-}
-.categoryPill_other {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid var(--wd-border);
-}
-
-// Priority pills — semantic status.
-.priorityPill {
-  height: 22px !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.5px !important;
-  color: var(--wd-text-primary) !important;
-}
-.priorityPill_high {
-  background: rgba(244, 67, 54, 0.22) !important;
-  border: 1px solid rgba(244, 67, 54, 0.5);
-}
-.priorityPill_medium {
-  background: rgba(255, 152, 0, 0.22) !important;
-  border: 1px solid rgba(255, 152, 0, 0.5);
-}
-.priorityPill_low {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid var(--wd-border);
-  color: var(--wd-text-secondary) !important;
-}
-
-// ── WatchItemCard (MUI Alert with tuned dark-mode tokens) ───────────────────
-
-.watchAlert {
-  border-radius: 6px !important;
-  align-items: flex-start !important;
-  color: var(--wd-text-primary) !important;
-  & .MuiAlert-icon {
-    padding-top: 8px !important;
-  }
-  & .MuiAlert-message {
-    color: var(--wd-text-primary) !important;
-    padding: 6px 0 !important;
-  }
-  & .MuiAlert-action {
-    padding-top: 6px !important;
-    align-items: center !important;
-  }
-}
-
-.watchAlertTitle {
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: var(--wd-text-primary) !important;
-  margin-bottom: 4px !important;
-}
-
-.watchAlertBody {
-  font-size: 13px;
-  color: var(--wd-text-primary);
-  line-height: 1.5;
-}
-
-.watchAlertTarget {
-  display: inline-block;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--wd-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.watchInvestigateBtn {
-  color: var(--wd-text-primary) !important;
-  text-transform: none !important;
-  font-weight: 600 !important;
-  font-size: 12px !important;
-  border: 1px solid var(--wd-border) !important;
-  padding: 2px 10px !important;
-  &:hover {
-    background: var(--wd-surface-hover) !important;
-    border-color: var(--wd-accent) !important;
-  }
-}
-
-// ── NewsCard ────────────────────────────────────────────────────────────────
+// ── Know (NewsCard) ─────────────────────────────────────────────────────────
 
 .newsCard {
-  background: var(--wd-surface) !important;
-  border: 1px solid var(--wd-border);
-  border-radius: 8px !important;
-  overflow: hidden;
-}
-
-.newsCardBody {
-  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.newsCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
   gap: 8px;
-}
-
-.newsHeadline {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--wd-text-primary);
-  line-height: 1.4;
-  flex-grow: 1;
-}
-
-.newsTimestamp {
-  font-size: 11px;
-  color: var(--wd-text-secondary);
-  white-space: nowrap;
-}
-
-.newsDetail {
-  font-size: 13px;
-  color: var(--wd-text-secondary);
-  line-height: 1.5;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
 }
 
 .newsChipsRow {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 2px;
+  align-items: center;
 }
 
 .newsChip {
-  height: 20px !important;
-  font-size: 10px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.4px !important;
-  background: rgba(74, 158, 255, 0.1) !important;
-  color: var(--wd-text-primary) !important;
-  border: 1px solid rgba(74, 158, 255, 0.3) !important;
+  font-size: 10.5px;
+  border: 0;
+  &:disabled {
+    cursor: default;
+  }
 }
 
 .newsChipClickable {
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
-  &:hover {
-    background: rgba(74, 158, 255, 0.22) !important;
-    border-color: var(--wd-accent) !important;
-  }
 }
 
-// ── NarrativeSection (refined DigestBody) ───────────────────────────────────
+.newsTimestamp {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
 
-.narrativeBand {
-  background: var(--wd-surface);
-  border: 1px solid var(--wd-border);
-  border-radius: 8px;
-  padding: 20px 24px;
+// ── In summary (NarrativeSection) ───────────────────────────────────────────
+
+.narrativeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 68ch;
 }
 
 .narrativeInner {
-  max-width: 700px;
-  margin: 0 auto;
-  color: var(--wd-text-primary);
   font-size: 15px;
   line-height: 1.7;
+  color: var(--wd-text-primary);
+  text-wrap: pretty;
+
+  > :first-child { margin-top: 0; }
+  > :last-child { margin-bottom: 0; }
 
   h1, h2, h3, h4 {
     color: var(--wd-text-primary);
-    margin-top: 18px;
-    margin-bottom: 8px;
+    margin: 18px 0 8px;
     line-height: 1.3;
   }
-  h1 { font-size: 20px; }
-  h2 { font-size: 18px; }
+  h1 { font-size: 18px; }
+  h2 { font-size: 17px; }
   h3 { font-size: 16px; }
   h4 { font-size: 15px; }
 
-  p { margin: 0 0 12px 0; }
-  ul, ol { padding-left: 22px; margin: 0 0 12px 0; }
+  p { margin: 0 0 12px; }
+  ul, ol { padding-left: 22px; margin: 0 0 12px; }
   li { margin-bottom: 4px; }
+  strong { font-weight: 500; }
 
   a {
     color: var(--wd-accent);
-    text-decoration: underline;
     &:hover { color: var(--wd-accent-hover); }
   }
 
   code {
-    background: rgba(255, 255, 255, 0.06);
-    padding: 2px 4px;
-    border-radius: 3px;
+    background: var(--color-neutral-900);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
     font-size: 13px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   }
 
   pre {
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--color-bg);
     padding: 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     overflow-x: auto;
     code { background: transparent; padding: 0; }
   }
@@ -964,7 +831,7 @@
     border-left: 3px solid var(--wd-accent);
     margin: 12px 0;
     padding: 4px 12px;
-    color: var(--wd-text-secondary);
+    color: var(--color-neutral-400);
   }
 
   table {
@@ -979,22 +846,22 @@
     text-align: left;
   }
   th {
-    background: rgba(255, 255, 255, 0.03);
-    font-weight: 600;
+    background: var(--color-neutral-900);
+    font-weight: 500;
   }
 }
 
-.narrativeHeading {
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--wd-text-secondary);
-  margin: 0 0 12px 0 !important;
+// Two lines of the summary (2 × 1.7 line-height) until "Read full digest".
+.narrativeCollapsed {
+  max-height: calc(15px * 1.7 * 2);
+  overflow: hidden;
 }
 
-// Numeric highlighting inside NarrativeSection — coloring "strong" wraps
-// where the raw text starts with +/-. Delta-color exception per dataviz.
+.narrativeToggle {
+  align-self: flex-start;
+  font-size: 13px;
+}
+
 .narrativePositive {
   color: var(--wd-positive);
 }
@@ -1002,127 +869,116 @@
   color: var(--wd-negative);
 }
 
-// ── Widget cards (chart + donut wrappers) ───────────────────────────────────
+// ── Widget cards (trend chart + allocation) ─────────────────────────────────
 
 .widgetCard {
-  background: var(--wd-surface) !important;
-  border: 1px solid var(--wd-border);
-  border-radius: 8px !important;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--wd-surface);
 }
 
 .widgetHeader {
-  padding: 12px 14px 4px;
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  border-bottom: 1px solid transparent;
+  gap: 8px;
 }
 
 .widgetTitle {
-  font-size: 13px !important;
-  font-weight: 600 !important;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  letter-spacing: 0;
   color: var(--wd-text-primary);
-  margin: 0 !important;
-  line-height: 1.3;
 }
 
 .widgetSubtitle {
-  font-size: 11px;
-  color: var(--wd-text-secondary);
+  font-size: 12px;
+  color: var(--color-neutral-500);
 }
 
 .widgetBody {
-  padding: 8px 8px 12px;
-  min-height: 200px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 8px;
 }
 
 .widgetPlaceholder {
-  color: var(--wd-text-secondary);
-  font-size: 13px;
-  text-align: center;
-  padding: 40px 16px;
+  padding: 18px 0;
+  font-size: 13.5px;
+  color: var(--wd-text-primary);
 }
 
 .widgetPlaceholderHint {
-  color: var(--wd-text-muted);
-  font-size: 11px;
-  font-style: italic;
   display: block;
   margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-neutral-500);
 }
 
-// ── Donut legend ────────────────────────────────────────────────────────────
+.widgetFootnote {
+  font-size: 11.5px;
+  color: var(--color-neutral-500);
+}
+
+// ── Allocation donut + legend ───────────────────────────────────────────────
+
+.donutRow {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.donutSvg {
+  width: 120px;
+  height: 120px;
+  flex: none;
+  transform: rotate(-90deg);
+}
 
 .donutLegend {
-  padding: 8px 12px 4px;
+  flex: 1;
+  min-width: 140px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .donutLegendRow {
+  all: unset;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 12.5px;
+
+  &:hover .donutLegendLabel {
+    color: var(--color-accent-200);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--wd-accent);
+    outline-offset: 2px;
+  }
 }
 
 .donutLegendSwatch {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 2px;
-  flex-shrink: 0;
+  flex: none;
 }
 
 .donutLegendLabel {
+  flex: 1;
   color: var(--wd-text-primary);
-  flex-grow: 1;
 }
 
 .donutLegendValue {
-  color: var(--wd-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ──────────────────────────── FE-6 additions ──────────────────────────── */
-
-/* State banner — info/warning/error variants (used by DigestStateBanners
- * and WatchItemCard; they share the surface so visual severity is
- * consistent). */
-
-.stateBanner_info {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wd-accent) 40%, transparent);
-  background: color-mix(in srgb, var(--wd-accent) 7%, var(--wd-surface));
-
-  > i { color: var(--wd-accent); }
-}
-
-.stateBanner_warning {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wd-warning) 40%, transparent);
-  background: color-mix(in srgb, var(--wd-warning) 7%, var(--wd-surface));
-
-  > i { color: var(--wd-warning); }
-}
-
-.stateBanner_error {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wd-negative) 40%, transparent);
-  background: color-mix(in srgb, var(--wd-negative) 7%, var(--wd-surface));
-
-  > i { color: var(--wd-negative); }
-}
-
-.stateBannerBody {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--wd-text-primary);
+  color: var(--color-neutral-400);
 }
 
 /* Kebab menu popover (DigestActions) */
@@ -1210,7 +1066,7 @@
 
 .trendSvg {
   width: 100%;
-  height: 200px;
+  height: 120px;
   display: block;
 }
 
@@ -1218,8 +1074,8 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 12px 10px;
-  font-size: 11px;
+  padding: 0;
+  font-size: 11.5px;
   color: var(--wd-text-secondary);
   flex-wrap: wrap;
 }

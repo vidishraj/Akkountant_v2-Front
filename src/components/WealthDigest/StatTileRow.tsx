@@ -6,12 +6,11 @@ interface StatTileRowProps {
 }
 
 /**
- * FE-6 (ak-jhy8) Nocturne-skinned KPI row container.
- * Layout still driven by `.tileRow` in WealthDigest.module.scss (CSS Grid
- * with 5/2/1-across breakpoints per the Overseer-locked Q3).
+ * ak-x1i5: auto-fit KPI grid (min 160px per tile); the hero tile spans two
+ * columns above 560px, per the design.
  */
 const StatTileRow: React.FC<StatTileRowProps> = ({children}) => {
-    return <div className={style.tileRow}>{children}</div>;
+    return <section className={style.tileRow}>{children}</section>;
 };
 
 export default StatTileRow;

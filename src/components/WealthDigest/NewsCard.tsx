@@ -10,43 +10,40 @@ interface NewsCardProps {
 const CATEGORY_ROUTES = new Set(["stocks", "mf", "nps", "epf", "ppf", "gold"]);
 
 /**
- * FE-6 (ak-jhy8) Nocturne-skinned news card. MUI Chip/Box/Typography dropped;
- * plain divs/spans; chips that name a known asset-category route become
- * clickable navigation targets.
+ * ak-x1i5: design "Know" card — translucent surface, headline, one-to-two
+ * line detail, related-holding tags (asset categories navigate), timestamp
+ * on the right when the BE provides one.
  */
 const NewsCard: React.FC<NewsCardProps> = ({item}) => {
     const navigate = useNavigate();
-    const handleChipClick = (holding: string) => {
-        if (CATEGORY_ROUTES.has(holding)) navigate(`/investments/${holding}`);
-    };
+    const holdings = item.related_holdings ?? [];
 
     return (
         <div className={style.newsCard}>
-            <div className={style.newsCardBody}>
-                <div className={style.newsCardHeader}>
-                    <div className={style.newsHeadline}>{item.headline}</div>
-                    {item.timestamp && <span className={style.newsTimestamp}>{item.timestamp}</span>}
+            <span className={style.insightCardTitle}>{item.headline}</span>
+            {item.detail && <p className={style.insightCardDetail}>{item.detail}</p>}
+            {(holdings.length > 0 || item.timestamp) && (
+                <div className={style.newsChipsRow}>
+                    {holdings.map((h) => {
+                        const clickable = CATEGORY_ROUTES.has(h);
+                        return (
+                            <button
+                                key={h}
+                                type="button"
+                                disabled={!clickable}
+                                onClick={clickable ? () => navigate(`/investments/${h}`) : undefined}
+                                className={`tag tag-neutral ${style.newsChip} ${clickable ? style.newsChipClickable : ""}`}
+                            >
+                                {h.toUpperCase()}
+                            </button>
+                        );
+                    })}
+                    <span className={style.metaSpacer}/>
+                    {item.timestamp && (
+                        <span className={style.newsTimestamp}>{item.timestamp}</span>
+                    )}
                 </div>
-                {item.detail && <div className={style.newsDetail}>{item.detail}</div>}
-                {item.related_holdings && item.related_holdings.length > 0 && (
-                    <div className={style.newsChipsRow}>
-                        {item.related_holdings.map((h) => {
-                            const clickable = CATEGORY_ROUTES.has(h);
-                            return (
-                                <button
-                                    key={h}
-                                    type="button"
-                                    disabled={!clickable}
-                                    onClick={clickable ? () => handleChipClick(h) : undefined}
-                                    className={`${style.newsChip} ${clickable ? style.newsChipClickable : ""}`}
-                                >
-                                    {h.toUpperCase()}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
+            )}
         </div>
     );
 };

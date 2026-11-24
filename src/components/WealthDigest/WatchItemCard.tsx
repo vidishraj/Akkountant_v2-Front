@@ -5,48 +5,59 @@ import style from "./WealthDigest.module.scss";
 
 interface WatchItemCardProps {
     item: DigestWatchItem;
+    onAsk?: () => void;
 }
 
-const SEVERITY_META: Record<DigestWatchItem["severity"], {icon: string; className: string}> = {
-    info: {icon: "ph-info", className: "stateBanner_info"},
-    warning: {icon: "ph-warning-circle", className: "stateBanner_warning"},
-    critical: {icon: "ph-x-circle", className: "stateBanner_error"},
+const SEVERITY_META: Record<
+    DigestWatchItem["severity"],
+    {icon: string; label: string; toneClass: string}
+> = {
+    info: {icon: "ph-info", label: "Info", toneClass: "watchTone_info"},
+    warning: {icon: "ph-warning", label: "Warning", toneClass: "watchTone_warning"},
+    critical: {icon: "ph-warning-octagon", label: "Critical", toneClass: "watchTone_critical"},
 };
 
 /**
- * FE-6 (ak-jhy8) Nocturne-skinned watch-item card. MUI Alert dropped; uses
- * the shared `.stateBanner` surface so watch items visually align with the
- * page's 5 state banners.
+ * ak-x1i5: design "Watch" card — outlined row, severity-coloured filled icon
+ * and uppercase severity label, detail, then "Ask about this" (plus
+ * "Investigate" when the digest names an asset to open).
  */
-const WatchItemCard: React.FC<WatchItemCardProps> = ({item}) => {
+const WatchItemCard: React.FC<WatchItemCardProps> = ({item, onAsk}) => {
     const navigate = useNavigate();
-    const meta = SEVERITY_META[item.severity];
+    const meta = SEVERITY_META[item.severity] ?? SEVERITY_META.info;
+    const tone = style[meta.toneClass as "watchTone_info"];
 
     return (
-        <div
-            role="note"
-            className={`${style.stateBanner} ${style[meta.className as "stateBanner_info"]} ${style.watchAlert}`}
-        >
-            <i className={`ph-fill ${meta.icon}`} aria-hidden/>
-            <div className={style.stateBannerBody}>
-                <div className={style.watchAlertTitle}>{item.title}</div>
-                {item.detail && <div className={style.watchAlertBody}>{item.detail}</div>}
-                {item.investigate_target && (
-                    <span className={style.watchAlertTarget}>
-                        Related: {item.investigate_target.toUpperCase()}
-                    </span>
-                )}
+        <div role="note" className={style.watchCard}>
+            <i className={`ph-fill ${meta.icon} ${style.watchIcon} ${tone}`} aria-hidden/>
+            <div className={style.watchBody}>
+                <div className={style.insightCardHeader}>
+                    <span className={style.insightCardTitle}>{item.title}</span>
+                    <span className={`${style.watchSeverity} ${tone}`}>{meta.label}</span>
+                </div>
+                {item.detail && <p className={style.insightCardDetail}>{item.detail}</p>}
+                <div className={style.watchActions}>
+                    {onAsk && (
+                        <button
+                            type="button"
+                            className={`btn btn-ghost ${style.askLink}`}
+                            onClick={onAsk}
+                        >
+                            Ask about this
+                        </button>
+                    )}
+                    {item.investigate_target && (
+                        <button
+                            type="button"
+                            className={`btn btn-ghost ${style.askLink}`}
+                            onClick={() => navigate(`/investments/${item.investigate_target}`)}
+                        >
+                            Investigate {item.investigate_target.toUpperCase()}
+                            <i className="ph ph-arrow-right" aria-hidden/>
+                        </button>
+                    )}
+                </div>
             </div>
-            {item.investigate_target && (
-                <button
-                    type="button"
-                    className={`btn btn-ghost ${style.watchInvestigateBtn}`}
-                    onClick={() => navigate(`/investments/${item.investigate_target}`)}
-                >
-                    <span>Investigate</span>
-                    <i className="ph ph-arrow-right"/>
-                </button>
-            )}
         </div>
     );
 };

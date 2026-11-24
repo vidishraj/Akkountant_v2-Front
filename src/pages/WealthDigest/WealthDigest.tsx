@@ -4,6 +4,13 @@ import { useMSNContext } from "../../contexts/MSNContext.tsx";
 import { useInvestmentSummaries } from "../../hooks/useInvestmentSummaries.ts";
 import { useWealthDigest } from "../../contexts/WealthDigestContext.tsx";
 import { useAgentChatBridge } from "../../contexts/AgentChatBridgeContext.tsx";
+import { useKite } from "../../contexts/KiteContext.tsx";
+import {
+  refreshReconIssuesCount,
+  setReconIssuesCount,
+  useReconIssuesCount,
+} from "../../services/reconCountStore.ts";
+import ReconciliationDialog from "../../components/ReconciliationDialog/ReconciliationDialog.tsx";
 import {
   WealthDigest as WealthDigestPayload,
   markDigestRead,
@@ -18,7 +25,9 @@ import ActionCard from "../../components/WealthDigest/ActionCard.tsx";
 import WatchItemCard from "../../components/WealthDigest/WatchItemCard.tsx";
 import NewsCard from "../../components/WealthDigest/NewsCard.tsx";
 import InsightsColumn from "../../components/WealthDigest/InsightsColumn.tsx";
-import DigestActions from "../../components/WealthDigest/DigestActions.tsx";
+import DigestActions, {
+  DigestPrompt,
+} from "../../components/WealthDigest/DigestActions.tsx";
 import DigestArchiveModal from "../../components/WealthDigest/DigestArchiveModal.tsx";
 import DigestSkeleton from "../../components/WealthDigest/DigestSkeleton.tsx";
 import {
@@ -86,6 +95,38 @@ function todayInIST(): string {
   return new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Kolkata",
   });
+}
+
+/**
+ * ak-x1i5: "Kite funds" tile (replaces Cash %). Same reading + state
+ * precedence as the Investments "Available funds" tile (ak-oc5s): equity
+ * available live_balance, falling back to cash; defensive on every field.
+ */
+type KiteFundsView = { value: string; sub: string; title?: string; muted: boolean };
+function deriveKiteFunds(kite: ReturnType<typeof useKite>["state"]): KiteFundsView {
+  const n = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const equity = kite.margins.data?.equity;
+  const avail = n(equity?.available?.live_balance) ?? n(equity?.available?.cash);
+  if (!kite.isAuthenticated) {
+    return {
+      value: "—",
+      sub: kite.reconnect.reconnectRequired ? "Session expired · reconnect Kite" : "Connect Kite to see funds",
+      muted: true,
+    };
+  }
+  if (kite.margins.loading || !kite.margins.checked) {
+    return { value: "—", sub: "Loading margins…", muted: true };
+  }
+  if (avail === null) {
+    return { value: "—", sub: "Margins unavailable", muted: true };
+  }
+  return {
+    value: `₹${formatCompact(avail)}`,
+    sub: "Equity available · Kite live",
+    title: `₹${formatCurrency(avail)} available`,
+    muted: false,
+  };
 }
 
 // ak-s74k: derivePortfolioTotal + msnLooksEmpty were replaced by the shared
@@ -243,6 +284,9 @@ const WealthDigest = () => {
   const { digest: latestDigest, loading, error, refresh, markReadLocal } =
     useWealthDigest();
   const { setCommand } = useAgentChatBridge();
+  const { state: kiteState } = useKite();
+  const reconIssuesCount = useReconIssuesCount();
+  const [reconDialogOpen, setReconDialogOpen] = useState(false);
 
   const [pastDigest, setPastDigest] = useState<WealthDigestPayload | null>(
     null
@@ -255,7 +299,7 @@ const WealthDigest = () => {
   const displayed = pastDigest ?? latestDigest;
 
   // Zero fallback is only used by consumers that already treat 0 as "no
-  // data" (Today %, Cash %, allocation donut). The Total tile gates on
+  // data" (Today %, allocation donut). The Total tile gates on
   // portfolioTotals directly.
   const totals = useMemo(
     () =>
@@ -289,6 +333,8 @@ const WealthDigest = () => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - ACTION_DONE_TTL_DAYS);
     sweepStaleActionDoneKeys(cutoff.toISOString().slice(0, 10));
+    // Shared open-issue count (Home strip + header bell use the same store).
+    void refreshReconIssuesCount();
   }, []);
 
   // ── Auto mark-read on visit (unchanged from Wave 2) ───────────────────────
@@ -341,6 +387,14 @@ const WealthDigest = () => {
     navigate("/investments");
   };
 
+  // ak-x1i5: suggested questions / "Ask about this" go to the Investment
+  // Assistant (hosted on /investments) as a user message — same bridge
+  // contract as Home's omni bar.
+  const askAssistant = (text: string) => {
+    setCommand({ type: "send_message", payload: text, timestamp: Date.now() });
+    navigate("/investments");
+  };
+
   const handleMarkRead = async () => {
     if (!displayed) return;
     setMarkReadInFlight(true);
@@ -382,18 +436,19 @@ const WealthDigest = () => {
 
   // ── Rendering branches ────────────────────────────────────────────────────
 
-  if (error?.code === "not_configured") {
+  if (
+    !pastDigest &&
+    (error?.code === "not_configured" || error?.code === "not_generated")
+  ) {
     return (
       <div className={wdStyle.wealthDigestRoot}>
-        <DigestNotConfigured />
-      </div>
-    );
-  }
-
-  if (error?.code === "not_generated") {
-    return (
-      <div className={wdStyle.wealthDigestRoot}>
-        <DigestZeroEmpty />
+        <DigestHeader date={todayIso} onOpenHistory={() => setArchiveOpen(true)} />
+        {error.code === "not_configured" ? <DigestNotConfigured /> : <DigestZeroEmpty />}
+        <DigestArchiveModal
+          open={archiveOpen}
+          onClose={() => setArchiveOpen(false)}
+          onSelectDigest={handleSelectPastDigest}
+        />
       </div>
     );
   }
@@ -402,95 +457,108 @@ const WealthDigest = () => {
     return <DigestSkeleton />;
   }
 
-  if (error && !latestDigest) {
-    return (
-      <div className={wdStyle.wealthDigestRoot}>
-        <DigestHeader
-          date={null}
-          onOpenHistory={() => setArchiveOpen(true)}
-        />
-        <DigestTransientErrorBanner
-          message={error.message}
-          onRetry={() => void refresh()}
-        />
-      </div>
-    );
-  }
-
   const alreadyRead =
     !!displayed &&
     (!!displayed.read_at ||
       (displayed === latestDigest && !latestDigest?.read_at));
 
-  const hasActions = (displayed?.actions?.length ?? 0) > 0;
-  const hasWatchItems = (displayed?.watch_items?.length ?? 0) > 0;
-  const hasNews = (displayed?.news?.length ?? 0) > 0;
+  const actions = displayed?.actions ?? [];
+  const watchItems = displayed?.watch_items ?? [];
+  const news = displayed?.news ?? [];
   const hasNarrative = !!displayed?.text;
+  const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const sortedActions = [...actions].sort(
+    (a, b) => (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3)
+  );
+  const doneCount = actions.filter((a) => actionsDone[a.id]).length;
+
+  // Suggested follow-ups: a fixed opener + one grounded in the digest's top
+  // watch item (or a generic day-move question when there is none).
+  const topWatch =
+    watchItems.find((w) => w.severity === "critical") ??
+    watchItems.find((w) => w.severity === "warning") ??
+    watchItems[0];
+  const digestPrompts: DigestPrompt[] = displayed
+    ? [
+        "What should I act on first today?",
+        topWatch
+          ? `Tell me more about "${topWatch.title}"`
+          : "What moved my portfolio today?",
+      ].map((label) => ({ label, onClick: () => askAssistant(label) }))
+    : [];
+
+  const kiteFunds = deriveKiteFunds(kiteState);
+  const signed = (v: number) => `${v >= 0 ? "+" : "−"}`;
 
   return (
     <div className={wdStyle.wealthDigestRoot}>
       <DigestHeader
-        date={displayed?.date ?? null}
+        date={displayed?.date ?? todayIso}
         generatedAt={displayed?.generated_at ?? null}
         onOpenHistory={() => setArchiveOpen(true)}
         viewingPast={!!pastDigest}
         onBackToToday={pastDigest ? handleBackToToday : undefined}
       />
 
-      {/* State banners */}
+      {/* State banners (hidden while viewing an archived digest, per design) */}
       {!pastDigest && isStaleForToday && (
-        <DigestEmptyBanner latestDate={displayed?.date ?? null} />
+        <DigestEmptyBanner latestDate={latestDigest?.date ?? null} />
       )}
-      {displayed?.last_error && (
+      {!pastDigest && displayed?.last_error && (
         <DigestErrorBanner
           errorAt={displayed.last_error.at}
           errorMessage={displayed.last_error.message}
         />
       )}
-      {error && latestDigest && (
+      {/* Transient fetch failure, with or without a cached digest: the live
+          tiles still render below (design: "tiles are unaffected"). */}
+      {error && !pastDigest && (
         <DigestTransientErrorBanner
           message={error.message}
           onRetry={() => void refresh()}
         />
       )}
 
-      {/* Tile row — full-width above the 2-col split */}
       <StatTileRow>
         <StatTile
+          hero
           label="Total"
           value={portfolioTotals ? `₹${formatCompact(totals.currentValue)}` : "—"}
-          valueTooltip={
+          valueTone={portfolioTotals ? undefined : "muted"}
+          title={
             portfolioTotals
-              ? `₹${formatCurrency(totals.currentValue)}`
+              ? `₹${formatCurrency(totals.currentValue)} · invested ₹${formatCurrency(totals.totalInvestment)}`
               : portfolioReadiness === "error"
                 ? "Some holdings failed to load — total unknown"
                 : "Loading holdings…"
           }
-          subtitle={
-            !portfolioTotals
-              ? portfolioReadiness === "error"
-                ? "Couldn't load all holdings"
-                : "Loading holdings…"
-              : totals.totalInvestment !== 0
-                ? `Invested ₹${formatCompact(totals.totalInvestment)}${portfolioStale ? " · may be stale" : ""}`
-                : portfolioStale
-                  ? "May be stale"
-                  : undefined
+          sub={
+            !portfolioTotals ? (
+              portfolioReadiness === "error" ? "Couldn't load all holdings" : "Loading holdings…"
+            ) : (
+              <>
+                Invested ₹{formatCompact(totals.totalInvestment)}
+                {totals.totalInvestment !== 0 && (
+                  <>
+                    {" · "}
+                    <span
+                      className={
+                        totals.profit > 0
+                          ? wdStyle.textPositive
+                          : totals.profit < 0
+                            ? wdStyle.textNegative
+                            : undefined
+                      }
+                    >
+                      {signed(totals.profit)}
+                      {Math.abs(totals.profitPercentage).toFixed(2)}%
+                    </span>
+                  </>
+                )}
+                {portfolioStale && " · may be stale"}
+              </>
+            )
           }
-          delta={
-            portfolioTotals
-              ? {
-                  text: `${totals.profit >= 0 ? "+" : ""}${totals.profitPercentage.toFixed(2)}%`,
-                  polarity:
-                    totals.profit === 0
-                      ? "neutral"
-                      : totals.profit > 0
-                        ? "positive"
-                        : "negative",
-                }
-              : undefined
-          }
-          hero
           onClick={() => navigate("/investments")}
           ariaLabel={
             portfolioTotals
@@ -503,44 +571,44 @@ const WealthDigest = () => {
           label="Today"
           value={
             movers.hasData
-              ? `${movers.totalDayChange >= 0 ? "+" : ""}₹${formatCompact(movers.totalDayChange)}`
+              ? `${signed(movers.totalDayChange)}₹${formatCompact(Math.abs(movers.totalDayChange))}`
               : "—"
           }
-          valueTooltip={
+          valueTone={
+            !movers.hasData
+              ? "muted"
+              : movers.totalDayChange > 0
+                ? "positive"
+                : movers.totalDayChange < 0
+                  ? "negative"
+                  : undefined
+          }
+          title={
             movers.hasData
-              ? `${movers.totalDayChange >= 0 ? "+" : ""}₹${formatCurrency(movers.totalDayChange)}`
-              : undefined
+              ? `${signed(movers.totalDayChange)}₹${formatCurrency(Math.abs(movers.totalDayChange))}`
+              : "Day change"
           }
-          delta={
+          sub={
             movers.hasData && totals.currentValue > 0
-              ? {
-                  text: `${movers.totalDayChange >= 0 ? "+" : ""}${((movers.totalDayChange / totals.currentValue) * 100).toFixed(2)}%`,
-                  polarity:
-                    movers.totalDayChange === 0
-                      ? "neutral"
-                      : movers.totalDayChange > 0
-                        ? "positive"
-                        : "negative",
-                }
-              : undefined
+              ? `${signed(movers.totalDayChange)}${Math.abs((movers.totalDayChange / totals.currentValue) * 100).toFixed(2)}% · day change`
+              : "Day change"
           }
-          subtitle="Day change"
           onClick={() => navigate("/investments")}
           ariaLabel="Today's day change, drill into investments"
         />
 
         <StatTile
           label="Top mover"
-          value={movers.top ? movers.top.name : "—"}
-          subtitle={movers.top ? "Best-performing today" : "No movement"}
-          delta={
+          value={
             movers.top
-              ? {
-                  text: `${movers.top.deltaPct >= 0 ? "+" : ""}${movers.top.deltaPct.toFixed(2)}%`,
-                  polarity: "positive",
-                }
-              : undefined
+              ? `${signed(movers.top.deltaPct)}${Math.abs(movers.top.deltaPct).toFixed(2)}%`
+              : "—"
           }
+          valueTone={
+            !movers.top ? "muted" : movers.top.deltaPct >= 0 ? "positive" : "negative"
+          }
+          title={movers.top ? `${movers.top.name} · best-performing holding today` : undefined}
+          sub={movers.top ? `${movers.top.name} · best today` : "No movement"}
           onClick={
             movers.top
               ? () => navigate(`/investments/${movers.top!.category}`)
@@ -551,51 +619,57 @@ const WealthDigest = () => {
 
         <StatTile
           label="Worst mover"
-          value={movers.worst ? movers.worst.name : "—"}
-          subtitle={movers.worst ? "Weakest today" : "No movement"}
-          delta={
+          value={
             movers.worst
-              ? {
-                  text: `${movers.worst.deltaPct >= 0 ? "+" : ""}${movers.worst.deltaPct.toFixed(2)}%`,
-                  polarity:
-                    movers.worst.deltaPct >= 0 ? "positive" : "negative",
-                }
-              : undefined
+              ? `${signed(movers.worst.deltaPct)}${Math.abs(movers.worst.deltaPct).toFixed(2)}%`
+              : "—"
           }
+          valueTone={
+            !movers.worst ? "muted" : movers.worst.deltaPct >= 0 ? "positive" : "negative"
+          }
+          title={movers.worst ? `${movers.worst.name} · weakest holding today` : undefined}
+          sub={movers.worst ? `${movers.worst.name} · weakest today` : "No movement"}
           onClick={
             movers.worst
               ? () => navigate(`/investments/${movers.worst!.category}`)
               : undefined
           }
-          ariaLabel={
-            movers.worst ? `Worst mover ${movers.worst.name}` : undefined
-          }
+          ariaLabel={movers.worst ? `Worst mover ${movers.worst.name}` : undefined}
         />
 
         <StatTile
-          label="Cash %"
+          label="Kite funds"
+          value={kiteFunds.value}
+          valueTone={kiteFunds.muted ? "muted" : undefined}
+          title={kiteFunds.title ?? "Available cash from Kite margins"}
+          sub={kiteFunds.sub}
+          onClick={() => navigate("/investments")}
+          ariaLabel="Kite funds, open investments"
+        />
+
+        <StatTile
+          label="Reconciliation"
           value={
-            totals.currentValue > 0
-              ? `${(
-                  ((state.summaries["ppf"]?.net || 0) /
-                    Math.max(totals.currentValue, 1)) *
-                    100
-                ).toFixed(1)}%`
-              : "—"
+            reconIssuesCount === null
+              ? "—"
+              : reconIssuesCount === 0
+                ? "All clear"
+                : `${reconIssuesCount} open`
           }
-          subtitle="Of portfolio"
-          delta={{ text: "in cash-equivalent", polarity: "neutral" }}
-          onClick={() => navigate("/transactions")}
-          ariaLabel="Cash percentage, drill into transactions"
+          valueTone={reconIssuesCount === null ? "muted" : undefined}
+          title="Unmatched Kite trades"
+          sub="Zerodha vs statement"
+          onClick={() => setReconDialogOpen(true)}
+          ariaLabel="Reconciliation issues, open review"
         />
       </StatTileRow>
 
-      {/* 2-col main body */}
       <div className={wdStyle.mainGrid}>
-        <div className={wdStyle.digestColumn}>
-          {displayed && (
+        {displayed && (
+          <div className={wdStyle.digestColumn}>
             <DigestActions
               alreadyRead={alreadyRead || markReadInFlight}
+              prompts={digestPrompts}
               onAskFollowUp={handleAskFollowUp}
               onMarkRead={handleMarkRead}
               onCopy={handleCopy}
@@ -603,62 +677,95 @@ const WealthDigest = () => {
               disabled={markReadInFlight}
               sticky
             />
-          )}
 
-          {hasActions && (
-            <div className={wdStyle.section}>
-              <h2 className={wdStyle.sectionHeading}>Do</h2>
-              <div className={wdStyle.cardStack}>
-                {displayed!.actions.map((a) => (
+            <section className={wdStyle.section}>
+              <div className={wdStyle.sectionHead}>
+                <h2 className={wdStyle.sectionHeading}>Do</h2>
+                <span className={wdStyle.sectionMeta}>
+                  {actions.length} suggested · {doneCount} done
+                </span>
+              </div>
+              {sortedActions.length > 0 ? (
+                sortedActions.map((a) => (
                   <ActionCard
                     key={a.id}
                     action={a}
                     done={!!actionsDone[a.id]}
                     onToggleDone={handleToggleActionDone}
+                    onAsk={() => askAssistant(`Tell me more about "${a.title}"`)}
                   />
-                ))}
+                ))
+              ) : (
+                <div className={wdStyle.sectionEmpty}>
+                  <i className="ph ph-check-square" aria-hidden />
+                  <span>No actions suggested in this digest.</span>
+                </div>
+              )}
+            </section>
+
+            <section className={wdStyle.section}>
+              <div className={wdStyle.sectionHead}>
+                <h2 className={wdStyle.sectionHeading}>Watch</h2>
+                <span className={wdStyle.sectionMeta}>Keep an eye on</span>
               </div>
-            </div>
-          )}
+              {watchItems.length > 0 ? (
+                watchItems.map((w) => (
+                  <WatchItemCard
+                    key={w.id}
+                    item={w}
+                    onAsk={() => askAssistant(`Tell me more about "${w.title}"`)}
+                  />
+                ))
+              ) : (
+                <div className={wdStyle.sectionEmpty}>
+                  <i className="ph ph-eye" aria-hidden />
+                  <span>Nothing flagged to watch in this digest.</span>
+                </div>
+              )}
+            </section>
 
-          {hasWatchItems && (
-            <div className={wdStyle.section}>
-              <h2 className={wdStyle.sectionHeading}>Watch</h2>
-              <div className={wdStyle.cardStack}>
-                {displayed!.watch_items.map((w) => (
-                  <WatchItemCard key={w.id} item={w} />
-                ))}
+            <section className={wdStyle.section}>
+              <div className={wdStyle.sectionHead}>
+                <h2 className={wdStyle.sectionHeading}>Know</h2>
+                <span className={wdStyle.sectionMeta}>Market context, with sources</span>
               </div>
-            </div>
-          )}
+              {news.length > 0 ? (
+                news.map((n) => <NewsCard key={n.id} item={n} />)
+              ) : (
+                <div className={wdStyle.sectionEmpty}>
+                  <i className="ph ph-newspaper" aria-hidden />
+                  <span>
+                    No market context in this digest. Once the digest is web-grounded,
+                    each item here links to its source.
+                  </span>
+                </div>
+              )}
+            </section>
 
-          {hasNews && (
-            <div className={wdStyle.section}>
-              <h2 className={wdStyle.sectionHeading}>Know</h2>
-              <div className={wdStyle.cardStack}>
-                {displayed!.news.map((n) => (
-                  <NewsCard key={n.id} item={n} />
-                ))}
-              </div>
-            </div>
-          )}
+            {hasNarrative && <NarrativeSection text={displayed!.text} />}
+          </div>
+        )}
 
-          {hasNarrative && <NarrativeSection text={displayed!.text} />}
-        </div>
-
-        <div className={wdStyle.insightsColumnSlot}>
+        <aside className={wdStyle.insightsColumnSlot}>
           <InsightsColumn
             allocationSlices={allocationSlices}
             totalCurrentValue={totals.currentValue}
           />
-        </div>
+        </aside>
       </div>
 
-      {/* Archive modal */}
       <DigestArchiveModal
         open={archiveOpen}
         onClose={() => setArchiveOpen(false)}
         onSelectDigest={handleSelectPastDigest}
+      />
+
+      <ReconciliationDialog
+        open={reconDialogOpen}
+        onClose={() => setReconDialogOpen(false)}
+        onResolved={() => {
+          setReconIssuesCount((prev) => (prev === null ? null : Math.max(0, prev - 1)));
+        }}
       />
 
       {snackbarMessage && (
